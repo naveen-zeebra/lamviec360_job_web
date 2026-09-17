@@ -13,6 +13,7 @@ import Check from "../../../components/ds/Check";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { JOBS, COMPANIES, FILTER_VI } from "../../../lib/data";
 import { isSaved, toggleSavedJob } from "../../../lib/seekerStore";
+import { fetchPublicJobs } from "../../../lib/api/publicApi";
 
 const TYPES = ["Full-time", "Part-time", "Contract", "Internship"];
 const MODES = [
@@ -39,22 +40,56 @@ export default function JobsClient() {
   const [sort, setSort] = useState("recent");
   const [page, setPage] = useState(1);
   const [saved, setSaved] = useState({});
+  const [jobList, setJobList] = useState(JOBS);
   const [toast, setToast] = useToast();
 
   useEffect(() => {
+    async function loadBackendJobs() {
+      try {
+        const data = await fetchPublicJobs();
+        if (Array.isArray(data) && data.length) {
+          const transformed = data.map((j) => ({
+            id: j.id,
+            title: j.title,
+            titleVi: j.title,
+            company: j.company_name || "ABC Technologies",
+            verified: true,
+            location: j.location,
+            locationVi: j.location,
+            salary: j.salary_min && j.salary_max ? `${Math.round(j.salary_min / 1000000)}M – ${Math.round(j.salary_max / 1000000)}M VND` : "Negotiable",
+            type: j.type,
+            mode: (j.location || "").toLowerCase().includes("remote") ? "Remote" : "On-site",
+            level: "Mid-level",
+            industry: j.department || "Technology",
+            posted: j.created_at || "Recently",
+            postedVi: j.created_at || "Gần đây",
+            skills: j.skills || [],
+          }));
+          const existingIds = new Set(transformed.map((t) => String(t.id)));
+          const combined = [...transformed, ...JOBS.filter((j) => !existingIds.has(String(j.id)))];
+          setJobList(combined);
+        }
+      } catch (err) {
+        console.warn("Could not load backend public jobs:", err.message);
+      }
+    }
+    loadBackendJobs();
+  }, []);
+
+  useEffect(() => {
     const map = {};
-    JOBS.forEach((j) => {
+    jobList.forEach((j) => {
       map[j.id] = isSaved(j.id);
     });
     setSaved(map);
-  }, []);
+  }, [jobList]);
 
   const toggle = (list, set, v) => {
     set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
     setPage(1);
   };
 
-  let jobs = JOBS.filter((j) => {
+  let jobs = jobList.filter((j) => {
     const hay = (j.title + " " + j.titleVi + " " + j.company + " " + j.skills.join(" ")).toLowerCase();
     if (q && !hay.includes(q.toLowerCase())) return false;
     if (loc && !(j.location + " " + j.locationVi).toLowerCase().includes(loc.toLowerCase())) return false;

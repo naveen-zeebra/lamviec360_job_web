@@ -49,19 +49,23 @@ export default function ApplicationDetailClient({ id }) {
     );
   }
 
-  const job = JOBS.find((j) => j.id === app.jobId);
+  const job = JOBS.find((j) => String(j.id) === String(app.jobId)) || {
+    title: app.jobTitle || "Job Position",
+    titleVi: app.jobTitle || "Vị trí tuyển dụng",
+    company: app.company || "Company",
+  };
   const isVi = lang === "VN" || lang === "VI";
   const title = job ? (isVi ? job.titleVi : job.title) : "";
   const isRejected = app.stage === "Rejected";
   const isWithdrawn = app.stage === "Withdrawn";
   const currentIndex = HAPPY_PATH.indexOf(app.stage);
-  const reachedDate = (stage) => (app.timeline.find((tl) => tl.stage === stage) || {}).date;
+  const reachedDate = (stage) => ((app.timeline || []).find((tl) => tl.stage === stage) || {}).date;
   const answers = app.answers && Object.keys(app.answers).length ? app.answers : null;
   const canWithdraw = !app.closed && !isRejected && !isWithdrawn;
 
-  const doWithdraw = () => {
-    withdrawApplication(app.id);
-    setApp(getApplication(app.id));
+  const doWithdraw = async () => {
+    const updated = await withdrawApplication(app.id);
+    setApp(updated || getApplication(app.id));
     setConfirmWithdraw(false);
     setToast(t(lang, "Application withdrawn"));
   };

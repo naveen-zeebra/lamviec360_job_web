@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import Icon from "../../../components/ds/Icon";
@@ -9,18 +11,25 @@ import { useLang, t } from "../../../utils/lang";
 
 export default function ForgotPasswordClient() {
   const [lang, setLang] = useLang();
-  const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [err, setErr] = useState("");
+  const [submittedEmail, setSubmittedEmail] = useState("");
 
-  const submit = (e) => {
-    e.preventDefault();
-    if (!email.trim() || !email.includes("@")) {
-      setErr(t(lang, "Enter a valid email address."));
-      return;
-    }
-    setSent(true);
-  };
+  const forgotSchema = Yup.object().shape({
+    email: Yup.string()
+      .email(t(lang, "Enter a valid email address."))
+      .required(t(lang, "Enter a valid email address.")),
+  });
+
+  const formik = useFormik({
+    initialValues: {
+      email: "",
+    },
+    validationSchema: forgotSchema,
+    onSubmit: (values) => {
+      setSubmittedEmail(values.email);
+      setSent(true);
+    },
+  });
 
   return (
     <>
@@ -33,9 +42,11 @@ export default function ForgotPasswordClient() {
                 <Icon name="mail-check" size={28} />
               </div>
               <div>
-                <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>{t(lang, "Check your email")}</h1>
+                <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>
+                  {t(lang, "Check your email")}
+                </h1>
                 <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-relaxed)" }}>
-                  {t(lang, "If an account exists for")} <strong>{email}</strong>, {t(lang, "a reset link has been sent.")}
+                  {t(lang, "If an account exists for")} <strong>{submittedEmail}</strong>, {t(lang, "a reset link has been sent.")}
                 </p>
               </div>
               <Link href="/reset-password">
@@ -50,35 +61,48 @@ export default function ForgotPasswordClient() {
                 <Icon name="key-round" size={28} />
               </div>
               <div>
-                <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>{t(lang, "Forgot your password?")}</h1>
+                <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>
+                  {t(lang, "Forgot your password?")}
+                </h1>
                 <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-relaxed)" }}>
                   {t(lang, "Enter your email and we'll send you a link to reset it.")}
                 </p>
               </div>
-              <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <Input
-                  label={t(lang, "Email")}
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setErr("");
-                  }}
-                  placeholder="name@example.com"
-                />
-                {err && (
-                  <p className="lv-error" role="alert">
+              <form onSubmit={formik.handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div>
+                  <Input
+                    id="email"
+                    name="email"
+                    label={t(lang, "Email")}
+                    type="email"
+                    value={formik.values.email}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    error={formik.touched.email && formik.errors.email}
+                    placeholder="name@example.com"
+                  />
+                </div>
+
+                {formik.status && (
+                  <p className="lv-error" role="alert" style={{ color: "#dc2626", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
                     <Icon name="alert-circle" size={16} />
-                    <span>{err}</span>
+                    <span>{formik.status}</span>
                   </p>
                 )}
-                <Button type="submit" variant="primary" size="lg" style={{ width: "100%", justifyContent: "center" }}>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  disabled={formik.isSubmitting}
+                  style={{ width: "100%", justifyContent: "center" }}
+                >
                   {t(lang, "Send Reset Link")}
                 </Button>
               </form>
             </>
           )}
-          <div style={{ textAlign: "center", fontSize: "var(--text-sm)" }}>
+          <div style={{ textAlign: "center", fontSize: "var(--text-sm)", marginTop: 12 }}>
             <Link href="/login" style={{ fontWeight: 600 }}>
               {t(lang, "Back to Login")}
             </Link>

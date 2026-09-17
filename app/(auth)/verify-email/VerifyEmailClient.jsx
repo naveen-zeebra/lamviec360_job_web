@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import Icon from "../../../components/ds/Icon";
@@ -16,8 +18,6 @@ export default function VerifyEmailClient() {
   const [lang, setLang] = useLang();
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [err, setErr] = useState("");
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [toast, setToast] = useToast();
 
@@ -31,19 +31,34 @@ export default function VerifyEmailClient() {
     return () => clearTimeout(id);
   }, [seconds]);
 
-  const submit = (e) => {
-    e.preventDefault();
-    if (code.length !== 6) {
-      setErr(t(lang, "Enter the 6-digit code sent to your email."));
-      return;
-    }
-    verifyEmail();
-    router.push("/onboarding");
-  };
+  const otpSchema = Yup.object().shape({
+    code: Yup.string()
+      .length(6, t(lang, "Enter the 6-digit code sent to your email."))
+      .required(t(lang, "Enter the 6-digit code sent to your email.")),
+  });
+
+  const formik = useFormik({
+    initialValues: {
+      code: "",
+    },
+    validationSchema: otpSchema,
+    onSubmit: async (values, { setSubmitting, setStatus }) => {
+      setStatus(null);
+      try {
+        await verifyEmail(email, values.code);
+        setToast(t(lang, "Email verified successfully!"));
+        setTimeout(() => router.push("/onboarding"), 800);
+      } catch (error) {
+        setStatus(error.message || t(lang, "Invalid verification code. (Hint: Use 123456)"));
+      } finally {
+        setSubmitting(false);
+      }
+    },
+  });
 
   const resend = () => {
     setSeconds(RESEND_SECONDS);
-    setToast(t(lang, "A new code has been sent"));
+    setToast(t(lang, "A new code has been sent (Use 123456 in dev mode)"));
   };
 
   return (
@@ -55,29 +70,48 @@ export default function VerifyEmailClient() {
             <Icon name="mail-check" size={28} />
           </div>
           <div>
-            <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>{t(lang, "Verify your email")}</h1>
+            <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>
+              {t(lang, "Verify your email")}
+            </h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-relaxed)" }}>
               {t(lang, "We sent a 6-digit code to")} <strong>{email || t(lang, "your email")}</strong>.
             </p>
           </div>
-          <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          <form onSubmit={formik.handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <OtpInput
-              value={code}
+              value={formik.values.code}
               onChange={(v) => {
-                setCode(v);
-                setErr("");
+                formik.setFieldValue("code", v);
+                formik.setStatus(null);
               }}
             />
-            {err && (
-              <p className="lv-error" role="alert">
-                <Icon name="alert-circle" size={16} />
-                <span>{err}</span>
+
+            {formik.touched.code && formik.errors.code && (
+              <p className="lv-error" role="alert" style={{ color: "#dc2626", fontSize: 12, display: "flex", alignItems: "center", gap: 4, justifyContent: "center" }}>
+                <Icon name="alert-circle" size={14} />
+                <span>{formik.errors.code}</span>
               </p>
             )}
-            <Button type="submit" variant="primary" size="lg" style={{ width: "100%", justifyContent: "center" }}>
-              {t(lang, "Verify Email")}
+
+            {formik.status && (
+              <p className="lv-error" role="alert" style={{ color: "#dc2626", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                <Icon name="alert-circle" size={16} />
+                <span>{formik.status}</span>
+              </p>
+            )}
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              disabled={formik.isSubmitting}
+              style={{ width: "100%", justifyContent: "center" }}
+            >
+              {formik.isSubmitting ? t(lang, "Verifying...") : t(lang, "Verify Email")}
             </Button>
           </form>
+
           <div style={{ textAlign: "center", fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
             {seconds > 0 ? (
               <span>

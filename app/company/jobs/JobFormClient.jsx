@@ -111,19 +111,23 @@ function JobForm({ mode, jobId }) {
     return Object.keys(e).length === 0;
   };
 
-  const persist = (status) => {
+  const persist = async (status) => {
     if (!validate()) {
       setToast(t(lang, "Please fix the highlighted fields."));
       return;
     }
-    if (status === "Published" && mode === "new" && quota.limit !== Infinity && quota.remaining <= 0) {
+    if (status === "Published" && quota && quota.remaining <= 0) {
       setShowUpgrade(true);
       return;
     }
-    const saved = saveJob(mode === "edit" ? { ...form, id: jobId } : form);
-    if (status) setJobStatus(saved.id, status);
-    setToast(t(lang, status === "Published" ? "Job published" : "Draft saved"));
-    setTimeout(() => router.push("/company/jobs"), 700);
+    try {
+      const saved = await saveJob(mode === "edit" ? { ...form, id: jobId } : form);
+      if (status && saved?.id) await setJobStatus(saved.id, status);
+      setToast(t(lang, status === "Published" ? "Job published" : "Draft saved"));
+      setTimeout(() => router.push("/company/jobs"), 700);
+    } catch (err) {
+      setToast(t(lang, err.message || "Failed to save job"));
+    }
   };
 
   const runAi = () => {

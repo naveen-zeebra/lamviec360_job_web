@@ -86,8 +86,8 @@ export default function InterviewDetailClient({ id }) {
   };
   useEffect(load, [id]);
 
-  const respond = (status, note) => {
-    respondToInterview(id, status, note);
+  const respond = async (status, note) => {
+    await respondToInterview(id, status, note);
     setDeclineOpen(false);
     setDeclineNote("");
     setState((s) => ({ ...s, iv: getInterviewByApplication(id), app: getApplication(id) }));
@@ -121,10 +121,14 @@ export default function InterviewDetailClient({ id }) {
     );
   }
 
-  const job = JOBS.find((j) => j.id === app.jobId);
+  const job = (app && JOBS.find((j) => String(j.id) === String(app.jobId))) || {
+    title: app?.jobTitle || "Interview",
+    titleVi: app?.jobTitle || "Phỏng vấn",
+    company: app?.company || "Company",
+  };
   const title = job ? (isVi ? job.titleVi : job.title) : t(lang, "Interview");
   const isInvited = iv.status === "invited";
-  const startMs = new Date(iv.at.replace(" ", "T")).getTime();
+  const startMs = new Date((iv.at || "").replace(" ", "T")).getTime();
   const withinJoinWindow = Math.abs(Date.now() - startMs) <= 15 * 60000;
 
   return (

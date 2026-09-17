@@ -17,6 +17,7 @@ import {
   getQuota,
   JOB_STATUSES,
   can,
+  syncCompanyWithBackend,
 } from "../../../lib/companyStore";
 
 const pageHead = "mb-6 flex flex-wrap items-start justify-between gap-4";
@@ -47,11 +48,13 @@ export default function JobsManageClient() {
 
   useEffect(() => {
     setRole(getAuth().role);
-    const timer = setTimeout(() => {
-      refresh();
-      setReady(true);
-    }, 250);
-    return () => clearTimeout(timer);
+    refresh();
+    setReady(true);
+    syncCompanyWithBackend().then(refresh).catch(console.warn);
+    if (typeof window !== "undefined") {
+      window.addEventListener("lv360-store", refresh);
+      return () => window.removeEventListener("lv360-store", refresh);
+    }
   }, []);
 
   const editable = can(role, "jobs.manage");
@@ -60,17 +63,17 @@ export default function JobsManageClient() {
     () =>
       jobs.filter(
         (j) =>
-          (!q || j.title.toLowerCase().includes(q.toLowerCase()) || j.department.toLowerCase().includes(q.toLowerCase())) &&
+          (!q || j.title.toLowerCase().includes(q.toLowerCase()) || (j.department || "").toLowerCase().includes(q.toLowerCase())) &&
           (!status || j.status === status)
       ),
     [jobs, q, status]
   );
 
-  const act = (id, fn, msg) => {
-    fn(id);
+  const act = async (id, fn, msg) => {
+    await fn(id);
     setMenuFor(null);
     refresh();
-    setToast(t(lang, msg));
+    setToast(msg);
   };
 
   if (!ready) {

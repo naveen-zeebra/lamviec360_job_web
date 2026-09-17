@@ -1,7 +1,20 @@
 "use client";
 import { useState } from "react";
 
-export default function Input({ label, placeholder, type = "text", value, onChange, error, icon, iconRight, onIconRightClick, size = "md" }) {
+export default function Input({
+  label,
+  placeholder,
+  type = "text",
+  value,
+  onChange,
+  onBlur,
+  error,
+  icon,
+  iconRight,
+  onIconRightClick,
+  size = "md",
+  ...rest
+}) {
   const [focused, setFocused] = useState(false);
   return (
     <div className="flex flex-col gap-1.5 font-body">
@@ -17,11 +30,19 @@ export default function Input({ label, placeholder, type = "text", value, onChan
         <input
           type={type}
           placeholder={placeholder}
-          value={value}
+          value={value ?? ""}
           onChange={onChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={(e) => {
+            setFocused(true);
+            rest.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+            rest.onBlur?.(e);
+          }}
           className="flex-1 border-none bg-transparent font-body text-base text-ink outline-none"
+          {...rest}
         />
         {iconRight && (
           <span className="flex cursor-pointer items-center" onClick={onIconRightClick}>

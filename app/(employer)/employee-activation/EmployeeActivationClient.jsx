@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import Icon from "../../../components/ds/Icon";
@@ -33,24 +35,35 @@ export default function EmployeeActivationClient() {
   const email = params.get("email") || "duc.hoang@abctech.vn";
   const role = params.get("role") || "HR / Recruiter";
   const invStatus = params.get("status") || "Valid";
-
-  const [pw, setPw] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [agree, setAgree] = useState(false);
-  const [err, setErr] = useState("");
-  const [done, setDone] = useState(false);
-  const s = strength(pw);
   const valid = invStatus === "Valid";
 
-  const submit = (e) => {
-    e.preventDefault();
-    if (pw.length < 8) return setErr(t(lang, "Password must be at least 8 characters."));
-    if (pw !== confirm) return setErr(t(lang, "Passwords do not match."));
-    if (!agree) return setErr(t(lang, "Please accept the terms to continue."));
-    login();
-    setDone(true);
-    setTimeout(() => router.push("/company/overview"), 1400);
-  };
+  const [done, setDone] = useState(false);
+
+  const activationSchema = Yup.object().shape({
+    pw: Yup.string()
+      .min(8, t(lang, "Password must be at least 8 characters."))
+      .required(t(lang, "Password must be at least 8 characters.")),
+    confirm: Yup.string()
+      .oneOf([Yup.ref("pw"), null], t(lang, "Passwords do not match."))
+      .required(t(lang, "Please confirm your password.")),
+    agree: Yup.boolean().oneOf([true], t(lang, "Please accept the terms to continue.")),
+  });
+
+  const formik = useFormik({
+    initialValues: {
+      pw: "",
+      confirm: "",
+      agree: false,
+    },
+    validationSchema: activationSchema,
+    onSubmit: async () => {
+      login();
+      setDone(true);
+      setTimeout(() => router.push("/company/overview"), 1400);
+    },
+  });
+
+  const s = strength(formik.values.pw);
 
   return (
     <>
@@ -104,10 +117,20 @@ export default function EmployeeActivationClient() {
                   <span>{t(lang, "This invitation is no longer valid. Please ask your company admin to send a new one.")}</span>
                 </p>
               ) : (
-                <form onSubmit={submit} className="flex flex-col gap-4 text-left">
+                <form onSubmit={formik.handleSubmit} className="flex flex-col gap-4 text-left">
                   <div>
-                    <Input label={t(lang, "New Password")} type="password" value={pw} onChange={(e) => { setPw(e.target.value); setErr(""); }} placeholder="••••••••" />
-                    {pw && (
+                    <Input
+                      id="pw"
+                      name="pw"
+                      label={t(lang, "New Password")}
+                      type="password"
+                      value={formik.values.pw}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={formik.touched.pw && formik.errors.pw}
+                      placeholder="••••••••"
+                    />
+                    {formik.values.pw && (
                       <div className="mt-2 flex items-center gap-2.5">
                         <div className="flex flex-1 gap-1">
                           {[0, 1, 2].map((i) => (
@@ -118,16 +141,49 @@ export default function EmployeeActivationClient() {
                       </div>
                     )}
                   </div>
-                  <Input label={t(lang, "Confirm Password")} type="password" value={confirm} onChange={(e) => { setConfirm(e.target.value); setErr(""); }} placeholder="••••••••" />
-                  <Check label={t(lang, "I agree to the Terms of Service and Privacy Policy")} checked={agree} onChange={() => { setAgree((v) => !v); setErr(""); }} />
-                  {err && (
+
+                  <div>
+                    <Input
+                      id="confirm"
+                      name="confirm"
+                      label={t(lang, "Confirm Password")}
+                      type="password"
+                      value={formik.values.confirm}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={formik.touched.confirm && formik.errors.confirm}
+                      placeholder="••••••••"
+                    />
+                  </div>
+
+                  <div>
+                    <Check
+                      label={t(lang, "I agree to the Terms of Service and Privacy Policy")}
+                      checked={formik.values.agree}
+                      onChange={() => formik.setFieldValue("agree", !formik.values.agree)}
+                    />
+                    {formik.touched.agree && formik.errors.agree && (
+                      <p style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
+                        {formik.errors.agree}
+                      </p>
+                    )}
+                  </div>
+
+                  {formik.status && (
                     <p className={ERR} role="alert">
                       <Icon name="alert-circle" size={16} />
-                      <span>{err}</span>
+                      <span>{formik.status}</span>
                     </p>
                   )}
-                  <Button type="submit" variant="primary" size="lg" className="w-full justify-center">
-                    {t(lang, "Activate & Continue")}
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    disabled={formik.isSubmitting}
+                    className="w-full justify-center"
+                  >
+                    {formik.isSubmitting ? t(lang, "Activating...") : t(lang, "Activate & Continue")}
                   </Button>
                 </form>
               )}

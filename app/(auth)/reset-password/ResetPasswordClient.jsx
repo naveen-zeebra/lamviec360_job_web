@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import Icon from "../../../components/ds/Icon";
@@ -22,25 +24,30 @@ const COLORS = ["var(--color-error)", "var(--color-warning)", "var(--blue-500)",
 export default function ResetPasswordClient() {
   const [lang, setLang] = useLang();
   const router = useRouter();
-  const [pw, setPw] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
-  const s = strength(pw);
 
-  const submit = (e) => {
-    e.preventDefault();
-    if (pw.length < 8) {
-      setErr(t(lang, "Password must be at least 8 characters."));
-      return;
-    }
-    if (pw !== confirm) {
-      setErr(t(lang, "Passwords do not match."));
-      return;
-    }
-    setDone(true);
-    setTimeout(() => router.push("/login"), 1400);
-  };
+  const resetSchema = Yup.object().shape({
+    pw: Yup.string()
+      .min(8, t(lang, "Password must be at least 8 characters."))
+      .required(t(lang, "Password must be at least 8 characters.")),
+    confirm: Yup.string()
+      .oneOf([Yup.ref("pw"), null], t(lang, "Passwords do not match."))
+      .required(t(lang, "Please confirm your password.")),
+  });
+
+  const formik = useFormik({
+    initialValues: {
+      pw: "",
+      confirm: "",
+    },
+    validationSchema: resetSchema,
+    onSubmit: () => {
+      setDone(true);
+      setTimeout(() => router.push("/login"), 1400);
+    },
+  });
+
+  const s = strength(formik.values.pw);
 
   return (
     <>
@@ -53,8 +60,12 @@ export default function ResetPasswordClient() {
                 <Icon name="check-circle" size={28} />
               </div>
               <div>
-                <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>{t(lang, "Password updated")}</h1>
-                <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)" }}>{t(lang, "Redirecting you to login...")}</p>
+                <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>
+                  {t(lang, "Password updated")}
+                </h1>
+                <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)" }}>
+                  {t(lang, "Redirecting you to login...")}
+                </p>
               </div>
             </>
           ) : (
@@ -63,24 +74,27 @@ export default function ResetPasswordClient() {
                 <Icon name="lock" size={28} />
               </div>
               <div>
-                <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>{t(lang, "Set a new password")}</h1>
+                <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>
+                  {t(lang, "Set a new password")}
+                </h1>
                 <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-relaxed)" }}>
                   {t(lang, "Choose a strong password you haven't used before.")}
                 </p>
               </div>
-              <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <form onSubmit={formik.handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div>
                   <Input
+                    id="pw"
+                    name="pw"
                     label={t(lang, "New password")}
                     type="password"
-                    value={pw}
-                    onChange={(e) => {
-                      setPw(e.target.value);
-                      setErr("");
-                    }}
+                    value={formik.values.pw}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    error={formik.touched.pw && formik.errors.pw}
                     placeholder="••••••••"
                   />
-                  {pw && (
+                  {formik.values.pw && (
                     <div className="lv-pw-strength">
                       <div className="lv-pw-strength-bars">
                         {[0, 1, 2].map((i) => (
@@ -91,23 +105,35 @@ export default function ResetPasswordClient() {
                     </div>
                   )}
                 </div>
-                <Input
-                  label={t(lang, "Confirm new password")}
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => {
-                    setConfirm(e.target.value);
-                    setErr("");
-                  }}
-                  placeholder="••••••••"
-                />
-                {err && (
-                  <p className="lv-error" role="alert">
+
+                <div>
+                  <Input
+                    id="confirm"
+                    name="confirm"
+                    label={t(lang, "Confirm new password")}
+                    type="password"
+                    value={formik.values.confirm}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    error={formik.touched.confirm && formik.errors.confirm}
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                {formik.status && (
+                  <p className="lv-error" role="alert" style={{ color: "#dc2626", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
                     <Icon name="alert-circle" size={16} />
-                    <span>{err}</span>
+                    <span>{formik.status}</span>
                   </p>
                 )}
-                <Button type="submit" variant="primary" size="lg" style={{ width: "100%", justifyContent: "center" }}>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  disabled={formik.isSubmitting}
+                  style={{ width: "100%", justifyContent: "center" }}
+                >
                   {t(lang, "Update Password")}
                 </Button>
               </form>

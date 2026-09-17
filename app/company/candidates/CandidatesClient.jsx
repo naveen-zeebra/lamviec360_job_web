@@ -19,6 +19,7 @@ import {
   listRejectionTemplates,
   PIPELINE_STAGES,
   can,
+  syncCompanyWithBackend,
 } from "../../../lib/companyStore";
 
 const SHORTLIST_PLUS = ["Shortlisted", "Interview Scheduled", "Offer Sent", "Hired"];
@@ -75,14 +76,23 @@ export default function CandidatesClient() {
 
   useEffect(() => {
     setRole(getAuth().role);
-    const timer = setTimeout(() => {
-      setJobs(listJobs());
-      refresh();
-      setPrivacy(getSettings().privacy);
-      setTemplates(listRejectionTemplates());
-      setReady(true);
-    }, 250);
-    return () => clearTimeout(timer);
+    setJobs(listJobs());
+    refresh();
+    setPrivacy(getSettings().privacy);
+    setTemplates(listRejectionTemplates());
+    setReady(true);
+
+    syncCompanyWithBackend()
+      .then(() => {
+        setJobs(listJobs());
+        refresh();
+      })
+      .catch(console.warn);
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("lv360-store", refresh);
+      return () => window.removeEventListener("lv360-store", refresh);
+    }
   }, []);
 
   useEffect(() => {
@@ -94,33 +104,33 @@ export default function CandidatesClient() {
   const manage = can(role, "candidates.manage");
 
   const visible = useMemo(() => {
-    let list = candidates.filter((c) => !jobFilter || c.jobId === jobFilter);
+    let list = candidates.filter((c) => !jobFilter || String(c.jobId) === String(jobFilter));
     list = list.slice().sort((a, b) => {
-      if (sortBy === "score") return b.matchScore - a.matchScore;
-      if (sortBy === "experience") return b.experienceYears - a.experienceYears;
-      if (sortBy === "education") return a.educationLevel.localeCompare(b.educationLevel);
-      return a.appliedDate < b.appliedDate ? 1 : -1;
+      if (sortBy === "score") return (b.matchScore || 0) - (a.matchScore || 0);
+      if (sortBy === "experience") return (b.experienceYears || 0) - (a.experienceYears || 0);
+      if (sortBy === "education") return (a.educationLevel || "").localeCompare(b.educationLevel || "");
+      return (a.appliedDate || "") < (b.appliedDate || "") ? 1 : -1;
     });
     return list;
   }, [candidates, jobFilter, sortBy]);
 
   const columns = PIPELINE_STAGES.map((stage) => ({ stage, items: visible.filter((c) => c.stage === stage) }));
   const open = openId ? getCandidate(openId) : null;
-  const jobOf = (id) => jobs.find((j) => j.id === id);
+  const jobOf = (id) => jobs.find((j) => String(j.id) === String(id));
 
-  const move = (id, stage) => {
+  const move = async (id, stage) => {
     if (stage === "Rejected") {
       setRejectTarget(id);
       setRejectReason({ templateId: templates[0] ? templates[0].id : "", note: "" });
       return;
     }
-    setCandidateStage(id, stage);
+    await setCandidateStage(id, stage);
     refresh();
     setToast(`${t(lang, "Moved to")} ${t(lang, stage)}`);
   };
 
-  const confirmReject = () => {
-    setCandidateStage(rejectTarget, "Rejected", rejectReason);
+  const confirmReject = async () => {
+    await setCandidateStage(rejectTarget, "Rejected", rejectReason);
     refresh();
     setRejectTarget(null);
     setToast(t(lang, "Candidate rejected"));
@@ -136,13 +146,13 @@ export default function CandidatesClient() {
 
   const toggleSel = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
-  const runBulk = (stage, reason) => {
+  const runBulk = async (stage, reason) => {
     const prev = {};
     selected.forEach((id) => {
       const c = candidates.find((x) => x.id === id);
       if (c) prev[id] = c.stage;
     });
-    bulkSetCandidateStage(selected, stage, reason);
+    await bulkSetCandidateStage(selected, stage, reason);
     refresh();
     setUndo({ ids: [...selected], prev, stage });
     setSelected([]);
@@ -150,8 +160,10 @@ export default function CandidatesClient() {
     setToast(`${selected.length} ${t(lang, "candidates moved to")} ${t(lang, stage)}`);
   };
 
-  const doUndo = () => {
-    Object.entries(undo.prev).forEach(([id, stage]) => setCandidateStage(id, stage));
+  const doUndo = async () => {
+    for (const [id, stage] of Object.entries(undo.prev)) {
+      await setCandidateStage(id, stage);
+    }
     refresh();
     setUndo(null);
     setToast(t(lang, "Change undone"));

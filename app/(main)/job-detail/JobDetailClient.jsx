@@ -12,6 +12,8 @@ import Toast, { useToast } from "../../../components/ds/Toast";
 import { JOBS, FILTER_VI } from "../../../lib/data";
 import { isSaved, toggleSavedJob, hasAppliedToJob } from "../../../lib/seekerStore";
 
+import { fetchPublicJobDetail } from "../../../lib/api/publicApi";
+
 const STAGES = [
   ["Applied", "Đã nộp"],
   ["Under Review", "Đang xét duyệt"],
@@ -28,13 +30,52 @@ export default function JobDetailClient() {
   const [applied, setApplied] = useState(false);
   const [toast, setToast] = useToast();
   const params = useSearchParams();
-  const id = parseInt(params.get("id") || "1", 10);
-  const job = JOBS.find((j) => j.id === id) || JOBS[0];
+  const rawId = params.get("id") || "1";
+  const defaultJob = JOBS.find((j) => String(j.id) === String(rawId)) || JOBS[0];
+  const [job, setJob] = useState(defaultJob);
 
   useEffect(() => {
-    setSaved(isSaved(job.id));
-    setApplied(hasAppliedToJob(job.id));
-  }, [job.id]);
+    async function loadJobDetail() {
+      if (rawId && String(rawId).startsWith("JOB-")) {
+        try {
+          const remote = await fetchPublicJobDetail(rawId);
+          if (remote) {
+            setJob({
+              id: remote.id,
+              title: remote.title,
+              titleVi: remote.title,
+              company: remote.company_name || "ABC Technologies",
+              companyLogo: remote.company_logo || "",
+              verified: true,
+              location: remote.location,
+              locationVi: remote.location,
+              salary: remote.salary_min && remote.salary_max ? `${Math.round(remote.salary_min / 1000000)}M – ${Math.round(remote.salary_max / 1000000)}M VND` : "Negotiable",
+              type: remote.type,
+              mode: (remote.location || "").toLowerCase().includes("remote") ? "Remote" : "On-site",
+              level: "Mid-level",
+              industry: remote.department || "Technology",
+              posted: remote.created_at || "Recently",
+              postedVi: remote.created_at || "Gần đây",
+              skills: remote.skills || [],
+              jd: remote.jd,
+              vacancies: remote.vacancies,
+              deadline: remote.deadline,
+            });
+          }
+        } catch (e) {
+          console.warn("Could not fetch remote job detail:", e.message);
+        }
+      }
+    }
+    loadJobDetail();
+  }, [rawId]);
+
+  useEffect(() => {
+    if (job?.id) {
+      setSaved(isSaved(job.id));
+      setApplied(hasAppliedToJob(job.id));
+    }
+  }, [job?.id]);
   const related = JOBS.filter((j) => j.id !== job.id && (j.industry === job.industry || j.company === job.company)).slice(0, 3);
   const resp =
     lang === "VI"

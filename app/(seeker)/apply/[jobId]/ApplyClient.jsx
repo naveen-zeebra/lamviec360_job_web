@@ -9,6 +9,7 @@ import Check from "../../../../components/ds/Check";
 import { useLang, t } from "../../../../utils/lang";
 import { JOBS } from "../../../../lib/data";
 import { getProfile, hasAppliedToJob, addApplication, addNotification, saveResume } from "../../../../lib/seekerStore";
+import { fetchPublicJobDetail } from "../../../../lib/api/publicApi";
 
 const STEP_LABELS = ["Review Profile", "Resume", "Questions", "Additional", "Review", "Consent"];
 const NOTICE_OPTIONS = ["Immediately available", "2 weeks", "1 month", "2 months", "3+ months"];
@@ -18,7 +19,8 @@ const STORE_BYTES = 2 * 1024 * 1024;
 export default function ApplyClient({ jobId }) {
   const [lang] = useLang();
   const router = useRouter();
-  const job = JOBS.find((j) => j.id === jobId);
+  const initialJob = JOBS.find((j) => String(j.id) === String(jobId)) || null;
+  const [job, setJob] = useState(initialJob);
   const draftKey = `lv360-apply-draft-${jobId}`;
   const [profile, setProfile] = useState(null);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
@@ -33,11 +35,35 @@ export default function ApplyClient({ jobId }) {
   const [draftSaved, setDraftSaved] = useState(false);
 
   useEffect(() => {
+    async function resolveJob() {
+      if (!job && jobId) {
+        try {
+          const remote = await fetchPublicJobDetail(jobId);
+          if (remote) {
+            setJob({
+              id: remote.id,
+              title: remote.title,
+              titleVi: remote.title,
+              company: remote.company_name || "ABC Technologies",
+              location: remote.location,
+              locationVi: remote.location,
+              skills: remote.skills || [],
+            });
+          }
+        } catch (e) {
+          console.warn("Could not fetch job for application:", e.message);
+        }
+      }
+    }
+    resolveJob();
+  }, [jobId]);
+
+  useEffect(() => {
     if (!job) return;
     const p = getProfile();
     setProfile(p);
-    setResumeFileName(p.resume.fileName);
-    setAlreadyApplied(hasAppliedToJob(jobId));
+    setResumeFileName(p.resume?.fileName || "");
+    setAlreadyApplied(hasAppliedToJob(job.id));
     try {
       const raw = localStorage.getItem(draftKey);
       if (raw) {
@@ -48,7 +74,7 @@ export default function ApplyClient({ jobId }) {
         setDraftSaved(true);
       }
     } catch (e) {}
-  }, [jobId]);
+  }, [job, jobId]);
 
   if (!job) {
     return (
@@ -199,11 +225,12 @@ export default function ApplyClient({ jobId }) {
     }
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!consent || submitting) return;
     setSubmitting(true);
-    setTimeout(() => {
-      const record = addApplication({ jobId: job.id, resumeFileName, coverLetter, answers });
+    setErr("");
+    try {
+      const record = await addApplication({ jobId: job.id, resumeFileName, coverLetter, answers });
       addNotification({
         type: "confirmation",
         title: t(lang, "Application submitted"),
@@ -212,8 +239,11 @@ export default function ApplyClient({ jobId }) {
       });
       clearDraft();
       setResult(record);
+    } catch (e) {
+      setErr(e.message || t(lang, "Could not submit application. Please try again."));
+    } finally {
       setSubmitting(false);
-    }, 900);
+    }
   };
 
   return (

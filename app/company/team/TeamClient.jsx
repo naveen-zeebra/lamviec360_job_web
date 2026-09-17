@@ -18,6 +18,7 @@ import {
   revokeInvitation,
   ROLES,
   ROLE_SUMMARY,
+  syncCompanyWithBackend,
 } from "../../../lib/companyStore";
 
 const stat = "flex flex-col gap-1 rounded-md bg-sunken p-4";
@@ -56,11 +57,13 @@ function Team() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      refresh();
-      setReady(true);
-    }, 250);
-    return () => clearTimeout(timer);
+    refresh();
+    setReady(true);
+    syncCompanyWithBackend().then(refresh).catch(console.warn);
+    if (typeof window !== "undefined") {
+      window.addEventListener("lv360-store", refresh);
+      return () => window.removeEventListener("lv360-store", refresh);
+    }
   }, []);
 
   const summary = useMemo(() => {
@@ -80,17 +83,21 @@ function Team() {
       (!statusF || m.status === statusF)
   );
 
-  const sendInvite = () => {
+  const sendInvite = async () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteForm.email.trim())) {
       setInviteErr(t(lang, "Enter a valid email address."));
       return;
     }
-    addInvitation(inviteForm);
-    refresh();
-    setInviteOpen(false);
-    setInviteForm({ email: "", role: "HR / Recruiter", message: "" });
-    setInviteErr("");
-    setToast(t(lang, "Invitation sent"));
+    try {
+      await addInvitation(inviteForm);
+      refresh();
+      setInviteOpen(false);
+      setInviteForm({ email: "", role: "HR / Recruiter", message: "" });
+      setInviteErr("");
+      setToast(t(lang, "Invitation sent"));
+    } catch (e) {
+      setInviteErr(e.message || t(lang, "Failed to send invitation."));
+    }
   };
 
   const applyRoleChange = () => {

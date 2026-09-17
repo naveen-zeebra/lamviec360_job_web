@@ -14,6 +14,7 @@ import {
   listNotifications,
   PIPELINE_STAGES,
   can,
+  syncCompanyWithBackend,
 } from "../../../lib/companyStore";
 
 const sectionHead = "mb-4 flex items-center justify-between";
@@ -28,7 +29,7 @@ export default function OverviewClient() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const refresh = () => {
       setData({
         auth: getAuth(),
         dash: getDashboard(),
@@ -36,8 +37,13 @@ export default function OverviewClient() {
         candidates: listCandidates(),
         notifications: listNotifications(),
       });
-    }, 300);
-    return () => clearTimeout(timer);
+    };
+    refresh();
+    syncCompanyWithBackend().then(refresh).catch(console.warn);
+    if (typeof window !== "undefined") {
+      window.addEventListener("lv360-store", refresh);
+      return () => window.removeEventListener("lv360-store", refresh);
+    }
   }, []);
 
   if (!data) {
