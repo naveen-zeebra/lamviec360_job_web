@@ -23,16 +23,15 @@ export default function ApplicationsClient() {
   const [filter, setFilter] = useState("active");
 
   const load = () => {
-    setState({ loading: true, error: false, data: null });
-    setTimeout(() => {
-      try {
-        setState({ loading: false, error: false, data: listApplications() });
-      } catch (e) {
-        setState({ loading: false, error: true, data: null });
-      }
-    }, 300);
+    try {
+      setState({ loading: false, error: false, data: listApplications() });
+    } catch (e) {
+      setState({ loading: false, error: true, data: null });
+    }
   };
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const { loading, error, data } = state;
 

@@ -19,29 +19,44 @@ const VIEW_LINK = "flex items-center gap-1 text-sm font-semibold no-underline";
 const ROW = "flex items-center gap-3 rounded-md border border-line p-2.5 text-inherit no-underline";
 const EMPTY = "rounded-lg border border-dashed border-line bg-card px-6 py-14 text-center text-muted [&_h3]:mb-2 [&_h3]:text-lg";
 
+function readDashboardData() {
+  const profile = getProfile();
+  const applications = listApplications();
+  const savedJobs = listSavedJobs();
+  const notifications = listNotifications();
+  const completeness = computeCompleteness(profile);
+  const recommended = JOBS.filter(
+    (j) => (profile.professional?.industry && j.industry === profile.professional.industry) || (profile.personal?.location && j.location === profile.personal.location)
+  ).slice(0, 4);
+  return { profile, applications, savedJobs, notifications, completeness, recommended };
+}
+
 function useDashboardData() {
-  const [state, setState] = useState({ loading: true, error: false, data: null });
+  const [state, setState] = useState(() => {
+    try {
+      if (typeof window !== "undefined") {
+        return { loading: false, error: false, data: readDashboardData() };
+      }
+    } catch {}
+    return { loading: false, error: false, data: null };
+  });
 
   const load = () => {
-    setState({ loading: true, error: false, data: null });
-    setTimeout(() => {
-      try {
-        const profile = getProfile();
-        const applications = listApplications();
-        const savedJobs = listSavedJobs();
-        const notifications = listNotifications();
-        const completeness = computeCompleteness(profile);
-        const recommended = JOBS.filter(
-          (j) => (profile.professional.industry && j.industry === profile.professional.industry) || (profile.personal.location && j.location === profile.personal.location)
-        ).slice(0, 4);
-        setState({ loading: false, error: false, data: { profile, applications, savedJobs, notifications, completeness, recommended } });
-      } catch (e) {
-        setState({ loading: false, error: true, data: null });
-      }
-    }, 450);
+    try {
+      setState({ loading: false, error: false, data: readDashboardData() });
+    } catch (e) {
+      setState({ loading: false, error: true, data: null });
+    }
   };
 
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+    if (typeof window !== "undefined") {
+      window.addEventListener("lv360-store", load);
+      return () => window.removeEventListener("lv360-store", load);
+    }
+  }, []);
+
   return [state, load];
 }
 

@@ -79,12 +79,11 @@ export default function InterviewDetailClient({ id }) {
   const [declineNote, setDeclineNote] = useState("");
 
   const load = () => {
-    setState({ loading: true, app: null, iv: null });
-    setTimeout(() => {
-      setState({ loading: false, app: getApplication(id), iv: getInterviewByApplication(id) });
-    }, 300);
+    setState({ loading: false, app: getApplication(id), iv: getInterviewByApplication(id) });
   };
-  useEffect(load, [id]);
+  useEffect(() => {
+    load();
+  }, [id]);
 
   const respond = async (status, note) => {
     await respondToInterview(id, status, note);

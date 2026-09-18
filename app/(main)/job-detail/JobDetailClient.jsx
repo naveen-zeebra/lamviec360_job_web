@@ -233,7 +233,8 @@ export default function JobDetailClient() {
               variant="secondary"
               style={{ width: "100%", justifyContent: "center" }}
               onClick={() => {
-                const nowSaved = toggleSavedJob(job.id);
+                toggleSavedJob(job.id);
+                const nowSaved = !saved;
                 setSaved(nowSaved);
                 setToast(nowSaved ? t(lang, "Job saved") : t(lang, "Removed from saved jobs"));
               }}

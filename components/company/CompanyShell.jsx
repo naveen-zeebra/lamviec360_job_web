@@ -113,7 +113,7 @@ export default function CompanyShell({ children }) {
           {visibleNav.map((n) => {
             const active = pathname === n.href || pathname.startsWith(n.href + "/");
             return (
-              <Link key={n.href} href={n.href} className={`${navItem} ${active ? navItemActive : navItemIdle}`} aria-current={active ? "page" : undefined}>
+              <Link key={n.href} href={n.href} prefetch={true} className={`${navItem} ${active ? navItemActive : navItemIdle}`} aria-current={active ? "page" : undefined}>
                 <Icon name={n.icon} size={18} />
                 <span>{t(lang, n.labelKey)}</span>
               </Link>
@@ -121,7 +121,7 @@ export default function CompanyShell({ children }) {
           })}
         </nav>
         <div className="mt-2 border-t border-white/10 pt-2">
-          <Link href="/employers" className={`${navItem} ${navItemIdle}`}>
+          <Link href="/employers" prefetch={true} className={`${navItem} ${navItemIdle}`}>
             <Icon name="arrow-left" size={18} />
             <span>{t(lang, "Public site")}</span>
           </Link>
@@ -144,6 +144,7 @@ export default function CompanyShell({ children }) {
             </button>
             <Link
               href="/company/notifications"
+              prefetch={true}
               className="relative inline-flex h-[38px] w-[38px] items-center justify-center rounded-md text-ink hover:bg-brand-subtle hover:text-brand"
               aria-label={t(lang, "Notifications") + (unread ? `, ${unread} unread` : "")}
             >
@@ -204,15 +205,19 @@ export default function CompanyShell({ children }) {
 
         {mobileNavOpen && (
           <div className="flex flex-col gap-0.5 border-b border-line bg-card px-5 pb-4 pt-3 min-[901px]:hidden">
-            {visibleNav.map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                className={`flex items-center gap-2.5 px-1.5 py-2.5 text-base no-underline ${pathname.startsWith(n.href) ? "font-bold text-brand" : "text-ink"}`}
-              >
-                <Icon name={n.icon} size={18} /> {t(lang, n.labelKey)}
-              </Link>
-            ))}
+            {visibleNav.map((n) => {
+              const active = pathname === n.href || pathname.startsWith(n.href + "/");
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  prefetch={true}
+                  className={`flex items-center gap-2.5 px-1.5 py-2.5 text-base no-underline ${active ? "font-bold text-brand" : "text-ink"}`}
+                >
+                  <Icon name={n.icon} size={18} /> {t(lang, n.labelKey)}
+                </Link>
+              );
+            })}
             <div className="my-1.5 h-px bg-line" />
             <div className="flex gap-2 py-2">
               {LANGS.map((l) => (
@@ -241,6 +246,7 @@ export default function CompanyShell({ children }) {
             <Link
               key={tab.href}
               href={tab.href}
+              prefetch={true}
               className={`flex flex-1 flex-col items-center gap-0.5 py-1 text-[10px] font-semibold no-underline ${active ? "text-brand" : "text-faint"}`}
               aria-current={active ? "page" : undefined}
             >

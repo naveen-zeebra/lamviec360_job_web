@@ -16,16 +16,15 @@ export default function SavedJobsClient() {
   const [toast, setToast] = useToast();
 
   const load = () => {
-    setState({ loading: true, error: false, ids: null });
-    setTimeout(() => {
-      try {
-        setState({ loading: false, error: false, ids: listSavedJobs() });
-      } catch (e) {
-        setState({ loading: false, error: true, ids: null });
-      }
-    }, 300);
+    try {
+      setState({ loading: false, error: false, ids: listSavedJobs() });
+    } catch (e) {
+      setState({ loading: false, error: true, ids: null });
+    }
   };
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const { loading, error, ids } = state;
 
@@ -47,11 +46,22 @@ export default function SavedJobsClient() {
     );
   }
 
-  const jobs = ids.map((id) => JOBS.find((j) => j.id === id)).filter(Boolean);
+  const jobs = ids
+    .map((item) => {
+      if (typeof item === "object") return item;
+      return JOBS.find((j) => String(j.id) === String(item));
+    })
+    .filter(Boolean);
 
   const unsave = (jobId) => {
     toggleSavedJob(jobId);
-    setState((s) => ({ ...s, ids: s.ids.filter((id) => id !== jobId) }));
+    setState((s) => ({
+      ...s,
+      ids: s.ids.filter((item) => {
+        const itemId = typeof item === "object" ? item.id : item;
+        return String(itemId) !== String(jobId);
+      }),
+    }));
     setToast(t(lang, "Removed from saved jobs"));
   };
 

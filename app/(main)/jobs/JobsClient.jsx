@@ -231,7 +231,8 @@ export default function JobsClient() {
                     lang={lang}
                     saved={saved[j.id]}
                     onSave={() => {
-                      const nowSaved = toggleSavedJob(j.id);
+                      toggleSavedJob(j.id);
+                      const nowSaved = !saved[j.id];
                       setSaved((s) => ({ ...s, [j.id]: nowSaved }));
                       setToast(nowSaved ? t(lang, "Job saved") : t(lang, "Removed from saved jobs"));
                     }}

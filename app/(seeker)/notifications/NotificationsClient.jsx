@@ -38,16 +38,15 @@ export default function NotificationsClient() {
   const [filter, setFilter] = useState("all");
 
   const load = () => {
-    setState({ loading: true, error: false, data: null });
-    setTimeout(() => {
-      try {
-        setState({ loading: false, error: false, data: listNotifications() });
-      } catch (e) {
-        setState({ loading: false, error: true, data: null });
-      }
-    }, 300);
+    try {
+      setState({ loading: false, error: false, data: listNotifications() });
+    } catch (e) {
+      setState({ loading: false, error: true, data: null });
+    }
   };
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const { loading, error, data } = state;
 

@@ -51,47 +51,90 @@ export default function RegisterClient() {
     },
   });
 
+  const FieldError = ({ touched, error }) => (
+    <p className="lv-reg2-err">
+      {touched && error ? (
+        <>
+          <Icon name="alert-circle" size={12} />
+          <span>{error}</span>
+        </>
+      ) : (
+        <span>&nbsp;</span>
+      )}
+    </p>
+  );
+
   return (
     <>
-      <main className="lv-reg-wrap">
-        <div className="lv-reg-container">
-          {/* Left Marketing Panel */}
-          <div className="lv-reg-left">
-            <div className="lv-reg-left-brand">
-              <img src="/logo-cropped.png" alt="LàmViệc360" style={{ height: 28 }} />
+      <main className="lv-reg2-wrap">
+        <div className="lv-reg2-container">
+
+          {/* ── Left panel ─────────────────────────────── */}
+          <div className="lv-reg2-left">
+            <div className="lv-reg2-brand">
+              <img src="/logo-cropped.png" alt="LàmViệc360" style={{ height: 26 }} />
             </div>
 
-            <h1>{t(lang, "The AI platform for hiring and careers")}</h1>
-            <p>
-              {t(lang, "Get our all-in-one platform that simplifies the way you find jobs, connect with companies, and build your career path.")}
-            </p>
+            <div className="lv-reg2-left-body">
+              <h1 className="lv-reg2-headline">
+                {t(lang, "Start Your Career Journey")}
+              </h1>
+              <p className="lv-reg2-subtext">
+                {t(lang, "Get our all-in-one platform that simplifies the way you find jobs, connect with companies, and build your career path.")}
+              </p>
 
-            <div className="lv-reg-left-cards">
-              <div className="lv-reg-left-card">
-                <strong>35K+</strong>
-                <span>{t(lang, "Companies hiring")}</span>
+              <div className="lv-reg2-pills">
+                <span className="lv-reg2-pill">
+                  <strong>35K+</strong>&nbsp;{t(lang, "Companies hiring")}
+                </span>
+                <span className="lv-reg2-pill">
+                  <strong>500K+</strong>&nbsp;{t(lang, "Professionals matched")}
+                </span>
               </div>
-              <div className="lv-reg-left-card">
-                <strong>500K+</strong>
-                <span>{t(lang, "Professionals matched")}</span>
+
+              {/* Minimal decorative icon grid */}
+              <div className="lv-reg2-deco" aria-hidden="true">
+                <div className="lv-reg2-deco-icon"><Icon name="briefcase" size={22} /></div>
+                <div className="lv-reg2-deco-icon"><Icon name="users" size={22} /></div>
+                <div className="lv-reg2-deco-icon"><Icon name="trending-up" size={22} /></div>
+                <div className="lv-reg2-deco-icon"><Icon name="star" size={22} /></div>
+                <div className="lv-reg2-deco-icon"><Icon name="zap" size={22} /></div>
+                <div className="lv-reg2-deco-icon"><Icon name="globe" size={22} /></div>
               </div>
             </div>
           </div>
 
-          {/* Right Form Panel */}
-          <div className="lv-reg-right">
-            <h2>{t(lang, "Create your account")}</h2>
-            <p>{t(lang, "Sign up using the form, or the Google account you use.")}</p>
+          {/* ── Right form panel ─────────────────────── */}
+          <div className="lv-reg2-right">
+            <div className="lv-reg2-form-head">
+              <h2>{t(lang, "Create account")}</h2>
+              <p>{t(lang, "Sign up using the form, or your Google account.")}</p>
+            </div>
 
-            <button type="button" className="lv-reg-social" onClick={() => setToast("Social login demo")}>
-              <Icon name="chrome" size={18} style={{ color: "#4285F4" }} />
+            {/* Google SSO */}
+            <button
+              type="button"
+              className="lv-reg2-google"
+              onClick={() => setToast("Social login demo")}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4" />
+                <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853" />
+                <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05" />
+                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335" />
+              </svg>
               {t(lang, "Sign up with Google")}
             </button>
 
-            <div className="lv-reg-divider">or</div>
+            {/* Divider */}
+            <div className="lv-reg2-divider">
+              <span>{t(lang, "or")}</span>
+            </div>
 
-            <form onSubmit={formik.handleSubmit}>
-              <div style={{ marginBottom: 16 }}>
+            {/* Form */}
+            <form onSubmit={formik.handleSubmit} noValidate>
+              {/* Full Name */}
+              <div className="lv-reg2-field">
                 <Input
                   id="name"
                   name="name"
@@ -102,35 +145,27 @@ export default function RegisterClient() {
                   onBlur={formik.handleBlur}
                   placeholder="Sarah Vaughn"
                 />
-                {formik.touched.name && formik.errors.name && (
-                  <p style={{ color: "#dc2626", fontSize: 12, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                    <Icon name="alert-circle" size={13} />
-                    <span>{formik.errors.name}</span>
-                  </p>
-                )}
+                <FieldError touched={formik.touched.name} error={formik.errors.name} />
               </div>
 
-              <div style={{ marginBottom: 16 }}>
+              {/* Email */}
+              <div className="lv-reg2-field">
                 <Input
                   id="email"
                   name="email"
-                  label={t(lang, "Email")}
+                  label={t(lang, "Email address")}
                   type="email"
                   value={formik.values.email}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   placeholder="sarahvaughn42@gmail.com"
                 />
-                {formik.touched.email && formik.errors.email && (
-                  <p style={{ color: "#dc2626", fontSize: 12, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                    <Icon name="alert-circle" size={13} />
-                    <span>{formik.errors.email}</span>
-                  </p>
-                )}
+                <FieldError touched={formik.touched.email} error={formik.errors.email} />
               </div>
 
-              <div className="lv-reg-row" style={{ marginBottom: 4 }}>
-                <div>
+              {/* Password row */}
+              <div className="lv-reg2-pw-row">
+                <div className="lv-reg2-field">
                   <Input
                     id="password"
                     name="password"
@@ -140,18 +175,13 @@ export default function RegisterClient() {
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     placeholder="••••••••"
-                    iconRight={<Icon name={showPw ? "eye-off" : "eye"} size={18} style={{ color: "#9ca3af" }} />}
+                    iconRight={<Icon name={showPw ? "eye-off" : "eye"} size={17} style={{ color: "#94a3b8" }} />}
                     onIconRightClick={() => setShowPw(!showPw)}
                   />
-                  {formik.touched.password && formik.errors.password && (
-                    <p style={{ color: "#dc2626", fontSize: 12, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                      <Icon name="alert-circle" size={13} />
-                      <span>{formik.errors.password}</span>
-                    </p>
-                  )}
+                  <FieldError touched={formik.touched.password} error={formik.errors.password} />
                 </div>
 
-                <div>
+                <div className="lv-reg2-field">
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -161,46 +191,51 @@ export default function RegisterClient() {
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     placeholder="••••••••"
-                    iconRight={<Icon name={showConfirmPw ? "eye-off" : "eye"} size={18} style={{ color: "#9ca3af" }} />}
+                    iconRight={<Icon name={showConfirmPw ? "eye-off" : "eye"} size={17} style={{ color: "#94a3b8" }} />}
                     onIconRightClick={() => setShowConfirmPw(!showConfirmPw)}
                   />
-                  {formik.touched.confirmPassword && formik.errors.confirmPassword && (
-                    <p style={{ color: "#dc2626", fontSize: 12, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                      <Icon name="alert-circle" size={13} />
-                      <span>{formik.errors.confirmPassword}</span>
-                    </p>
-                  )}
+                  <FieldError touched={formik.touched.confirmPassword} error={formik.errors.confirmPassword} />
                 </div>
               </div>
 
-              <p className="lv-reg-hint">
-                {t(lang, "Min 8 characters, including letters, numbers and special characters")}
-              </p>
+              {/* Password hint */}
+              <div className="lv-reg2-hint">
+                <Icon name="info" size={14} style={{ color: "#0d9488", flexShrink: 0, marginTop: 1 }} />
+                <span>{t(lang, "Min 8 characters, including letters, numbers and special characters")}</span>
+              </div>
 
+              {/* Global API error */}
               {formik.status && (
-                <p className="lv-error" role="alert" style={{ marginTop: 16, color: "var(--color-error)", fontSize: 14, display: "flex", gap: 6, alignItems: "center" }}>
-                  <Icon name="alert-circle" size={16} />
+                <div className="lv-reg2-alert" role="alert">
+                  <Icon name="alert-circle" size={15} />
                   <span>{formik.status}</span>
-                </p>
+                </div>
               )}
 
+              {/* Submit */}
               <button
+                id="register-submit-btn"
                 type="submit"
                 disabled={formik.isSubmitting}
-                className="lv-reg-submit"
-                style={{ opacity: formik.isSubmitting ? 0.7 : 1, cursor: formik.isSubmitting ? "not-allowed" : "pointer" }}
+                className="lv-reg2-submit"
               >
-                {formik.isSubmitting ? t(lang, "Creating account...") : t(lang, "Submit")}
+                {formik.isSubmitting ? (
+                  <>
+                    <span className="lv-reg2-spinner" />
+                    {t(lang, "Creating account...")}
+                  </>
+                ) : (
+                  t(lang, "Create account")
+                )}
               </button>
             </form>
 
-            <p style={{ marginTop: 24, fontSize: 14, color: "#4b5563", textAlign: "center" }}>
+            <p className="lv-reg2-login-link">
               {t(lang, "Already have an account?")}{" "}
-              <Link href="/login" style={{ fontWeight: 600, color: "#111827" }}>
-                {t(lang, "Log in")}
-              </Link>
+              <Link href="/login">{t(lang, "Log in")}</Link>
             </p>
           </div>
+
         </div>
       </main>
       <Toast msg={toast} />

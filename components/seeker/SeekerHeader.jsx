@@ -62,6 +62,7 @@ export default function SeekerHeader({ lang, setLang }) {
               <Link
                 key={n.href}
                 href={n.href}
+                prefetch={true}
                 className={`text-sm font-medium no-underline hover:text-brand hover:no-underline ${active ? "font-bold text-brand" : "text-ink"}`}
                 aria-current={active ? "page" : undefined}
               >

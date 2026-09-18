@@ -27,11 +27,8 @@ function Billing() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      refresh();
-      setReady(true);
-    }, 200);
-    return () => clearTimeout(timer);
+    refresh();
+    setReady(true);
   }, []);
 
   if (!ready) return <Skeleton height={320} />;

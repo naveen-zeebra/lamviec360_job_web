@@ -20,8 +20,7 @@ export default function ApplicationDetailClient({ id }) {
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setApp(getApplication(id)), 250);
-    return () => clearTimeout(timer);
+    setApp(getApplication(id));
   }, [id]);
 
   if (app === undefined) {

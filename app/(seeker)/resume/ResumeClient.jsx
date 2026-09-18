@@ -23,16 +23,15 @@ const STORE_BYTES = 2 * 1024 * 1024; // keep a preview copy only under 2 MB
 function useResumeData() {
   const [state, setState] = useState({ loading: true, error: false, data: null });
   const load = () => {
-    setState({ loading: true, error: false, data: null });
-    setTimeout(() => {
-      try {
-        setState({ loading: false, error: false, data: { resume: getResume(), settings: getSettings() } });
-      } catch (e) {
-        setState({ loading: false, error: true, data: null });
-      }
-    }, 350);
+    try {
+      setState({ loading: false, error: false, data: { resume: getResume(), settings: getSettings() } });
+    } catch (e) {
+      setState({ loading: false, error: true, data: null });
+    }
   };
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, []);
   return [state, load, setState];
 }
 

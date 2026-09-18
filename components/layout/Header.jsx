@@ -46,6 +46,9 @@ function LangPicker({ lang, setLang, dark }) {
   );
 }
 
+import { getAuth } from "../../lib/seekerStore";
+import SeekerHeader from "../seeker/SeekerHeader";
+
 export default function Header({ lang, setLang, app = "seeker" }) {
   const emp = app === "employer";
   const nav = emp ? EMPLOYER_NAV : SEEKER_NAV;
@@ -53,13 +56,31 @@ export default function Header({ lang, setLang, app = "seeker" }) {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [auth, setAuth] = useState({ loggedIn: false });
 
   useEffect(() => {
+    setMounted(true);
     const f = () => setScrolled(window.scrollY > 8);
     f();
     window.addEventListener("scroll", f, { passive: true });
+    
+    if (app === "seeker") {
+      const refresh = () => setAuth(getAuth());
+      refresh();
+      window.addEventListener("lv360-store", refresh);
+      return () => {
+        window.removeEventListener("scroll", f);
+        window.removeEventListener("lv360-store", refresh);
+      };
+    }
+    
     return () => window.removeEventListener("scroll", f);
-  }, []);
+  }, [app]);
+
+  if (mounted && app === "seeker" && auth.loggedIn) {
+    return <SeekerHeader lang={lang} setLang={setLang} />;
+  }
 
   const switchHref = emp ? "/" : "/employers";
   const switchLabel = emp ? t(lang, "Job Seeker") : t(lang, "Employer / Company");

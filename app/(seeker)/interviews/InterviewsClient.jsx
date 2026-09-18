@@ -21,16 +21,15 @@ const STATUS_LABEL = { invited: "Action needed", confirmed: "Confirmed", decline
 function useInterviews() {
   const [state, setState] = useState({ loading: true, error: false, data: null });
   const load = () => {
-    setState({ loading: true, error: false, data: null });
-    setTimeout(() => {
-      try {
-        setState({ loading: false, error: false, data: listInterviews() });
-      } catch (e) {
-        setState({ loading: false, error: true, data: null });
-      }
-    }, 350);
+    try {
+      setState({ loading: false, error: false, data: listInterviews() });
+    } catch (e) {
+      setState({ loading: false, error: true, data: null });
+    }
   };
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, []);
   return [state, load];
 }
 
