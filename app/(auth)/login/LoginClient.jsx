@@ -60,11 +60,10 @@ export default function LoginClient() {
         ctaText={t(lang, "Register for Free")}
         ctaHref="/register"
       >
-        <h1>{t(lang, "Login")}</h1>
         <form onSubmit={formik.handleSubmit}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6, display: "block" }}>
-              {t(lang, "Email ID / Username")}
+              {t(lang, "Email")}
             </label>
             <Input
               id="email"
@@ -160,24 +159,8 @@ export default function LoginClient() {
           </button>
         </form>
 
-        <div className="lv-reg-divider" style={{ margin: "24px 0" }}>Or</div>
 
-        <button
-          type="button"
-          className="lv-reg-social"
-          style={{ width: "100%", padding: "10px", background: "#fff", border: "1px solid #d1d5db", borderRadius: "24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 15, fontWeight: 500, cursor: "pointer", color: "#374151" }}
-          onClick={async () => {
-            try {
-              await login("minh.tran@example.com", "password123");
-              router.push("/dashboard");
-            } catch (err) {
-              setToast(t(lang, "Demo sign-in ready"));
-            }
-          }}
-        >
-          <Icon name="chrome" size={18} style={{ color: "#4285F4" }} />
-          {t(lang, "Sign in with Google (Demo)")}
-        </button>
+
       </NaukriShell>
       <Toast msg={toast} />
     </>
