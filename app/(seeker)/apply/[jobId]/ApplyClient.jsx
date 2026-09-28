@@ -32,6 +32,8 @@ export default function ApplyClient({ jobId }) {
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
   const [draftSaved, setDraftSaved] = useState(false);
+  const [selectedCertIds, setSelectedCertIds] = useState([]);
+  const [appliedCertFile, setAppliedCertFile] = useState(null);
 
   useEffect(() => {
     async function resolveJob() {
@@ -62,6 +64,9 @@ export default function ApplyClient({ jobId }) {
     const p = getProfile();
     setProfile(p);
     setResumeFileName(p.resume?.fileName || "");
+    if (p.certifications && p.certifications.length > 0) {
+      setSelectedCertIds(p.certifications.map((c) => c.id || c.name));
+    }
     setAlreadyApplied(hasAppliedToJob(job.id));
     try {
       const raw = localStorage.getItem(draftKey);
@@ -229,7 +234,18 @@ export default function ApplyClient({ jobId }) {
     setSubmitting(true);
     setErr("");
     try {
-      const record = await addApplication({ jobId: job.id, resumeFileName, coverLetter, answers });
+      const certsToAttach = [
+        ...(profile.certifications || []).filter((c) => selectedCertIds.includes(c.id || c.name)),
+        ...(appliedCertFile ? [{ name: appliedCertFile.name, fileName: appliedCertFile.name, fileSize: appliedCertFile.size }] : []),
+      ];
+      const record = await addApplication({
+        jobId: job.id,
+        resumeFileName,
+        coverLetter,
+        answers,
+        certifications: certsToAttach,
+        certification: appliedCertFile ? { name: appliedCertFile.name, size: appliedCertFile.size } : (certsToAttach[0] || null),
+      });
       addNotification({
         type: "confirmation",
         title: t(lang, "Application submitted"),
@@ -330,6 +346,92 @@ export default function ApplyClient({ jobId }) {
         {step === 4 && (
           <div>
             <h2 style={{ fontSize: "var(--text-lg)", marginBottom: 16 }}>{t(lang, "Additional information")}</h2>
+
+            {/* ── Certification / Professional Licenses in Application Form ── */}
+            <div style={{ marginBottom: 24, padding: "16px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <label style={{ fontSize: "var(--text-sm)", fontWeight: 600, display: "flex", alignItems: "center", gap: 6, color: "#1e293b" }}>
+                  <Icon name="award" size={16} style={{ color: "#4f46e5" }} />
+                  <span>{t(lang, "Certification / Professional Licenses")}</span>
+                </label>
+                <span style={{ fontSize: 11, background: "#e2e8f0", padding: "2px 8px", borderRadius: 99, color: "#475569", fontWeight: 500 }}>
+                  {t(lang, "Optional")}
+                </span>
+              </div>
+              <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 12px" }}>
+                {t(lang, "Attach relevant professional certifications or licenses to strengthen your application.")}
+              </p>
+
+              {/* Saved Profile Certifications Selection */}
+              {profile.certifications && profile.certifications.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>
+                    {t(lang, "Saved profile certifications:")}
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {profile.certifications.map((c, idx) => (
+                      <label key={c.id || idx} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, background: "#ffffff", padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedCertIds.includes(c.id || c.name)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCertIds([...selectedCertIds, c.id || c.name]);
+                            } else {
+                              setSelectedCertIds(selectedCertIds.filter((id) => id !== (c.id || c.name)));
+                            }
+                          }}
+                        />
+                        <span style={{ fontWeight: 600, color: "#0f172a" }}>{c.name}</span>
+                        {c.issuer && <span style={{ color: "#64748b" }}>· {c.issuer}</span>}
+                        {c.fileName && <span style={{ color: "#16a34a", fontSize: 11, marginLeft: "auto" }}>✓ {c.fileName}</span>}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Upload Certificate for this application */}
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>
+                  {t(lang, "Upload certificate document:")}
+                </span>
+                {appliedCertFile ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffffff", padding: "8px 12px", borderRadius: 6, border: "1px solid #bbf7d0" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Icon name="file-text" size={16} style={{ color: "#16a34a" }} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{appliedCertFile.name}</span>
+                      <span style={{ fontSize: 11, color: "#64748b" }}>({(appliedCertFile.size / 1024).toFixed(0)} KB)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAppliedCertFile(null)}
+                      style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}
+                    >
+                      <Icon name="x" size={14} /> {t(lang, "Remove")}
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        if (f.size > 10 * 1024 * 1024) {
+                          setErr(t(lang, "File is larger than 10MB."));
+                          return;
+                        }
+                        setAppliedCertFile(f);
+                        setErr("");
+                      }
+                    }}
+                    style={{ fontSize: 12 }}
+                  />
+                )}
+              </div>
+            </div>
+
             <label style={{ fontSize: "var(--text-sm)", fontWeight: 600, display: "block", marginBottom: 6 }}>{t(lang, "Cover letter (optional)")}</label>
             <textarea className="lv-textarea" rows={6} value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} placeholder={t(lang, "Add a short note to the employer (optional)")} />
           </div>
@@ -358,6 +460,14 @@ export default function ApplyClient({ jobId }) {
               <div>
                 <dt>{t(lang, "Cover letter")}</dt>
                 <dd>{coverLetter ? t(lang, "Included") : t(lang, "Not included")}</dd>
+              </div>
+              <div>
+                <dt>{t(lang, "Certifications")}</dt>
+                <dd>
+                  {selectedCertIds.length > 0 || appliedCertFile
+                    ? `${selectedCertIds.length > 0 ? selectedCertIds.length + " " + t(lang, "from profile") : ""}${appliedCertFile ? (selectedCertIds.length > 0 ? " + " : "") + appliedCertFile.name : ""}`
+                    : t(lang, "None attached")}
+                </dd>
               </div>
             </dl>
           </div>

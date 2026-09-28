@@ -8,7 +8,7 @@ import ErrorState from "../../../components/ds/ErrorState";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { useLang, t } from "../../../utils/lang";
 import { formatDate, relativeTime, formatBytes } from "../../../utils/format";
-import { getResume, saveResume, removeResume, getSettings } from "../../../lib/seekerStore";
+import { getResume, saveResume, removeResume, getSettings, getCertifications } from "../../../lib/seekerStore";
 
 const PAGE = "mx-auto max-w-[1000px] px-6 pb-24 pt-10 max-md:px-4 max-md:pb-12 max-md:pt-7";
 const CARD = "rounded-lg border border-line bg-card p-6 shadow-sm max-md:p-5";
@@ -24,7 +24,11 @@ function useResumeData() {
   const [state, setState] = useState({ loading: true, error: false, data: null });
   const load = () => {
     try {
-      setState({ loading: false, error: false, data: { resume: getResume(), settings: getSettings() } });
+      setState({
+        loading: false,
+        error: false,
+        data: { resume: getResume(), settings: getSettings(), certifications: getCertifications() },
+      });
     } catch (e) {
       setState({ loading: false, error: true, data: null });
     }
@@ -194,6 +198,40 @@ export default function ResumeClient() {
           </div>
         </>
       )}
+
+      {/* ── Certification / Professional Licenses ── */}
+      <div className={`${CARD} mb-5`}>
+        <div className="flex items-center justify-between mb-3">
+          <span className={LABEL}>{t(lang, "Certification / Professional Licenses")}</span>
+          <Link href="/settings?tab=profile" className="inline-flex items-center gap-1 text-xs font-semibold text-brand no-underline">
+            <Icon name="plus" size={13} /> {t(lang, "Manage in Profile")}
+          </Link>
+        </div>
+        {!data.certifications || data.certifications.length === 0 ? (
+          <p className="text-sm text-muted">{t(lang, "No certifications added yet. Add them in Settings > Profile.")}</p>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {data.certifications.map((c, i) => (
+              <div key={c.id || i} className="flex items-center justify-between p-3 rounded-md bg-sunken border border-line">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-subtle text-brand shrink-0">
+                    <Icon name="award" size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <strong className="block text-sm text-ink truncate">{c.name}</strong>
+                    <span className="text-xs text-muted">
+                      {[c.issuer, c.issueDate, c.credentialId && `#${c.credentialId}`].filter(Boolean).join(" · ")}
+                    </span>
+                  </div>
+                </div>
+                {c.fileName && (
+                  <span className="text-xs text-emerald-600 font-semibold shrink-0 ml-2">✓ {c.fileName}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className={CARD}>
         <span className={LABEL}>{t(lang, "Résumé visibility")}</span>

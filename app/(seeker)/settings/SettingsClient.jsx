@@ -50,6 +50,10 @@ function emptyEducation() {
   return { degree: "", institution: "", year: "" };
 }
 
+function emptyCertification() {
+  return { id: "cert-" + Date.now(), name: "", issuer: "", issueDate: "", expiryDate: "", credentialId: "", credentialUrl: "", fileName: "", fileSize: 0 };
+}
+
 function emptyExperience() {
   return { company: "", title: "", start: "", end: "", isCurrent: false, responsibilities: "" };
 }
@@ -188,6 +192,35 @@ export default function SettingsClient() {
   };
   const addEducation = () => persist({ education: [...profile.education, emptyEducation()] });
   const removeEducation = (i) => persist({ education: profile.education.filter((_, idx) => idx !== i) });
+
+  const updateCertification = (i, field, value) => {
+    const list = (profile.certifications || []).slice();
+    list[i] = { ...list[i], [field]: value };
+    persist({ certifications: list });
+  };
+  const addCertification = () => persist({ certifications: [...(profile.certifications || []), emptyCertification()] });
+  const removeCertification = (i) => persist({ certifications: (profile.certifications || []).filter((_, idx) => idx !== i) });
+  const handleCertFileUpload = async (i, file) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setToast(t(lang, "File exceeds 10MB limit."));
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const list = (profile.certifications || []).slice();
+      list[i] = {
+        ...list[i],
+        fileName: file.name,
+        fileSize: file.size,
+        fileDataUrl: dataUrl,
+      };
+      persist({ certifications: list });
+      setToast(t(lang, "Certificate attached"));
+    } catch {
+      setToast(t(lang, "Could not attach file"));
+    }
+  };
 
   const updateExperience = (i, field, value) => {
     const list = profile.experience.slice();
@@ -426,6 +459,82 @@ export default function SettingsClient() {
               ))}
               <Button type="button" variant="secondary" onClick={addEducation}>
                 <Icon name="plus" size={16} /> {t(lang, "Add education")}
+              </Button>
+            </div>
+
+            {/* ── Certification / Professional Licenses Section ── */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <h3 style={{ margin: 0 }}>{t(lang, "Certification / Professional Licenses")}</h3>
+                <span style={{ fontSize: 12, color: "#64748b" }}>{t(lang, "Optional")}</span>
+              </div>
+              {(profile.certifications || []).map((cert, i) => (
+                <div key={cert.id || i} className="lv-repeat-card">
+                  <div className="lv-form-grid">
+                    <Input
+                      label={t(lang, "Certification Name")}
+                      value={cert.name}
+                      onChange={(e) => updateCertification(i, "name", e.target.value)}
+                      placeholder="e.g. AWS Certified Solutions Architect"
+                    />
+                    <Input
+                      label={t(lang, "Issuing Organization")}
+                      value={cert.issuer}
+                      onChange={(e) => updateCertification(i, "issuer", e.target.value)}
+                      placeholder="e.g. Amazon Web Services"
+                    />
+                    <Input
+                      label={t(lang, "Issue Date")}
+                      type="month"
+                      value={cert.issueDate}
+                      onChange={(e) => updateCertification(i, "issueDate", e.target.value)}
+                    />
+                    <Input
+                      label={t(lang, "Credential ID / License Number")}
+                      value={cert.credentialId}
+                      onChange={(e) => updateCertification(i, "credentialId", e.target.value)}
+                      placeholder="e.g. AWS-1234567"
+                    />
+                  </div>
+
+                  {/* Certificate File Attachment */}
+                  <div style={{ marginTop: 12 }}>
+                    <label className="lv-field-label">{t(lang, "Certificate Document (PDF, Image)")}</label>
+                    {cert.fileName ? (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "8px 12px", borderRadius: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                          <Icon name="file-text" size={16} style={{ color: "#4f46e5" }} />
+                          <span style={{ fontSize: 13, fontWeight: 500, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cert.fileName}</span>
+                          {cert.fileSize ? <span style={{ fontSize: 11, color: "#64748b" }}>({(cert.fileSize / 1024).toFixed(0)} KB)</span> : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => updateCertification(i, "fileName", "")}
+                          style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}
+                        >
+                          <Icon name="trash-2" size={13} /> {t(lang, "Remove file")}
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleCertFileUpload(i, file);
+                        }}
+                        style={{ fontSize: 12 }}
+                      />
+                    )}
+                  </div>
+
+                  <button type="button" className="lv-repeat-remove" onClick={() => removeCertification(i)}>
+                    <Icon name="trash-2" size={14} /> {t(lang, "Remove")}
+                  </button>
+                </div>
+              ))}
+              <Button type="button" variant="secondary" onClick={addCertification}>
+                <Icon name="plus" size={16} /> {t(lang, "Add certification")}
               </Button>
             </div>
 

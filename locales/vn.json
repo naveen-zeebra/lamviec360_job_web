@@ -928,5 +928,17 @@
   "No specific reason": "Không có lý do cụ thể",
   "Internal note (optional)": "Ghi chú nội bộ (không bắt buộc)",
   "Candidate rejected": "Đã từ chối ứng viên",
-  "Hidden by policy": "Ẩn theo chính sách"
+  "Hidden by policy": "Ẩn theo chính sách",
+  "Back": "Quay lại",
+  "Phone number": "Số điện thoại",
+  "Country Code": "Mã quốc gia",
+  "Certification / Professional Licenses": "Chứng chỉ / Bằng cấp chuyên môn",
+  "Certification / Credentials": "Chứng chỉ / Bằng cấp chuyên môn",
+  "Click to upload certification": "Nhấp để tải lên chứng chỉ",
+  "or drag & drop": "hoặc kéo & thả",
+  "max 10MB": "tối đa 10MB",
+  "Not mandatory": "Không bắt buộc",
+  "Attached (Optional)": "Đã đính kèm (Không bắt buộc)",
+  "Please enter a valid phone number (7-15 digits)": "Vui lòng nhập số điện thoại hợp lệ (7-15 chữ số)",
+  "File size must be under 10MB": "Kích thước tệp phải dưới 10MB"
 }

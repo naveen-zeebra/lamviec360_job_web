@@ -9,12 +9,14 @@ import Icon from "../../../components/ds/Icon";
 import { useLang, t } from "../../../utils/lang";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { registerDraft } from "../../../lib/seekerStore";
+import { COUNTRY_CODES } from "../../../lib/data";
 
 export default function RegisterClient() {
   const [lang, setLang] = useLang();
   const router = useRouter();
   const [showPw, setShowPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [countryCode, setCountryCode] = useState("+84");
   const [toast, setToast] = useToast();
 
   const registerSchema = Yup.object().shape({
@@ -22,6 +24,14 @@ export default function RegisterClient() {
     email: Yup.string()
       .email(t(lang, "Please enter a valid email"))
       .required(t(lang, "Please enter your email")),
+    phone: Yup.string()
+      .nullable()
+      .notRequired()
+      .test(
+        "valid-phone",
+        t(lang, "Please enter a valid phone number (7-15 digits)"),
+        (val) => !val || /^[0-9\s\-()+]{7,15}$/.test(val)
+      ),
     password: Yup.string()
       .min(8, t(lang, "Password must be at least 8 characters"))
       .required(t(lang, "Password is required")),
@@ -34,6 +44,7 @@ export default function RegisterClient() {
     initialValues: {
       name: "",
       email: "",
+      phone: "",
       password: "",
       confirmPassword: "",
     },
@@ -41,7 +52,10 @@ export default function RegisterClient() {
     onSubmit: async (values, { setSubmitting, setStatus }) => {
       setStatus(null);
       try {
-        await registerDraft(values.name.trim(), values.email.trim(), values.password);
+        const fullPhone = values.phone && values.phone.trim()
+          ? (values.phone.trim().startsWith("+") ? values.phone.trim() : `${countryCode} ${values.phone.trim()}`)
+          : "";
+        await registerDraft(values.name.trim(), values.email.trim(), values.password, fullPhone);
         router.push(`/verify-email?email=${encodeURIComponent(values.email.trim())}`);
       } catch (error) {
         setStatus(error.message || t(lang, "An account with this email address already exists."));
@@ -50,6 +64,7 @@ export default function RegisterClient() {
       }
     },
   });
+
 
   const FieldError = ({ touched, error }) => (
     <p className="lv-reg2-err">
@@ -106,12 +121,28 @@ export default function RegisterClient() {
 
           {/* ── Right form panel ─────────────────────── */}
           <div className="lv-reg2-right">
-            <div className="lv-reg2-form-head">
-              <h2>{t(lang, "Create account")}</h2>
-              {/* <p>{t(lang, "Sign up using the form, or your Google account.")}</p> */}
+            {/* Back navigation button */}
+            <div className="lv-reg2-back-nav">
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== "undefined" && window.history.length > 1) {
+                    router.back();
+                  } else {
+                    router.push("/login");
+                  }
+                }}
+                className="lv-reg2-back-btn"
+                aria-label={t(lang, "Back")}
+              >
+                <Icon name="arrow-left" size={16} />
+                <span>{t(lang, "Back")}</span>
+              </button>
             </div>
 
-
+            <div className="lv-reg2-form-head">
+              <h2>{t(lang, "Create account")}</h2>
+            </div>
 
             {/* Form */}
             <form onSubmit={formik.handleSubmit} noValidate>
@@ -143,6 +174,54 @@ export default function RegisterClient() {
                   placeholder="sarahvaughn42@gmail.com"
                 />
                 <FieldError touched={formik.touched.email} error={formik.errors.email} />
+              </div>
+
+              {/* Phone with Country Code */}
+              <div className="lv-reg2-field">
+                <label
+                  htmlFor="phone"
+                  style={{
+                    display: "block",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#334155",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {t(lang, "Phone number")}
+                </label>
+                <div className="lv-reg2-phone-group">
+                  <div className="lv-reg2-cc-wrap">
+                    <select
+                      id="country-code-select"
+                      aria-label={t(lang, "Country Code")}
+                      value={countryCode}
+                      onChange={(e) => setCountryCode(e.target.value)}
+                      className="lv-reg2-cc-select"
+                    >
+                      {COUNTRY_CODES.map((c) => (
+                        <option key={`${c.code}-${c.dial}`} value={c.dial}>
+                          {c.flag} {c.dial} ({c.code})
+                        </option>
+                      ))}
+                    </select>
+                    <span className="lv-reg2-cc-arrow">
+                      <Icon name="chevron-down" size={14} />
+                    </span>
+                  </div>
+                  <div className="lv-reg2-phone-input">
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formik.values.phone}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      placeholder="901 234 567"
+                    />
+                  </div>
+                </div>
+                <FieldError touched={formik.touched.phone} error={formik.errors.phone} />
               </div>
 
               {/* Password row */}
