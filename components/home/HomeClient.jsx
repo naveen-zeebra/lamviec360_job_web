@@ -139,8 +139,9 @@ function Hero({ lang }) {
 }
 
 function WhyUs({ lang }) {
+  const isVi = lang === "VI" || lang === "VN";
   const items =
-    lang === "VI"
+    isVi
       ? [
         ["sparkles", "Gợi ý việc làm thông minh", "Nhận đề xuất dựa trên kỹ năng, kinh nghiệm và mục tiêu nghề nghiệp của bạn."],
         ["zap", "Ứng tuyển một lần nhấn", "Dùng hồ sơ đã lưu để gửi đơn ứng tuyển mà không phải nhập lại thông tin."],
@@ -179,8 +180,9 @@ function WhyUs({ lang }) {
 }
 
 function HowItWorks({ lang }) {
+  const isVi = lang === "VI" || lang === "VN";
   const steps =
-    lang === "VI"
+    isVi
       ? [
         ["01", "Tạo hồ sơ", "Thêm kinh nghiệm, kỹ năng và mục tiêu nghề nghiệp của bạn."],
         ["02", "Khám phá việc phù hợp", "Tìm và lọc theo những điều quan trọng với bạn."],
@@ -282,7 +284,7 @@ function FeaturedJobs({ lang, jobsData }) {
                   </button>
                 </div>
                 <h3 className="lv-job-title">
-                  <Link href={`/job-detail?id=${j.id}`} style={{ color: "inherit" }}>
+                  <Link href={`/job-detail/${encodeURIComponent((j.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + j.id)}`} style={{ color: "inherit" }}>
                     {(lang === "VN" || lang === "VI" ? j.titleVi || j.title : j.title)}
                   </Link>
                 </h3>
@@ -314,7 +316,7 @@ function FeaturedJobs({ lang, jobsData }) {
                 </div>
                 <div className="lv-job-footer">
                   <span className="lv-job-posted">{(lang === "VN" || lang === "VI" ? j.postedVi || "Gần đây" : j.posted || "Recently")}</span>
-                  <Button variant="primary" size="sm" onClick={() => router.push(`/job-detail?id=${j.id}`)}>
+                  <Button variant="primary" size="sm" onClick={() => router.push(`/job-detail/${encodeURIComponent((j.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + j.id)}`)}>
                     {t(lang, "Apply")}
                   </Button>
                 </div>
@@ -361,9 +363,10 @@ function TopCompanies({ lang, companiesData }) {
 function DashboardPreview({ lang, jobsData }) {
   const router = useRouter();
   const [tab, setTab] = useState(0);
-  const tabs = lang === "VI" ? ["Việc làm gợi ý", "Việc đã lưu", "Đã ứng tuyển", "Phỏng vấn"] : ["Recommended", "Saved jobs", "Applied", "Interviews"];
+  const isVi = lang === "VI" || lang === "VN";
+  const tabs = isVi ? ["Việc làm gợi ý", "Việc đã lưu", "Đã ứng tuyển", "Phỏng vấn"] : ["Recommended", "Saved jobs", "Applied", "Interviews"];
   const rows = [jobsData.slice(0, 3), jobsData.slice(3, 5), jobsData.slice(1, 4), jobsData.slice(0, 2)][tab] || [];
-  const stages = lang === "VI" ? ["Đang xét duyệt", "Danh sách rút gọn", "Phỏng vấn"] : ["Under Review", "Shortlisted", "Interview"];
+  const stages = isVi ? ["Đang xét duyệt", "Danh sách rút gọn", "Phỏng vấn"] : ["Under Review", "Shortlisted", "Interview"];
   return (
     <section className="lv-section lv-section-blue" id="dashboard">
       <Reveal className="lv-section-head">

@@ -21,7 +21,7 @@ export default function JobRow({ job, lang, saved, onSave }) {
       </div>
       <div className="lv-jobrow-body">
         <h3 className="lv-job-title" style={{ marginBottom: "var(--space-2)" }}>
-          <Link href={`/job-detail?id=${job.id}`} style={{ color: "inherit" }}>
+          <Link href={`/job-detail/${encodeURIComponent((job.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + job.id)}`} style={{ color: "inherit" }}>
             {(lang === "VN" || lang === "VI" ? job.titleVi || job.title : job.title)}
           </Link>
         </h3>
@@ -62,7 +62,7 @@ export default function JobRow({ job, lang, saved, onSave }) {
         >
           <Icon name="heart" size={18} style={{ fill: saved ? "var(--red-500)" : "none", color: saved ? "var(--red-500)" : "var(--gray-400)" }} />
         </button>
-        <Button variant="primary" size="sm" onClick={() => router.push(`/job-detail?id=${job.id}`)}>
+        <Button variant="primary" size="sm" onClick={() => router.push(`/job-detail/${encodeURIComponent((job.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + job.id)}`)}>
           {t(lang, "Apply")}
         </Button>
       </div>

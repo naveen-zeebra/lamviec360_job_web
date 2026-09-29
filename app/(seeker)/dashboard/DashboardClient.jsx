@@ -170,7 +170,7 @@ export default function DashboardClient() {
                   ? j.company
                   : j.company_name || j.company?.company_name || "Company";
               return (
-                <Link key={j.id} href={`/job-detail?id=${j.id}`} className="flex items-center gap-3 rounded-md border border-line bg-card p-3.5 text-inherit no-underline hover:shadow-sm hover:no-underline">
+                <Link key={j.id} href={`/job-detail/${encodeURIComponent((j.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + j.id)}`} className="flex items-center gap-3 rounded-md border border-line bg-card p-3.5 text-inherit no-underline hover:shadow-sm hover:no-underline">
                   <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-600 text-xs font-bold text-white">
                     {compName.slice(0, 2).toUpperCase()}
                   </div>

@@ -1,17 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Badge } from "../../../components/ds";
-import Icon from "../../../components/ds/Icon";
-import { useLang, t } from "../../../utils/lang";
-import Header from "../../../components/layout/Header";
-import Footer from "../../../components/layout/Footer";
-import JobRow from "../../../components/jobs/JobRow";
-import Toast, { useToast } from "../../../components/ds/Toast";
-import { FILTER_VI } from "../../../lib/data";
-import { isSaved, toggleSavedJob, hasAppliedToJob } from "../../../lib/seekerStore";
-import { fetchPublicJobDetail, fetchPublicJobs } from "../../../lib/api/publicApi";
+import { useRouter, useParams } from "next/navigation";
+import { Button, Badge } from "../../../../components/ds";
+import Icon from "../../../../components/ds/Icon";
+import { useLang, t } from "../../../../utils/lang";
+import Header from "../../../../components/layout/Header";
+import Footer from "../../../../components/layout/Footer";
+import JobRow from "../../../../components/jobs/JobRow";
+import Toast, { useToast } from "../../../../components/ds/Toast";
+import { FILTER_VI } from "../../../../lib/data";
+import { isSaved, toggleSavedJob, hasAppliedToJob, isLoggedIn } from "../../../../lib/seekerStore";
+import { fetchPublicJobDetail, fetchPublicJobs } from "../../../../lib/api/publicApi";
 
 const STAGES = [
   ["Applied", "Đã nộp"],
@@ -28,8 +28,13 @@ export default function JobDetailClient() {
   const [saved, setSaved] = useState(false);
   const [applied, setApplied] = useState(false);
   const [toast, setToast] = useToast();
-  const params = useSearchParams();
-  const rawId = params.get("id");
+  const params = useParams();
+  
+  // Extract ID from slug, assuming format is `title-id`
+  const slug = params.slug || "";
+  const parts = slug.split("-");
+  const rawId = parts[parts.length - 1];
+  
   const [job, setJob] = useState(null);
   const [related, setRelated] = useState([]);
 
@@ -151,7 +156,21 @@ export default function JobDetailClient() {
             <div className="lv-detail-card">
               <h2>{t(lang, "About the role")}</h2>
               <p>
-                {t(lang, "${job.company} is looking for a ${job.title} in ${job.location}. This is a ${job.type.toLowerCase()} role working ${job.mode.toLowerCase()}, suited to ${job.level.toLowerCase()} candidates.")}
+                {t(
+                  lang,
+                  "${job.company} is looking for a ${job.title} in ${job.location}. This is a ${job.type.toLowerCase()} role working ${job.mode.toLowerCase()}, suited to ${job.level.toLowerCase()} candidates."
+                )
+                  .replace("${job.company}", typeof job.company === 'string' ? job.company : job.company_name)
+                  .replace("${job.title}", job.title)
+                  .replace("${job.titleVi}", job.titleVi || job.title)
+                  .replace("${job.location}", job.location)
+                  .replace("${job.locationVi}", job.locationVi || job.location)
+                  .replace("${job.type.toLowerCase()}", (job.type || "").toLowerCase())
+                  .replace("${FILTER_VI[job.type] || job.type}", FILTER_VI[job.type] || job.type)
+                  .replace("${job.mode.toLowerCase()}", (job.mode || "").toLowerCase())
+                  .replace("${job.modeVi}", job.modeVi || job.mode)
+                  .replace("${job.level.toLowerCase()}", (job.level || "").toLowerCase())
+                  .replace("${job.levelVi}", job.levelVi || job.level)}
               </p>
               <h2>{t(lang, "Responsibilities")}</h2>
               <ul>
@@ -231,6 +250,10 @@ export default function JobDetailClient() {
               style={{ width: "100%", justifyContent: "center" }}
               disabled={applied}
               onClick={() => {
+                if (!isLoggedIn()) {
+                  router.push("/login");
+                  return;
+                }
                 if (!applied) router.push(`/apply/${job.id}`);
               }}
             >
@@ -240,6 +263,10 @@ export default function JobDetailClient() {
               variant="secondary"
               style={{ width: "100%", justifyContent: "center" }}
               onClick={() => {
+                if (!isLoggedIn()) {
+                  router.push("/login");
+                  return;
+                }
                 toggleSavedJob(job.id, job);
                 const nowSaved = !saved;
                 setSaved(nowSaved);

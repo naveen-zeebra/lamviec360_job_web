@@ -53,7 +53,7 @@ export default function RegisterClient() {
       setStatus(null);
       try {
         const fullPhone = values.phone && values.phone.trim()
-          ? (values.phone.trim().startsWith("+") ? values.phone.trim() : `${countryCode} ${values.phone.trim()}`)
+          ? (values.phone.trim().startsWith("+") ? values.phone.trim() : `+84 ${values.phone.trim()}`)
           : "";
         await registerDraft(values.name.trim(), values.email.trim(), values.password, fullPhone);
         router.push(`/verify-email?email=${encodeURIComponent(values.email.trim())}`);
@@ -178,46 +178,20 @@ export default function RegisterClient() {
 
               {/* Phone with Country Code */}
               <div className="lv-reg2-field">
-                <label
-                  htmlFor="phone"
-                  style={{
-                    display: "block",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: "#334155",
-                    marginBottom: "6px",
-                  }}
-                >
-                  {t(lang, "Phone number")}
-                </label>
-                <div className="lv-reg2-phone-group">
-                  <div className="lv-reg2-cc-wrap">
-                    <select
-                      id="country-code-select"
-                      aria-label={t(lang, "Country Code")}
-                      value={countryCode}
-                      onChange={(e) => setCountryCode(e.target.value)}
-                      className="lv-reg2-cc-select"
-                    >
-                      {COUNTRY_CODES.map((c) => (
-                        <option key={`${c.code}-${c.dial}`} value={c.dial}>
-                          {c.flag} {c.dial} ({c.code})
-                        </option>
-                      ))}
-                    </select>
-                    <span className="lv-reg2-cc-arrow">
-                      <Icon name="chevron-down" size={14} />
-                    </span>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ width: "90px", flexShrink: 0 }}>
+                    <Input label={t(lang, "Code")} value="+84" disabled />
                   </div>
-                  <div className="lv-reg2-phone-input">
+                  <div style={{ flex: 1 }}>
                     <Input
                       id="phone"
                       name="phone"
+                      label={t(lang, "Phone number")}
                       type="tel"
                       value={formik.values.phone}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
-                      placeholder="901 234 567"
+                      placeholder="090 123 4567"
                     />
                   </div>
                 </div>

@@ -312,16 +312,55 @@ export default function ApplyClient({ jobId }) {
           <div>
             <h2 style={{ fontSize: "var(--text-lg)", marginBottom: 16 }}>{t(lang, "Resume")}</h2>
             {resumeFileName ? (
-              <p className="lv-file-chip">
-                <Icon name="file-text" size={14} />
-                {resumeFileName}
-              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 8, padding: "12px 16px", marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ background: "#e0e7ff", color: "#4f46e5", padding: 8, borderRadius: 6 }}>
+                    <Icon name="file-text" size={20} />
+                  </div>
+                  <div>
+                    <strong style={{ display: "block", fontSize: 14, color: "#0f172a", marginBottom: 2 }}>{resumeFileName}</strong>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>{profile.resume?.size ? (profile.resume.size / 1024 / 1024).toFixed(2) + " MB" : t(lang, "Resume ready")}</span>
+                  </div>
+                </div>
+                {profile.resume?.dataUrl && (
+                  <a href={profile.resume.dataUrl} download={resumeFileName} style={{ display: "flex", alignItems: "center", gap: 6, color: "#0284c7", fontSize: 13, fontWeight: 600, textDecoration: "none", padding: "6px 12px", background: "#e0f2fe", borderRadius: 6 }}>
+                    <Icon name="download" size={14} />
+                    {t(lang, "Download")}
+                  </a>
+                )}
+              </div>
             ) : (
-              <p style={{ color: "var(--text-tertiary)", fontSize: "var(--text-sm)" }}>{t(lang, "No resume on file yet.")}</p>
+              <div style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "24px", textAlign: "center", marginBottom: 20 }}>
+                 <Icon name="upload-cloud" size={32} style={{ color: "#94a3b8", marginBottom: 12 }} />
+                 <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{t(lang, "No resume on file yet.")}</p>
+                 <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 10MB.")}</p>
+              </div>
             )}
-            <label style={{ display: "block", marginTop: 16, fontSize: "var(--text-sm)", fontWeight: 600 }}>{t(lang, "Upload or replace")}</label>
-            <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={onResumeChange} style={{ marginTop: 8 }} />
-            <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 6 }}>{t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 10MB.")}</p>
+            
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "16px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 12 }}>
+                {t(lang, "Upload or replace")} <span style={{ color: "var(--red-500)" }}>*</span>
+              </label>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <input 
+                  type="file" 
+                  id="resume-upload" 
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" 
+                  onChange={onResumeChange} 
+                  style={{ display: "none" }} 
+                />
+                <label 
+                  htmlFor="resume-upload" 
+                  style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, background: "#f8fafc", padding: "8px 16px", borderRadius: 6, fontSize: 13, fontWeight: 600, color: "#334155", border: "1px solid #cbd5e1" }}
+                  onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
+                  onMouseLeave={(e) => e.target.style.background = "#f8fafc"}
+                >
+                  <Icon name="upload" size={16} />
+                  {t(lang, "Choose File")}
+                </label>
+                <span style={{ fontSize: 12, color: "#64748b" }}>{t(lang, "Max size: 10MB")}</span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -329,7 +368,7 @@ export default function ApplyClient({ jobId }) {
           <div className="lv-form-grid">
             <h2 style={{ fontSize: "var(--text-lg)", gridColumn: "1 / -1", marginBottom: 0 }}>{t(lang, "Employer questions")}</h2>
             <Select
-              label={t(lang, "Notice period")}
+              label={<>{t(lang, "Notice period")} <span style={{ color: "var(--red-500)" }}>*</span></>}
               value={answers.noticePeriod}
               onChange={(e) => setAnswers({ ...answers, noticePeriod: e.target.value })}
               options={NOTICE_OPTIONS.map((v) => ({ value: v, label: t(lang, v) }))}
@@ -337,7 +376,9 @@ export default function ApplyClient({ jobId }) {
             />
             <Input label={t(lang, "Expected salary (VND)")} value={answers.expectedSalary} onChange={(e) => setAnswers({ ...answers, expectedSalary: e.target.value })} placeholder="25,000,000" />
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={{ fontSize: "var(--text-sm)", fontWeight: 600, display: "block", marginBottom: 6 }}>{t(lang, "Why are you a good fit for this role?")}</label>
+              <label style={{ fontSize: "var(--text-sm)", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                {t(lang, "Why are you a good fit for this role?")} <span style={{ color: "var(--red-500)" }}>*</span>
+              </label>
               <textarea className="lv-textarea" rows={4} value={answers.whyFit} onChange={(e) => setAnswers({ ...answers, whyFit: e.target.value })} placeholder={t(lang, "Share relevant experience or skills")} />
             </div>
           </div>
@@ -478,7 +519,7 @@ export default function ApplyClient({ jobId }) {
             <h2 style={{ fontSize: "var(--text-lg)", marginBottom: 16 }}>{t(lang, "Consent & submit")}</h2>
             <div className="lv-consent-box">
               <Check
-                label={t(lang, "I consent to LàmViệc360 sharing my profile and application data with this employer for recruitment purposes.")}
+                label={<>{t(lang, "I consent to LàmViệc360 sharing my profile and application data with this employer for recruitment purposes.")} <span style={{ color: "var(--red-500)" }}>*</span></>}
                 checked={consent}
                 onChange={(e) => setConsent(e.target.checked)}
               />

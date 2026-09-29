@@ -100,7 +100,7 @@ export default function ApplicationDetailClient({ id }) {
               <span><Icon name="wallet" size={14} /> {job.salary_min && job.salary_max ? `${Math.round(job.salary_min / 1000000)}M – ${Math.round(job.salary_max / 1000000)}M VND` : job.salary || "Negotiable"}</span>
               <span><Icon name="briefcase" size={14} /> {isVi ? job.modeVi || job.workplace_type || job.mode : job.workplace_type || job.mode}</span>
             </div>
-            <Link href={`/job-detail?id=${job.id}`}>
+            <Link href={`/job-detail/${encodeURIComponent((job.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + job.id)}`}>
               <Button variant="secondary" size="sm">{t(lang, "View job")}</Button>
             </Link>
           </div>

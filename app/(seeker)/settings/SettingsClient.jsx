@@ -68,12 +68,17 @@ function readFileAsDataUrl(file) {
   });
 }
 
-/** Format YYYY-MM for display e.g. "2022-03" → "Mar 2022" */
 function fmtMonth(val) {
   if (!val || !val.includes("-")) return val;
-  const [y, m] = val.split("-");
-  const d = new Date(+y, +m - 1, 1);
-  return d.toLocaleString("default", { month: "short", year: "numeric" });
+  const parts = val.split("-");
+  if (parts.length === 3) {
+    const d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    return d.toLocaleString("default", { day: "numeric", month: "short", year: "numeric" });
+  } else if (parts.length === 2) {
+    const d = new Date(+parts[0], +parts[1] - 1, 1);
+    return d.toLocaleString("default", { month: "short", year: "numeric" });
+  }
+  return val;
 }
 
 function ChipInput({ label, values, onAdd, onRemove, placeholder }) {
@@ -367,7 +372,14 @@ export default function SettingsClient() {
               <h3 style={{ marginBottom: 14 }}>{t(lang, "Personal")}</h3>
               <div className="lv-form-grid">
                 <Input label={t(lang, "Full Name")} value={profile.personal.fullName} onChange={(e) => persist({ personal: { ...profile.personal, fullName: e.target.value } })} />
-                <Input label={t(lang, "Phone")} value={profile.personal.phone} onChange={(e) => persist({ personal: { ...profile.personal, phone: e.target.value } })} />
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ width: "90px", flexShrink: 0 }}>
+                    <Input label={t(lang, "Code")} value="+84" disabled />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <Input label={t(lang, "Phone")} value={profile.personal.phone} onChange={(e) => persist({ personal: { ...profile.personal, phone: e.target.value } })} />
+                  </div>
+                </div>
                 <Input label={t(lang, "Location")} value={profile.personal.location} onChange={(e) => persist({ personal: { ...profile.personal, location: e.target.value } })} />
               </div>
 
@@ -485,7 +497,7 @@ export default function SettingsClient() {
                     />
                     <Input
                       label={t(lang, "Issue Date")}
-                      type="month"
+                      type="date"
                       value={cert.issueDate}
                       onChange={(e) => updateCertification(i, "issueDate", e.target.value)}
                     />
@@ -559,15 +571,14 @@ export default function SettingsClient() {
                         placeholder="e.g. Senior Software Engineer"
                       />
 
-                      {/* Start Date Month Picker */}
+                      {/* Start Date Date Picker */}
                       <div>
-                        <label className="lv-field-label">{t(lang, "Start Date")}</label>
-                        <input
-                          type="month"
-                          className="lv-month-input"
+                        <Input
+                          type="date"
+                          label={t(lang, "Start Date")}
                           value={ex.start}
                           onChange={(e) => updateExperience(i, "start", e.target.value)}
-                          max={new Date().toISOString().slice(0, 7)}
+                          max={new Date().toISOString().slice(0, 10)}
                         />
                         {ex.start && (
                           <p className="lv-field-hint" style={{ marginTop: 4 }}>
@@ -576,26 +587,27 @@ export default function SettingsClient() {
                         )}
                       </div>
 
-                      {/* End Date Month Picker & Current Working Checkbox */}
-                      <div>
-                        <label className="lv-field-label">{t(lang, "End Date")}</label>
-                        <label className="lv-current-check">
-                          <input
-                            type="checkbox"
-                            checked={isCurrent}
-                            onChange={(e) => updateExperience(i, "isCurrent", e.target.checked)}
-                          />
-                          <span>{t(lang, "Currently working here")}</span>
-                        </label>
-                        {!isCurrent && (
-                          <>
+                      {/* End Date Date Picker & Current Working Checkbox */}
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <label className="lv-field-label" style={{ marginBottom: 0 }}>{t(lang, "End Date")}</label>
+                          <label className="lv-current-check" style={{ margin: 0, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
                             <input
-                              type="month"
-                              className="lv-month-input"
+                              type="checkbox"
+                              checked={isCurrent}
+                              onChange={(e) => updateExperience(i, "isCurrent", e.target.checked)}
+                            />
+                            <span>{t(lang, "Currently working here")}</span>
+                          </label>
+                        </div>
+                        {!isCurrent ? (
+                          <>
+                            <Input
+                              type="date"
                               value={ex.end === "Present" ? "" : (ex.end || "")}
                               onChange={(e) => updateExperience(i, "end", e.target.value)}
                               min={ex.start || undefined}
-                              max={new Date().toISOString().slice(0, 7)}
+                              max={new Date().toISOString().slice(0, 10)}
                             />
                             {ex.end && ex.end !== "Present" && (
                               <p className="lv-field-hint" style={{ marginTop: 4 }}>
@@ -603,9 +615,8 @@ export default function SettingsClient() {
                               </p>
                             )}
                           </>
-                        )}
-                        {isCurrent && (
-                          <div className="lv-present-badge">
+                        ) : (
+                          <div className="lv-present-badge" style={{ marginTop: 4 }}>
                             <Icon name="briefcase" size={13} />
                             {t(lang, "Present")}
                           </div>

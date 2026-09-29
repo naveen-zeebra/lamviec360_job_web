@@ -218,7 +218,7 @@ export default function InterviewDetailClient({ id }) {
 
       <div className="flex flex-wrap gap-2.5">
         {job && (
-          <Link href={`/job-detail?id=${job.id}`}><Button variant="ghost" size="sm">{t(lang, "View job")}</Button></Link>
+          <Link href={`/job-detail/${encodeURIComponent((job.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + job.id)}`}><Button variant="ghost" size="sm">{t(lang, "View job")}</Button></Link>
         )}
         <Link href={`/applications/${app.id}`}><Button variant="ghost" size="sm">{t(lang, "View application")}</Button></Link>
       </div>

@@ -48,12 +48,17 @@ function readFileAsDataUrl(file) {
   });
 }
 
-/** Format YYYY-MM for display e.g. "2022-03" → "Mar 2022" */
 function fmtMonth(val) {
   if (!val || !val.includes("-")) return val;
-  const [y, m] = val.split("-");
-  const d = new Date(+y, +m - 1, 1);
-  return d.toLocaleString("default", { month: "short", year: "numeric" });
+  const parts = val.split("-");
+  if (parts.length === 3) {
+    const d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    return d.toLocaleString("default", { day: "numeric", month: "short", year: "numeric" });
+  } else if (parts.length === 2) {
+    const d = new Date(+parts[0], +parts[1] - 1, 1);
+    return d.toLocaleString("default", { month: "short", year: "numeric" });
+  }
+  return val;
 }
 
 export default function OnboardingClient() {
@@ -70,6 +75,7 @@ export default function OnboardingClient() {
   const resumeInputRef = useRef(null);
   const [isResumeDragging, setIsResumeDragging] = useState(false);
   const [resumeUploading, setResumeUploading] = useState(false);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
     setProfile(getProfile());
@@ -92,7 +98,7 @@ export default function OnboardingClient() {
     } else if (field === "phone") {
       if (value && value.trim()) {
         const clean = value.replace(/[\s\-\(\)\.]/g, "");
-        if (!/^\+?\d{8,15}$/.test(clean)) msg = t(lang, "Please enter a valid phone number.");
+        if (clean.length > 0 && !/^\+?[0-9]{5,20}$/.test(clean)) msg = t(lang, "Please enter a valid phone number.");
       }
     } else if (field === "title") {
       if (!value || !value.trim()) msg = t(lang, "Please enter your current job title.");
@@ -334,15 +340,22 @@ export default function OnboardingClient() {
                 placeholder="Nguyen Van A"
                 error={touched.fullName && errors.fullName ? errors.fullName : undefined}
               />
-              <Input
-                label={t(lang, "Phone")}
-                value={profile.personal.phone}
-                onChange={(e) => handlePersonalChange("phone", e.target.value)}
-                onKeyUp={(e) => handlePersonalKeyUp("phone", e.target.value)}
-                onBlur={() => handlePersonalBlur("phone", profile.personal.phone)}
-                placeholder="090 123 4567"
-                error={touched.phone && errors.phone ? errors.phone : undefined}
-              />
+              <div style={{ display: "flex", gap: 12 }}>
+                <div style={{ width: "90px", flexShrink: 0 }}>
+                  <Input label={t(lang, "Code")} value="+84" disabled />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Input
+                    label={t(lang, "Phone")}
+                    value={profile.personal.phone}
+                    onChange={(e) => handlePersonalChange("phone", e.target.value)}
+                    onKeyUp={(e) => handlePersonalKeyUp("phone", e.target.value)}
+                    onBlur={() => handlePersonalBlur("phone", profile.personal.phone)}
+                    placeholder="090 123 4567"
+                    error={touched.phone && errors.phone ? errors.phone : undefined}
+                  />
+                </div>
+              </div>
               <Input
                 label={t(lang, "Location")}
                 value={profile.personal.location}
@@ -357,10 +370,10 @@ export default function OnboardingClient() {
                   {/* Preview */}
                   <div className="lv-photo-preview">
                     {profile.personal.photo ? (
-                      <img src={profile.personal.photo} alt="Profile" className="lv-photo-img" />
+                      <img src={profile.personal.photo} alt="Profile" className="lv-photo-img" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover" }} />
                     ) : (
-                      <div className="lv-photo-placeholder">
-                        <Icon name="user" size={28} />
+                      <div className="lv-photo-placeholder" style={{ width: 80, height: 80, borderRadius: "50%", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #e2e8f0" }}>
+                        <Icon name="user" size={32} style={{ color: "#94a3b8" }} />
                       </div>
                     )}
                   </div>
@@ -521,15 +534,14 @@ export default function OnboardingClient() {
                       placeholder="Software Engineer"
                     />
 
-                    {/* Start Date – month picker */}
+                    {/* Start Date – date picker */}
                     <div>
-                      <label className="lv-field-label">{t(lang, "Start Date")}</label>
-                      <input
-                        type="month"
-                        className="lv-month-input"
+                      <Input
+                        type="date"
+                        label={t(lang, "Start Date")}
                         value={ex.start}
                         onChange={(e) => updateExperience(i, "start", e.target.value)}
-                        max={new Date().toISOString().slice(0, 7)}
+                        max={new Date().toISOString().slice(0, 10)}
                       />
                       {ex.start && (
                         <p className="lv-field-hint" style={{ marginTop: 4 }}>
@@ -539,25 +551,26 @@ export default function OnboardingClient() {
                     </div>
 
                     {/* End Date – month picker or "Currently working here" */}
-                    <div>
-                      <label className="lv-field-label">{t(lang, "End Date")}</label>
-                      <label className="lv-current-check">
-                        <input
-                          type="checkbox"
-                          checked={!!ex.isCurrent}
-                          onChange={(e) => updateExperience(i, "isCurrent", e.target.checked)}
-                        />
-                        <span>{t(lang, "Currently working here")}</span>
-                      </label>
-                      {!ex.isCurrent && (
-                        <>
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <label className="lv-field-label" style={{ marginBottom: 0 }}>{t(lang, "End Date")}</label>
+                        <label className="lv-current-check" style={{ margin: 0, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
                           <input
-                            type="month"
-                            className="lv-month-input"
+                            type="checkbox"
+                            checked={!!ex.isCurrent}
+                            onChange={(e) => updateExperience(i, "isCurrent", e.target.checked)}
+                          />
+                          <span>{t(lang, "Currently working here")}</span>
+                        </label>
+                      </div>
+                      {!ex.isCurrent ? (
+                        <>
+                          <Input
+                            type="date"
                             value={ex.end}
                             onChange={(e) => updateExperience(i, "end", e.target.value)}
                             min={ex.start || undefined}
-                            max={new Date().toISOString().slice(0, 7)}
+                            max={new Date().toISOString().slice(0, 10)}
                           />
                           {ex.end && (
                             <p className="lv-field-hint" style={{ marginTop: 4 }}>
@@ -565,9 +578,8 @@ export default function OnboardingClient() {
                             </p>
                           )}
                         </>
-                      )}
-                      {ex.isCurrent && (
-                        <div className="lv-present-badge">
+                      ) : (
+                        <div className="lv-present-badge" style={{ marginTop: 4 }}>
                           <Icon name="briefcase" size={13} />
                           {t(lang, "Present")}
                         </div>
@@ -730,6 +742,13 @@ export default function OnboardingClient() {
                 {saving ? t(lang, "Saving...") : t(lang, "Complete Profile")}
               </Button>
             </div>
+          )}
+
+          {err && (
+            <p className="lv-error" role="alert" style={{ marginTop: 20 }}>
+              <Icon name="alert-circle" size={16} />
+              <span>{err}</span>
+            </p>
           )}
 
           {step < 6 && (

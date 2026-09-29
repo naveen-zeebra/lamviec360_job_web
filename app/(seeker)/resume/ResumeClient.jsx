@@ -200,7 +200,7 @@ export default function ResumeClient() {
       )}
 
       {/* ── Certification / Professional Licenses ── */}
-      <div className={`${CARD} mb-5`}>
+      {/* <div className={`${CARD} mb-5`}>
         <div className="flex items-center justify-between mb-3">
           <span className={LABEL}>{t(lang, "Certification / Professional Licenses")}</span>
           <Link href="/settings?tab=profile" className="inline-flex items-center gap-1 text-xs font-semibold text-brand no-underline">
@@ -231,7 +231,7 @@ export default function ResumeClient() {
             ))}
           </div>
         )}
-      </div>
+      </div> */}
 
       <div className={CARD}>
         <span className={LABEL}>{t(lang, "Résumé visibility")}</span>
