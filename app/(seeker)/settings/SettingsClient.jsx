@@ -208,7 +208,7 @@ export default function SettingsClient() {
   const handleCertFileUpload = async (i, file) => {
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
-      setToast(t(lang, "File exceeds 10MB limit."));
+      setToast(t(lang, "File exceeds 5MB limit."));
       return;
     }
     try {
@@ -677,7 +677,7 @@ export default function SettingsClient() {
                   {t(lang, "Upload your resume")}
                 </p>
                 <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 12px" }}>
-                  {t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 10MB. Stored as base64.")}
+                  {t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 5MB. Stored as base64.")}
                 </p>
                 <button
                   type="button"

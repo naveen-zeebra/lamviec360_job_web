@@ -211,7 +211,7 @@ export default function ApplyClient({ jobId }) {
       return;
     }
     if (file.size > MAX_RESUME_MB * 1024 * 1024) {
-      setErr(t(lang, "File is larger than 10MB."));
+      setErr(t(lang, "File is larger than 5MB."));
       return;
     }
     setErr("");
@@ -240,6 +240,7 @@ export default function ApplyClient({ jobId }) {
       ];
       const record = await addApplication({
         jobId: job.id,
+        job: job,
         resumeFileName,
         coverLetter,
         answers,
@@ -333,7 +334,7 @@ export default function ApplyClient({ jobId }) {
               <div style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "24px", textAlign: "center", marginBottom: 20 }}>
                  <Icon name="upload-cloud" size={32} style={{ color: "#94a3b8", marginBottom: 12 }} />
                  <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{t(lang, "No resume on file yet.")}</p>
-                 <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 10MB.")}</p>
+                 <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 5MB.")}</p>
               </div>
             )}
             
@@ -358,7 +359,7 @@ export default function ApplyClient({ jobId }) {
                   <Icon name="upload" size={16} />
                   {t(lang, "Choose File")}
                 </label>
-                <span style={{ fontSize: 12, color: "#64748b" }}>{t(lang, "Max size: 10MB")}</span>
+                <span style={{ fontSize: 12, color: "#64748b" }}>{t(lang, "Max size: 5MB")}</span>
               </div>
             </div>
           </div>
@@ -460,7 +461,7 @@ export default function ApplyClient({ jobId }) {
                       const f = e.target.files?.[0];
                       if (f) {
                         if (f.size > 10 * 1024 * 1024) {
-                          setErr(t(lang, "File is larger than 10MB."));
+                          setErr(t(lang, "File is larger than 5MB."));
                           return;
                         }
                         setAppliedCertFile(f);

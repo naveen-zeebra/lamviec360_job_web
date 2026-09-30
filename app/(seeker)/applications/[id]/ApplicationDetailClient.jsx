@@ -17,7 +17,6 @@ export default function ApplicationDetailClient({ id }) {
   const [lang] = useLang();
   const [app, setApp] = useState(undefined);
   const [toast, setToast] = useToast();
-  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
 
   useEffect(() => {
     setApp(getApplication(id));
@@ -56,19 +55,14 @@ export default function ApplicationDetailClient({ id }) {
   const companyName = job.company_name || job.company?.company_name || job.company || "Company";
   const isVi = lang === "VN" || lang === "VI";
   const title = job ? (isVi ? job.titleVi || job.title : job.title) : "";
-  const isRejected = app.stage === "Rejected";
-  const isWithdrawn = app.stage === "Withdrawn";
-  const currentIndex = HAPPY_PATH.indexOf(app.stage);
+  const rawStage = app.stage || app.status || "Applied";
+  const currentStage = HAPPY_PATH.find(s => s.toLowerCase() === rawStage.toLowerCase()) || rawStage;
+  const isRejected = currentStage.toLowerCase() === "rejected";
+  const isWithdrawn = currentStage.toLowerCase() === "withdrawn";
+  const currentIndex = HAPPY_PATH.indexOf(currentStage);
   const reachedDate = (stage) => ((app.timeline || []).find((tl) => tl.stage === stage) || {}).date;
   const answers = app.answers && Object.keys(app.answers).length ? app.answers : null;
-  const canWithdraw = !app.closed && !isRejected && !isWithdrawn;
-
-  const doWithdraw = async () => {
-    const updated = await withdrawApplication(app.id);
-    setApp(updated || getApplication(app.id));
-    setConfirmWithdraw(false);
-    setToast(t(lang, "Application withdrawn"));
-  };
+  const isClosed = app.closed !== undefined ? app.closed : (currentStage.toLowerCase() === 'rejected' || currentStage.toLowerCase() === 'hired' || currentStage.toLowerCase() === 'closed');
 
   return (
     <div className="lv-page-container">
@@ -87,8 +81,8 @@ export default function ApplicationDetailClient({ id }) {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <StageBadge stage={app.stage} lang={lang} />
-          {app.closed && !isRejected && !isWithdrawn && app.stage !== "Hired" && <Badge tone="neutral">{t(lang, "Position Closed")}</Badge>}
+          <StageBadge stage={currentStage} lang={lang} />
+          {isClosed && !isRejected && !isWithdrawn && currentStage !== "Hired" && <Badge tone="neutral">{t(lang, "Position Closed")}</Badge>}
         </div>
       </div>
 
@@ -96,9 +90,9 @@ export default function ApplicationDetailClient({ id }) {
         <div className="lv-detail-card" style={{ marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
             <div className="lv-job-meta" style={{ marginBottom: 0 }}>
-              <span><Icon name="map-pin" size={14} /> {isVi ? job.locationVi || job.location : job.location}</span>
+              <span><Icon name="map-pin" size={14} /> {isVi ? job.locationVi || job.location || job.city : job.location || job.city || "Unknown Location"}</span>
               <span><Icon name="wallet" size={14} /> {job.salary_min && job.salary_max ? `${Math.round(job.salary_min / 1000000)}M – ${Math.round(job.salary_max / 1000000)}M VND` : job.salary || "Negotiable"}</span>
-              <span><Icon name="briefcase" size={14} /> {isVi ? job.modeVi || job.workplace_type || job.mode : job.workplace_type || job.mode}</span>
+              <span><Icon name="briefcase" size={14} /> {isVi ? job.modeVi || job.workplace_type || job.job_type || job.mode : job.workplace_type || job.job_type || job.mode || "Unknown Type"}</span>
             </div>
             <Link href={`/job-detail/${encodeURIComponent((job.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + job.id)}`}>
               <Button variant="secondary" size="sm">{t(lang, "View job")}</Button>
@@ -128,38 +122,38 @@ export default function ApplicationDetailClient({ id }) {
       <div className="lv-timeline">
         {isRejected || isWithdrawn
           ? app.timeline.map((tl) => (
-              <div key={tl.stage} className={`lv-timeline-item done ${tl.stage === "Rejected" || tl.stage === "Withdrawn" ? "rejected" : ""}`}>
-                <span className="lv-timeline-dot">
-                  <Icon name={tl.stage === "Rejected" ? "x" : tl.stage === "Withdrawn" ? "undo-2" : "check"} size={12} />
-                </span>
+            <div key={tl.stage} className={`lv-timeline-item done ${tl.stage === "Rejected" || tl.stage === "Withdrawn" ? "rejected" : ""}`}>
+              <span className="lv-timeline-dot">
+                <Icon name={tl.stage === "Rejected" ? "x" : tl.stage === "Withdrawn" ? "undo-2" : "check"} size={12} />
+              </span>
+              <div className="lv-timeline-body">
+                <strong>{t(lang, tl.stage)}</strong>
+                <span>{formatDate(lang, tl.date)}</span>
+              </div>
+            </div>
+          ))
+          : HAPPY_PATH.map((stage, i) => {
+            const reached = i <= currentIndex;
+            const isNext = i === currentIndex + 1;
+            return (
+              <div key={stage} className={`lv-timeline-item ${reached ? "done" : ""} ${i === currentIndex ? "current" : ""}`}>
+                <span className="lv-timeline-dot">{reached ? <Icon name="check" size={12} /> : i + 1}</span>
                 <div className="lv-timeline-body">
-                  <strong>{t(lang, tl.stage)}</strong>
-                  <span>{formatDate(lang, tl.date)}</span>
+                  <strong>{t(lang, stage)}</strong>
+                  {reached ? <span>{formatDate(lang, reachedDate(stage))}</span> : isNext && STAGE_TYPICAL[stage] ? <span className="lv-timeline-typical">{t(lang, STAGE_TYPICAL[stage])}</span> : <span>{t(lang, "Pending")}</span>}
                 </div>
               </div>
-            ))
-          : HAPPY_PATH.map((stage, i) => {
-              const reached = i <= currentIndex;
-              const isNext = i === currentIndex + 1;
-              return (
-                <div key={stage} className={`lv-timeline-item ${reached ? "done" : ""} ${i === currentIndex ? "current" : ""}`}>
-                  <span className="lv-timeline-dot">{reached ? <Icon name="check" size={12} /> : i + 1}</span>
-                  <div className="lv-timeline-body">
-                    <strong>{t(lang, stage)}</strong>
-                    {reached ? <span>{formatDate(lang, reachedDate(stage))}</span> : isNext && STAGE_TYPICAL[stage] ? <span className="lv-timeline-typical">{t(lang, STAGE_TYPICAL[stage])}</span> : <span>{t(lang, "Pending")}</span>}
-                  </div>
-                </div>
-              );
-            })}
+            );
+          })}
       </div>
 
-      {(app.resumeFileName || app.coverLetter || answers) && (
+      {(app.resumeFileName || app.resume_url || app.coverLetter || answers) && (
         <div className="lv-detail-card" style={{ marginTop: 20 }}>
           <h2 style={{ fontSize: "var(--text-md)", marginTop: 0 }}>{t(lang, "What you submitted")}</h2>
-          {app.resumeFileName && (
-            <p style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-secondary)", fontSize: "var(--text-sm)" }}>
-              <Icon name="file-text" size={15} /> {app.resumeFileName}
-            </p>
+          {(app.resumeFileName || app.resume_url) && (
+            <a href={app.resume_url || "#"} download={app.resumeFileName || "resume.pdf"} style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--surface-brand)", fontSize: "var(--text-sm)", textDecoration: "none" }}>
+              <Icon name="file-text" size={15} /> {app.resumeFileName || (app.resume_url ? app.resume_url.split('/').pop() : "resume.pdf")}
+            </a>
           )}
           {app.coverLetter && (
             <>
@@ -174,24 +168,6 @@ export default function ApplicationDetailClient({ id }) {
                 <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)" }}>{String(ans)}</p>
               </div>
             ))}
-        </div>
-      )}
-
-      {canWithdraw && (
-        <div style={{ marginTop: 24 }}>
-          {!confirmWithdraw ? (
-            <Button variant="ghost" size="sm" onClick={() => setConfirmWithdraw(true)}>
-              <Icon name="undo-2" size={15} /> {t(lang, "Withdraw application")}
-            </Button>
-          ) : (
-            <div className="lv-error" role="alert" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
-              <span>{t(lang, "Withdraw this application? This can't be undone.")}</span>
-              <div style={{ display: "flex", gap: 10 }}>
-                <Button variant="danger" size="sm" onClick={doWithdraw}>{t(lang, "Withdraw")}</Button>
-                <Button variant="secondary" size="sm" onClick={() => setConfirmWithdraw(false)}>{t(lang, "Cancel")}</Button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 

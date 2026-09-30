@@ -53,12 +53,19 @@ export default function ApplicationsClient() {
     );
   }
 
+  const dataWithDefaults = data.map(a => {
+    const isClosed = a.closed !== undefined ? a.closed : (a.status === 'rejected' || a.status === 'hired' || a.status === 'closed');
+    const stage = a.stage || a.status || "Applied";
+    const appliedAt = a.appliedDate || a.applied_at || a.created_at;
+    return { ...a, _isClosed: isClosed, _stage: stage, _appliedAt: appliedAt };
+  });
+
   const counts = {
-    all: data.length,
-    active: data.filter((a) => !a.closed).length,
-    closed: data.filter((a) => a.closed).length,
+    all: dataWithDefaults.length,
+    active: dataWithDefaults.filter((a) => !a._isClosed).length,
+    closed: dataWithDefaults.filter((a) => a._isClosed).length,
   };
-  const shown = filter === "all" ? data : data.filter((a) => (filter === "active" ? !a.closed : a.closed));
+  const shown = filter === "all" ? dataWithDefaults : dataWithDefaults.filter((a) => (filter === "active" ? !a._isClosed : a._isClosed));
 
   return (
     <div className="lv-page-container">
@@ -86,22 +93,21 @@ export default function ApplicationsClient() {
       {shown.length ? (
         <div className="lv-tracker-list">
           {shown.map((a) => {
-            const job = a.job;
-            if (!job) return null;
+            const job = a.job || { title: "Position (Loading...)", company_name: "Company" };
             const companyName = job.company_name || job.company?.company_name || job.company || "Unknown";
             const title = lang === "VN" || lang === "VI" ? job.titleVi || job.title : job.title;
             return (
               <Link key={a.id} href={`/applications/${a.id}`} className="lv-tracker-card">
                 <div className="lv-job-logo" style={{ width: 48, height: 48 }}>
-                  {companyName.slice(0, 2).toUpperCase()}
+                  {typeof companyName === 'string' ? companyName.slice(0, 2).toUpperCase() : "CO"}
                 </div>
                 <div className="lv-tracker-card-body">
-                  <strong>{title}</strong>
-                  <span>{companyName} · {t(lang, "Applied")} {formatDate(lang, a.appliedDate || a.applied_at)}</span>
+                  <strong>{title || "Job Position"}</strong>
+                  <span>{companyName} · {t(lang, "Applied")} {formatDate(lang, a._appliedAt)}</span>
                 </div>
                 <div className="lv-tracker-card-status">
-                  <StageBadge stage={a.stage} lang={lang} />
-                  {a.closed && a.stage !== "Withdrawn" && a.stage !== "Hired" && a.stage !== "Rejected" && <Badge tone="neutral">{t(lang, "Position Closed")}</Badge>}
+                  <StageBadge stage={a._stage} lang={lang} />
+                  {a._isClosed && a._stage !== "Withdrawn" && a._stage !== "Hired" && a._stage !== "rejected" && a._stage !== "Rejected" && <Badge tone="neutral">{t(lang, "Position Closed")}</Badge>}
                 </div>
                 <Icon name="chevron-right" size={18} style={{ color: "var(--text-tertiary)" }} />
               </Link>

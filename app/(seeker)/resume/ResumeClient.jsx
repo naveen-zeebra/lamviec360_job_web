@@ -60,7 +60,7 @@ export default function ResumeClient() {
       return;
     }
     if (file.size > MAX_BYTES) {
-      setUploadErr(t(lang, "File is larger than 10MB."));
+      setUploadErr(t(lang, "File is larger than 5MB."));
       return;
     }
     const finish = (dataUrl) => {
@@ -125,7 +125,7 @@ export default function ResumeClient() {
       {!hasResume ? (
         <div className={EMPTY}>
           <h3>{t(lang, "No résumé on file yet")}</h3>
-          <p>{t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 10MB.")}</p>
+          <p>{t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 5MB.")}</p>
           <div className="mt-4">
             <Button variant="primary" onClick={() => fileRef.current && fileRef.current.click()}>
               <Icon name="upload" size={16} /> {t(lang, "Upload résumé")}
