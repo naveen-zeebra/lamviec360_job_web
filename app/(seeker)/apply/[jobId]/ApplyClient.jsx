@@ -34,6 +34,46 @@ export default function ApplyClient({ jobId }) {
   const [draftSaved, setDraftSaved] = useState(false);
   const [selectedCertIds, setSelectedCertIds] = useState([]);
   const [appliedCertFile, setAppliedCertFile] = useState(null);
+  const [appliedCertTitle, setAppliedCertTitle] = useState("");
+  const [appliedCertIssuer, setAppliedCertIssuer] = useState("");
+  const [certDragOver, setCertDragOver] = useState(false);
+
+  const handleCertificateFile = (file) => {
+    if (!file) return;
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (!["pdf", "png", "jpg", "jpeg", "doc", "docx"].includes(ext)) {
+      setErr(t(lang, "Use a PDF, DOC, DOCX, JPG or PNG file."));
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setErr(t(lang, "File is larger than 10MB."));
+      return;
+    }
+    setErr("");
+
+    const filePayload = {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      dataUrl: "",
+    };
+
+    if (file.size <= STORE_BYTES) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        filePayload.dataUrl = reader.result;
+        setAppliedCertFile({ ...filePayload });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setAppliedCertFile(filePayload);
+    }
+
+    if (!appliedCertTitle) {
+      const clean = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+      setAppliedCertTitle(clean);
+    }
+  };
 
   useEffect(() => {
     async function resolveJob() {
@@ -236,7 +276,18 @@ export default function ApplyClient({ jobId }) {
     try {
       const certsToAttach = [
         ...(profile.certifications || []).filter((c) => selectedCertIds.includes(c.id || c.name)),
-        ...(appliedCertFile ? [{ name: appliedCertFile.name, fileName: appliedCertFile.name, fileSize: appliedCertFile.size }] : []),
+        ...(appliedCertFile
+          ? [
+              {
+                id: "cert-app-" + Date.now(),
+                name: appliedCertTitle.trim() || appliedCertFile.name.replace(/\.[^/.]+$/, ""),
+                issuer: appliedCertIssuer.trim() || "",
+                fileName: appliedCertFile.name,
+                fileSize: appliedCertFile.size,
+                fileDataUrl: appliedCertFile.dataUrl || "",
+              },
+            ]
+          : []),
       ];
       const record = await addApplication({
         jobId: job.id,
@@ -245,7 +296,13 @@ export default function ApplyClient({ jobId }) {
         coverLetter,
         answers,
         certifications: certsToAttach,
-        certification: appliedCertFile ? { name: appliedCertFile.name, size: appliedCertFile.size } : (certsToAttach[0] || null),
+        certification: appliedCertFile
+          ? {
+              name: appliedCertTitle.trim() || appliedCertFile.name,
+              fileName: appliedCertFile.name,
+              size: appliedCertFile.size,
+            }
+          : certsToAttach[0] || null,
       });
       addNotification({
         type: "confirmation",
@@ -389,87 +446,316 @@ export default function ApplyClient({ jobId }) {
           <div>
             <h2 style={{ fontSize: "var(--text-lg)", marginBottom: 16 }}>{t(lang, "Additional information")}</h2>
 
-            {/* ── Certification / Professional Licenses in Application Form ── */}
-            <div style={{ marginBottom: 24, padding: "16px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <label style={{ fontSize: "var(--text-sm)", fontWeight: 600, display: "flex", alignItems: "center", gap: 6, color: "#1e293b" }}>
-                  <Icon name="award" size={16} style={{ color: "#4f46e5" }} />
-                  <span>{t(lang, "Certification / Professional Licenses")}</span>
-                </label>
-                <span style={{ fontSize: 11, background: "#e2e8f0", padding: "2px 8px", borderRadius: 99, color: "#475569", fontWeight: 500 }}>
+            {/* ── Redesigned Certification / Professional Licenses in Application Form ── */}
+            <div style={{ marginBottom: 24, padding: "20px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+              {/* Card Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16, borderBottom: "1px solid #e2e8f0", paddingBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 8, background: "#e0e7ff", color: "#4f46e5", flexShrink: 0 }}>
+                    <Icon name="award" size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                      {t(lang, "Certification / Professional Licenses")}
+                    </h3>
+                    <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>
+                      {t(lang, "Attach relevant professional certifications or licenses to strengthen your application.")}
+                    </p>
+                  </div>
+                </div>
+                <span style={{ fontSize: 11, background: "#e2e8f0", padding: "3px 9px", borderRadius: 99, color: "#475569", fontWeight: 600 }}>
                   {t(lang, "Optional")}
                 </span>
               </div>
-              <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 12px" }}>
-                {t(lang, "Attach relevant professional certifications or licenses to strengthen your application.")}
-              </p>
 
-              {/* Saved Profile Certifications Selection */}
+              {/* 1. Saved Profile Certifications Selection */}
               {profile.certifications && profile.certifications.length > 0 && (
-                <div style={{ marginBottom: 14 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>
-                    {t(lang, "Saved profile certifications:")}
-                  </span>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {profile.certifications.map((c, idx) => (
-                      <label key={c.id || idx} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, background: "#ffffff", padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", cursor: "pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedCertIds.includes(c.id || c.name)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedCertIds([...selectedCertIds, c.id || c.name]);
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
+                      {t(lang, "Select from your profile certifications")}:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allIds = profile.certifications.map((c) => c.id || c.name);
+                        const isAll = allIds.every((id) => selectedCertIds.includes(id));
+                        setSelectedCertIds(isAll ? [] : allIds);
+                      }}
+                      style={{ fontSize: 12, fontWeight: 600, color: "var(--surface-brand, #2563eb)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                    >
+                      {profile.certifications.every((c) => selectedCertIds.includes(c.id || c.name))
+                        ? t(lang, "Deselect all")
+                        : t(lang, "Select all")}
+                    </button>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
+                    {profile.certifications.map((c, idx) => {
+                      const certId = c.id || c.name;
+                      const isSelected = selectedCertIds.includes(certId);
+                      return (
+                        <div
+                          key={certId || idx}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedCertIds(selectedCertIds.filter((id) => id !== certId));
                             } else {
-                              setSelectedCertIds(selectedCertIds.filter((id) => id !== (c.id || c.name)));
+                              setSelectedCertIds([...selectedCertIds, certId]);
                             }
                           }}
-                        />
-                        <span style={{ fontWeight: 600, color: "#0f172a" }}>{c.name}</span>
-                        {c.issuer && <span style={{ color: "#64748b" }}>· {c.issuer}</span>}
-                        {c.fileName && <span style={{ color: "#16a34a", fontSize: 11, marginLeft: "auto" }}>✓ {c.fileName}</span>}
-                      </label>
-                    ))}
+                          style={{
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 10,
+                            padding: "12px 14px",
+                            borderRadius: 10,
+                            background: isSelected ? "#eff6ff" : "#ffffff",
+                            border: isSelected ? "1.5px solid #3b82f6" : "1px solid #cbd5e1",
+                            boxShadow: isSelected ? "0 1px 3px rgba(59, 130, 246, 0.15)" : "none",
+                            transition: "all 0.15s ease",
+                            userSelect: "none",
+                          }}
+                        >
+                          <div
+                            style={{
+                              marginTop: 2,
+                              width: 18,
+                              height: 18,
+                              borderRadius: 4,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              background: isSelected ? "var(--surface-brand, #2563eb)" : "#ffffff",
+                              border: isSelected ? "none" : "1.5px solid #cbd5e1",
+                              color: "#ffffff",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {isSelected && <Icon name="check" size={12} />}
+                          </div>
+
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <strong style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {c.name}
+                            </strong>
+                            {c.issuer && (
+                              <span style={{ display: "block", fontSize: 11, color: "#64748b", margin: "1px 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {c.issuer}
+                              </span>
+                            )}
+                            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, fontSize: 10 }}>
+                              {c.issueDate && (
+                                <span style={{ background: "#f1f5f9", padding: "1px 6px", borderRadius: 4, color: "#475569" }}>
+                                  {c.issueDate}
+                                </span>
+                              )}
+                              {c.credentialId && (
+                                <span style={{ background: "#f1f5f9", padding: "1px 6px", borderRadius: 4, color: "#475569" }}>
+                                  ID: {c.credentialId}
+                                </span>
+                              )}
+                              {c.fileName && (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "#dcfce7", padding: "1px 6px", borderRadius: 4, color: "#166534", fontWeight: 600 }}>
+                                  <Icon name="file-text" size={10} />
+                                  {t(lang, "Document attached")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* Upload Certificate for this application */}
+              {/* 2. Upload Certificate for this application */}
               <div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>
-                  {t(lang, "Upload certificate document:")}
-                </span>
-                {appliedCertFile ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffffff", padding: "8px 12px", borderRadius: 6, border: "1px solid #bbf7d0" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <Icon name="file-text" size={16} style={{ color: "#16a34a" }} />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{appliedCertFile.name}</span>
-                      <span style={{ fontSize: 11, color: "#64748b" }}>({(appliedCertFile.size / 1024).toFixed(0)} KB)</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setAppliedCertFile(null)}
-                      style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
+                    {profile.certifications && profile.certifications.length > 0
+                      ? t(lang, "Upload a certificate for this application") + ":"
+                      : t(lang, "Upload certificate document:")}
+                  </span>
+                  {(!profile.certifications || profile.certifications.length === 0) && (
+                    <Link
+                      href="/settings?tab=profile"
+                      style={{ fontSize: 12, fontWeight: 600, color: "var(--surface-brand, #2563eb)", textDecoration: "none" }}
                     >
-                      <Icon name="x" size={14} /> {t(lang, "Remove")}
-                    </button>
+                      {t(lang, "Manage in Profile Settings")}
+                    </Link>
+                  )}
+                </div>
+
+                {appliedCertFile ? (
+                  <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 10, padding: "14px 16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: 8, background: "#dcfce7", color: "#16a34a", flexShrink: 0 }}>
+                          <Icon name="file-text" size={22} />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {appliedCertFile.name}
+                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2, fontSize: 11 }}>
+                            <span style={{ color: "#64748b" }}>
+                              {(appliedCertFile.size / 1024).toFixed(0)} KB
+                            </span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#16a34a", fontWeight: 600 }}>
+                              <Icon name="check-circle" size={13} /> {t(lang, "Ready to attach")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <label
+                          htmlFor="apply-cert-replace-file"
+                          style={{
+                            cursor: "pointer",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "#1e293b",
+                            background: "#ffffff",
+                            padding: "6px 12px",
+                            borderRadius: 6,
+                            border: "1px solid #cbd5e1",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                          }}
+                        >
+                          {t(lang, "Replace file")}
+                        </label>
+                        <input
+                          type="file"
+                          id="apply-cert-replace-file"
+                          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleCertificateFile(f);
+                          }}
+                          style={{ display: "none" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppliedCertFile(null);
+                            setAppliedCertTitle("");
+                            setAppliedCertIssuer("");
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#dc2626",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            padding: "6px 8px",
+                          }}
+                        >
+                          <Icon name="trash-2" size={14} /> {t(lang, "Remove")}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Metadata fields for uploaded certificate */}
+                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #bbf7d0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <div>
+                        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
+                          {t(lang, "Certificate / License Title (optional)")}
+                        </label>
+                        <input
+                          type="text"
+                          value={appliedCertTitle}
+                          onChange={(e) => setAppliedCertTitle(e.target.value)}
+                          placeholder={t(lang, "e.g. AWS Certified Solutions Architect, PMP, TOEIC...")}
+                          style={{ width: "100%", padding: "7px 10px", fontSize: 12, borderRadius: 6, border: "1px solid #cbd5e1", background: "#ffffff", color: "#0f172a" }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
+                          {t(lang, "Issuing Organization (optional)")}
+                        </label>
+                        <input
+                          type="text"
+                          value={appliedCertIssuer}
+                          onChange={(e) => setAppliedCertIssuer(e.target.value)}
+                          placeholder={t(lang, "e.g. Amazon Web Services, PMI, Educational Testing Service...")}
+                          style={{ width: "100%", padding: "7px 10px", fontSize: 12, borderRadius: 6, border: "1px solid #cbd5e1", background: "#ffffff", color: "#0f172a" }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 ) : (
-                  <input
-                    type="file"
-                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) {
-                        if (f.size > 10 * 1024 * 1024) {
-                          setErr(t(lang, "File is larger than 5MB."));
-                          return;
+                  <div>
+                    <input
+                      type="file"
+                      id="apply-cert-file-upload"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleCertificateFile(f);
+                      }}
+                      style={{ display: "none" }}
+                    />
+                    <label
+                      htmlFor="apply-cert-file-upload"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setCertDragOver(true);
+                      }}
+                      onDragLeave={() => setCertDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setCertDragOver(false);
+                        const f = e.dataTransfer.files?.[0];
+                        if (f) handleCertificateFile(f);
+                      }}
+                      style={{
+                        cursor: "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "24px 16px",
+                        borderRadius: 10,
+                        border: certDragOver ? "2px dashed var(--surface-brand, #2563eb)" : "1.5px dashed #cbd5e1",
+                        background: certDragOver ? "#eff6ff" : "#ffffff",
+                        transition: "all 0.15s ease",
+                        textAlign: "center",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!certDragOver) {
+                          e.currentTarget.style.borderColor = "var(--surface-brand, #2563eb)";
+                          e.currentTarget.style.background = "#f8fafc";
                         }
-                        setAppliedCertFile(f);
-                        setErr("");
-                      }
-                    }}
-                    style={{ fontSize: 12 }}
-                  />
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!certDragOver) {
+                          e.currentTarget.style.borderColor = "#cbd5e1";
+                          e.currentTarget.style.background = "#ffffff";
+                        }
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 10, background: "#eff6ff", color: "var(--surface-brand, #2563eb)", marginBottom: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                        <Icon name="upload-cloud" size={24} />
+                      </div>
+                      <strong style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 3 }}>
+                        {t(lang, "Click to upload certificate or drag & drop")}
+                      </strong>
+                      <span style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>
+                        {t(lang, "PDF, PNG, JPG, JPEG, DOC, DOCX up to 10MB")}
+                      </span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b", background: "#f8fafc", padding: "6px 16px", borderRadius: 6, border: "1px solid #cbd5e1", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+                        {t(lang, "Browse")}
+                      </span>
+                    </label>
+                  </div>
                 )}
               </div>
             </div>
@@ -506,9 +792,29 @@ export default function ApplyClient({ jobId }) {
               <div>
                 <dt>{t(lang, "Certifications")}</dt>
                 <dd>
-                  {selectedCertIds.length > 0 || appliedCertFile
-                    ? `${selectedCertIds.length > 0 ? selectedCertIds.length + " " + t(lang, "from profile") : ""}${appliedCertFile ? (selectedCertIds.length > 0 ? " + " : "") + appliedCertFile.name : ""}`
-                    : t(lang, "None attached")}
+                  {selectedCertIds.length > 0 || appliedCertFile ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {selectedCertIds.map((id) => {
+                        const c = (profile.certifications || []).find((x) => (x.id || x.name) === id);
+                        return (
+                          <div key={id} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#1e40af", background: "#eff6ff", padding: "4px 10px", borderRadius: 6, border: "1px solid #bfdbfe" }}>
+                            <Icon name="award" size={14} />
+                            <span style={{ fontWeight: 600 }}>{c ? c.name : id}</span>
+                            {c?.issuer && <span style={{ color: "#3b82f6", fontSize: 12 }}>· {c.issuer}</span>}
+                          </div>
+                        );
+                      })}
+                      {appliedCertFile && (
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#166534", background: "#f0fdf4", padding: "4px 10px", borderRadius: 6, border: "1px solid #bbf7d0" }}>
+                          <Icon name="file-text" size={14} />
+                          <span style={{ fontWeight: 600 }}>{appliedCertTitle || appliedCertFile.name}</span>
+                          <span style={{ fontSize: 11, color: "#16a34a" }}>({(appliedCertFile.size / 1024).toFixed(0)} KB)</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    t(lang, "None attached")
+                  )}
                 </dd>
               </div>
             </dl>

@@ -513,30 +513,81 @@ export default function SettingsClient() {
                   <div style={{ marginTop: 12 }}>
                     <label className="lv-field-label">{t(lang, "Certificate Document (PDF, Image)")}</label>
                     {cert.fileName ? (
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "8px 12px", borderRadius: 8 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                          <Icon name="file-text" size={16} style={{ color: "#4f46e5" }} />
-                          <span style={{ fontSize: 13, fontWeight: 500, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cert.fileName}</span>
-                          {cert.fileSize ? <span style={{ fontSize: 11, color: "#64748b" }}>({(cert.fileSize / 1024).toFixed(0)} KB)</span> : null}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8fafc", border: "1px solid #cbd5e1", padding: "10px 14px", borderRadius: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 6, background: "#e0e7ff", color: "#4f46e5", flexShrink: 0 }}>
+                            <Icon name="file-text" size={16} />
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cert.fileName}</span>
+                            <span style={{ fontSize: 11, color: "#64748b" }}>{cert.fileSize ? (cert.fileSize / 1024).toFixed(0) + " KB" : t(lang, "Document attached")}</span>
+                          </div>
                         </div>
                         <button
                           type="button"
-                          onClick={() => updateCertification(i, "fileName", "")}
-                          style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}
+                          onClick={() => {
+                            updateCertification(i, "fileName", "");
+                            updateCertification(i, "fileSize", 0);
+                            updateCertification(i, "fileDataUrl", "");
+                          }}
+                          style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 500 }}
                         >
-                          <Icon name="trash-2" size={13} /> {t(lang, "Remove file")}
+                          <Icon name="trash-2" size={14} /> {t(lang, "Remove file")}
                         </button>
                       </div>
                     ) : (
-                      <input
-                        type="file"
-                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleCertFileUpload(i, file);
-                        }}
-                        style={{ fontSize: 12 }}
-                      />
+                      <div>
+                        <input
+                          type="file"
+                          id={`cert-file-upload-${i}`}
+                          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleCertFileUpload(i, file);
+                          }}
+                          style={{ display: "none" }}
+                        />
+                        <label
+                          htmlFor={`cert-file-upload-${i}`}
+                          style={{
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 12,
+                            background: "#ffffff",
+                            padding: "10px 14px",
+                            borderRadius: 8,
+                            border: "1.5px dashed #cbd5e1",
+                            transition: "all 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = "var(--surface-brand, #2563eb)";
+                            e.currentTarget.style.background = "#f8fafc";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = "#cbd5e1";
+                            e.currentTarget.style.background = "#ffffff";
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 6, background: "#f1f5f9", color: "#475569" }}>
+                              <Icon name="upload-cloud" size={16} />
+                            </div>
+                            <div>
+                              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#1e293b" }}>
+                                {t(lang, "Choose Certificate File")}
+                              </span>
+                              <span style={{ display: "block", fontSize: 11, color: "#64748b" }}>
+                                {t(lang, "PDF, PNG, JPG, or DOCX (max 10MB)")}
+                              </span>
+                            </div>
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b", background: "#f1f5f9", border: "1px solid #e2e8f0", padding: "5px 12px", borderRadius: 6 }}>
+                            {t(lang, "Browse")}
+                          </span>
+                        </label>
+                      </div>
                     )}
                   </div>
 
