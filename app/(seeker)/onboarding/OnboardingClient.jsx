@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { Button, Input, Select, PhoneInput } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import Stepper from "../../../components/ds/Stepper";
@@ -8,7 +10,7 @@ import Toast, { useToast } from "../../../components/ds/Toast";
 import { useLang, t } from "../../../utils/lang";
 import { getProfile, saveProfile, saveProfileLocally, saveResume, removeResume, computeCompleteness, getAuth } from "../../../lib/seekerStore";
 
-const STEP_LABELS = ["Personal", "Professional", "Education", "Experience", "Resume & Preferences", "Completion"];
+const STEP_LABELS = ["Personal", "Professional", "Education", "Experience", "Resume & Portfolio", "Completion"];
 const EXPERIENCE_RANGES = ["Less than 1 year", "1-3 years", "3-5 years", "5-10 years", "10+ years"];
 const INDUSTRIES = ["Technology", "Retail & Commerce", "Media & Creative", "Transport & Logistics", "Manufacturing", "Finance & Banking", "Other"];
 const WORK_MODES = ["Remote", "Hybrid", "On-site"];
@@ -69,47 +71,75 @@ export default function OnboardingClient() {
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState(null);
   const [skillInput, setSkillInput] = useState("");
-  const [errors, setErrors] = useState({});
-  const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useToast();
   const photoInputRef = useRef(null);
   const resumeInputRef = useRef(null);
+  const portfolioInputRef = useRef(null);
   const [isResumeDragging, setIsResumeDragging] = useState(false);
   const [resumeUploading, setResumeUploading] = useState(false);
+  const [portfolioUploading, setPortfolioUploading] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     setProfile(getProfile());
   }, []);
 
-  if (!profile) return null;
-
-  const persist = (patch) => {
-    const next = { ...profile, ...patch };
-    setProfile(next);
-    saveProfileLocally(patch);
-    return next;
-  };
-
-  const validate = (field, value) => {
-    let msg = "";
-    if (field === "fullName") {
-      if (!value || !value.trim()) msg = t(lang, "Please enter your full name.");
-      else if (value.trim().length < 2) msg = t(lang, "Full name must be at least 2 characters.");
-    } else if (field === "phone") {
-      if (value && value.trim()) {
+  const validationSchema = Yup.object().shape({
+    fullName: Yup.string()
+      .required(t(lang, "Please enter your full name."))
+      .max(30, t(lang, "Full name must not exceed 30 characters."))
+      .min(2, t(lang, "Full name must be at least 2 characters."))
+      .test("no-leading-space", t(lang, "First character cannot be a space."), (val) => !val || !/^\s/.test(val))
+      .test("no-numbers", t(lang, "Numbers are not allowed in full name."), (val) => !val || !/\d/.test(val))
+      .matches(
+        /^[a-zA-Z\s\u00C0-\u024F\u1EA0-\u1EF9\-\'.]+$/,
+        t(lang, "Numbers and special characters are not allowed in full name.")
+      ),
+    location: Yup.string().matches(
+      /^[a-zA-Z0-9\s\u00C0-\u024F\u1EA0-\u1EF9\-\.,]*$/,
+      t(lang, "Special characters are not allowed in location.")
+    ),
+    city: Yup.string().matches(
+      /^[a-zA-Z0-9\s\u00C0-\u024F\u1EA0-\u1EF9\-\.,]*$/,
+      t(lang, "Special characters are not allowed in city.")
+    ),
+    phone: Yup.string().test(
+      "phone-valid",
+      t(lang, "Please enter a valid phone number."),
+      function (value) {
+        if (!value || !value.trim()) return true;
         const digits = value.replace(/\D/g, "");
-        if (digits.length > 0 && (digits.length < 7 || digits.length > 15)) {
-          msg = t(lang, "Please enter a valid phone number.");
+        return digits.length >= 7 && digits.length <= 15;
+      }
+    ),
+    title: Yup.string().when("$step", {
+      is: (val) => val >= 2,
+      then: (schema) =>
+        schema
+          .required(t(lang, "Please enter your current job title."))
+          .min(2, t(lang, "Job title must be at least 2 characters.")),
+      otherwise: (schema) => schema,
+    }),
+    portfolioUrl: Yup.string().test(
+      "url-valid",
+      t(lang, "Please enter a valid URL (e.g. https://github.com/yourname)"),
+      function (value) {
+        if (!value || !value.trim()) return true;
+        try {
+          const test = value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
+          new URL(test);
+          return true;
+        } catch {
+          return false;
         }
       }
-    } else if (field === "title") {
-      if (!value || !value.trim()) msg = t(lang, "Please enter your current job title.");
-      else if (value.trim().length < 2) msg = t(lang, "Job title must be at least 2 characters.");
-    } else if (field === "salary") {
-      // BR-101-05: Salary Expectation 1M - 500M VND
-      if (value && value.trim()) {
+    ),
+    salary: Yup.string().test(
+      "salary-valid",
+      t(lang, "Salary expectation must be within 1M–500M VND per month ."),
+      function (value) {
+        if (!value || !value.trim()) return true;
         const clean = value.replace(/[,.\s]/g, "").trim().toUpperCase();
         let num = null;
         const matchM = clean.match(/([0-9]+(\.[0-9]+)?)\s*M/);
@@ -123,100 +153,109 @@ export default function OnboardingClient() {
           }
         }
         if (num !== null && (num < 1000000 || num > 500000000)) {
-          msg = t(lang, "Salary expectation must be within 1M–500M VND per month .");
+          return false;
         }
+        return true;
       }
-    }
-    return msg;
+    ),
+  });
+
+  const formik = useFormik({
+    enableReinitialize: true,
+    initialValues: {
+      fullName: profile?.personal?.fullName || "",
+      phone: profile?.personal?.phone || "",
+      location: profile?.personal?.location || "",
+      city: profile?.personal?.city || "",
+      title: profile?.professional?.title || "",
+      experience: profile?.professional?.experience || "",
+      industry: profile?.professional?.industry || "",
+      portfolioUrl: profile?.portfolio?.url || profile?.portfolioUrl || "",
+      workMode: profile?.preferences?.workMode || "",
+      salary: profile?.preferences?.salary || "",
+      visibility: profile?.visibility || "public",
+    },
+    validationSchema,
+    onSubmit: async () => { },
+  });
+
+  if (!profile) return null;
+
+  const persist = (patch) => {
+    const next = { ...profile, ...patch };
+    setProfile(next);
+    saveProfileLocally(patch);
+    return next;
   };
 
-  const handlePersonalChange = (field, value) => {
-    persist({ personal: { ...profile.personal, [field]: value } });
-    if (touched[field] || errors[field]) {
-      const msg = validate(field, value);
-      setErrors((prev) => ({ ...prev, [field]: msg }));
+  const handleNoSpecialCharInput = (field, rawValue, isNameField = false) => {
+    let val = rawValue;
+    if (isNameField) {
+      if (val.startsWith(" ")) val = val.trimStart();
+      if (val.length > 30) val = val.slice(0, 30);
     }
-  };
+    // Disallow numbers and special characters for name field (allow letters, spaces, hyphens, apostrophes)
+    const sanitized = isNameField
+      ? val.replace(/[^a-zA-Z\s\u00C0-\u024F\u1EA0-\u1EF9\-\'.]/g, "")
+      : val.replace(/[^a-zA-Z0-9\s\u00C0-\u024F\u1EA0-\u1EF9\-\.,]/g, "");
 
-  const handlePersonalKeyUp = (field, value) => {
-    if (touched[field] || errors[field]) {
-      const msg = validate(field, value);
-      setErrors((prev) => ({ ...prev, [field]: msg }));
+    formik.setFieldValue(field, sanitized);
+    formik.setFieldTouched(field, true, true);
+
+    if (field === "fullName" || field === "phone" || field === "location" || field === "city") {
+      persist({ personal: { ...profile.personal, [field]: sanitized } });
     }
-  };
-
-  const handlePersonalBlur = (field, value) => {
-    setTouched((prev) => ({ ...prev, [field]: true }));
-    const msg = validate(field, value);
-    setErrors((prev) => ({ ...prev, [field]: msg }));
   };
 
   const handleProfessionalChange = (field, value) => {
+    formik.setFieldValue(field, value);
+    formik.setFieldTouched(field, true, true);
     persist({ professional: { ...profile.professional, [field]: value } });
-    if (touched[field] || errors[field]) {
-      const msg = validate(field, value);
-      setErrors((prev) => ({ ...prev, [field]: msg }));
-    }
   };
 
-  const handleProfessionalKeyUp = (field, value) => {
-    if (touched[field] || errors[field]) {
-      const msg = validate(field, value);
-      setErrors((prev) => ({ ...prev, [field]: msg }));
-    }
-  };
-
-  const handleProfessionalBlur = (field, value) => {
-    setTouched((prev) => ({ ...prev, [field]: true }));
-    const msg = validate(field, value);
-    setErrors((prev) => ({ ...prev, [field]: msg }));
-  };
-
-  const goNext = () => {
+  const goNext = async () => {
     setErr("");
     if (step === 1) {
-      const nameErr = validate("fullName", profile.personal.fullName);
-      const phoneErr = validate("phone", profile.personal.phone);
+      formik.setFieldTouched("fullName", true, true);
+      formik.setFieldTouched("phone", true, true);
+      formik.setFieldTouched("location", true, true);
+      formik.setFieldTouched("city", true, true);
+      const errors = await formik.validateForm();
+      if (errors.fullName || errors.phone || errors.location || errors.city) {
+        return;
+      }
       // BR-101-04: At least one contact method must be present (verified email or phone)
       const auth = getAuth();
       const hasEmail = Boolean(auth?.email);
-      const digits = (profile.personal.phone || "").replace(/\D/g, "");
+      const digits = (formik.values.phone || "").replace(/\D/g, "");
       const hasPhone = digits.length >= 7;
       if (!hasEmail && !hasPhone) {
         setErr(t(lang, "At least one contact method (email or phone) is required"));
         return;
       }
-      if (nameErr || phoneErr) {
-        setTouched((prev) => ({ ...prev, fullName: true, phone: true }));
-        setErrors((prev) => ({ ...prev, fullName: nameErr, phone: phoneErr }));
-        return;
-      }
     }
     if (step === 2) {
-      const titleErr = validate("title", profile.professional.title);
-      if (titleErr) {
-        setTouched((prev) => ({ ...prev, title: true }));
-        setErrors((prev) => ({ ...prev, title: titleErr }));
+      formik.setFieldTouched("title", true, true);
+      const errors = await formik.validateForm();
+      if (errors.title) {
         return;
       }
     }
     if (step === 5) {
-      const salErr = validate("salary", profile.preferences?.salary);
-      if (salErr) {
-        setTouched((prev) => ({ ...prev, salary: true }));
-        setErrors((prev) => ({ ...prev, salary: salErr }));
-        setErr(salErr);
+      formik.setFieldTouched("salary", true, true);
+      const errors = await formik.validateForm();
+      if (errors.salary) {
+        setErr(errors.salary);
         return;
       }
     }
-    setErrors({});
+
     saveProfile(profile).catch((e) => console.warn("Background save failed:", e.message));
     setToast(t(lang, "Progress saved"));
     setStep((s) => Math.min(6, s + 1));
   };
 
   const goBack = () => {
-    setErrors({});
     setStep((s) => Math.max(1, s - 1));
   };
 
@@ -241,14 +280,13 @@ export default function OnboardingClient() {
   const updateExperience = (i, field, value) => {
     const list = profile.experience.slice();
     list[i] = { ...list[i], [field]: value };
-    // If "isCurrent" toggled on, clear end date
     if (field === "isCurrent" && value === true) list[i].end = "";
     persist({ experience: list });
   };
   const addExperience = () => persist({ experience: [...profile.experience, emptyExperience()] });
   const removeExperience = (i) => persist({ experience: profile.experience.filter((_, idx) => idx !== i) });
 
-  // ── Profile photo handler – stores full base64 in profile.personal.photo ──
+  // ── Profile photo handler ──
   const onPhotoChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -277,10 +315,10 @@ export default function OnboardingClient() {
     setToast(t(lang, "Random avatar applied"));
   };
 
-  // ── Resume handler – always full base64, no size shortcuts ──
+  // ── Resume handler ──
   const handleResumeFile = async (file) => {
     if (!file) return;
-    const okExts = [".pdf", ".doc", ".docx"]; // BR-101-03: Allowed formats: PDF, DOC, and DOCX only
+    const okExts = [".pdf", ".doc", ".docx"];
     const ext = "." + file.name.split(".").pop().toLowerCase();
     if (!okExts.includes(ext)) {
       setErr(t(lang, "Unsupported file format. Allowed formats: PDF, DOC, and DOCX only"));
@@ -339,11 +377,63 @@ export default function OnboardingClient() {
     setToast(t(lang, "Resume removed"));
   };
 
-  const preferenceList = (key, value) => {
-    const list = profile.preferences[key];
-    const has = list.includes(value);
-    const next = has ? list.filter((v) => v !== value) : [...list, value];
-    persist({ preferences: { ...profile.preferences, [key]: next } });
+  // ── Portfolio handlers ──
+  const handlePortfolioFile = async (file) => {
+    if (!file) return;
+    const okExts = [".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"];
+    const ext = "." + file.name.split(".").pop().toLowerCase();
+    if (!okExts.includes(ext)) {
+      setErr(t(lang, "Unsupported portfolio format. Allowed: PDF, PNG, JPG, DOC, DOCX"));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErr(t(lang, "Portfolio file size must not exceed 5 MB"));
+      return;
+    }
+    setErr("");
+    setPortfolioUploading(true);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const mime = file.type || "application/pdf";
+      const portObj = {
+        ...profile?.portfolio,
+        url: formik.values.portfolioUrl || profile?.portfolio?.url || "",
+        fileName: file.name,
+        size: file.size,
+        type: mime,
+        dataUrl,
+        uploadedAt: new Date().toISOString().slice(0, 10),
+      };
+      persist({ portfolio: portObj, portfolioFile: portObj });
+      setToast(t(lang, "Portfolio document uploaded!"));
+    } catch (e) {
+      setErr(t(lang, "Could not read portfolio file."));
+    } finally {
+      setPortfolioUploading(false);
+    }
+  };
+
+  const handleRemovePortfolioFile = () => {
+    const portObj = {
+      ...profile?.portfolio,
+      fileName: "",
+      size: 0,
+      type: "",
+      dataUrl: "",
+      uploadedAt: "",
+    };
+    persist({ portfolio: portObj, portfolioFile: null });
+    setToast(t(lang, "Portfolio file removed"));
+  };
+
+  const handlePortfolioUrlChange = (val) => {
+    formik.setFieldValue("portfolioUrl", val);
+    formik.setFieldTouched("portfolioUrl", true, true);
+    const portObj = {
+      ...profile?.portfolio,
+      url: val,
+    };
+    persist({ portfolio: portObj, portfolioUrl: val });
   };
 
   const completeness = computeCompleteness(profile);
@@ -375,33 +465,49 @@ export default function OnboardingClient() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
               <Input
                 label={t(lang, "Full Name")}
-                value={profile.personal.fullName}
-                onChange={(e) => handlePersonalChange("fullName", e.target.value)}
-                onKeyUp={(e) => handlePersonalKeyUp("fullName", e.target.value)}
-                onBlur={() => handlePersonalBlur("fullName", profile.personal.fullName)}
+                name="fullName"
+                value={formik.values.fullName}
+                onChange={(e) => handleNoSpecialCharInput("fullName", e.target.value, true)}
+                onBlur={formik.handleBlur}
                 placeholder={t(lang, "e.g. Alex Mitchell")}
-                error={touched.fullName && errors.fullName ? errors.fullName : undefined}
+                error={formik.touched.fullName && formik.errors.fullName ? formik.errors.fullName : undefined}
               />
               <PhoneInput
                 id="phone"
                 name="phone"
                 label={t(lang, "Phone Number")}
-                value={profile.personal.phone}
-                onChange={(phone) => handlePersonalChange("phone", phone)}
-                onBlur={() => handlePersonalBlur("phone", profile.personal.phone)}
+                value={formik.values.phone}
+                onChange={(phone) => {
+                  formik.setFieldValue("phone", phone);
+                  formik.setFieldTouched("phone", true, true);
+                  persist({ personal: { ...profile.personal, phone } });
+                }}
+                onBlur={() => formik.setFieldTouched("phone", true, true)}
                 placeholder="912 345 678"
                 defaultCountry="vn"
-                error={touched.phone && errors.phone ? errors.phone : undefined}
+                error={formik.touched.phone && formik.errors.phone ? formik.errors.phone : undefined}
               />
               <Input
                 label={t(lang, "Location")}
-                value={profile.personal.location}
-                onChange={(e) => handlePersonalChange("location", e.target.value)}
-                placeholder={t(lang, "e.g. Ho Chi Minh City, Vietnam")}
+                name="location"
+                value={formik.values.location}
+                onChange={(e) => handleNoSpecialCharInput("location", e.target.value, false)}
+                onBlur={formik.handleBlur}
+                placeholder={t(lang, "e.g. District 1, Ho Chi Minh City, Vietnam")}
+                error={formik.touched.location && formik.errors.location ? formik.errors.location : undefined}
+              />
+              <Input
+                label={t(lang, "City")}
+                name="city"
+                value={formik.values.city}
+                onChange={(e) => handleNoSpecialCharInput("city", e.target.value, false)}
+                onBlur={formik.handleBlur}
+                placeholder={t(lang, "e.g. Ho Chi Minh City")}
+                error={formik.touched.city && formik.errors.city ? formik.errors.city : undefined}
               />
 
               {/* Profile photo upload + random avatar */}
-              <div className="flex flex-col gap-1.5 font-body">
+              <div className="flex flex-col gap-1.5 font-body col-span-1 md:col-span-2">
                 <label className="text-xs sm:text-sm font-semibold text-ink select-none">
                   {t(lang, "Profile Photo")}
                 </label>
@@ -470,24 +576,28 @@ export default function OnboardingClient() {
             <div className="lv-form-grid">
               <Input
                 label={t(lang, "Current Job Title")}
-                value={profile.professional.title}
+                name="title"
+                value={formik.values.title}
                 onChange={(e) => handleProfessionalChange("title", e.target.value)}
-                onKeyUp={(e) => handleProfessionalKeyUp("title", e.target.value)}
-                onBlur={() => handleProfessionalBlur("title", profile.professional.title)}
+                onBlur={formik.handleBlur}
                 placeholder={t(lang, "e.g. Senior Software Engineer")}
-                error={touched.title && errors.title ? errors.title : undefined}
+                error={formik.touched.title && formik.errors.title ? formik.errors.title : undefined}
               />
               <Select
                 label={t(lang, "Experience")}
-                value={profile.professional.experience}
-                onChange={(e) => persist({ professional: { ...profile.professional, experience: e.target.value } })}
+                value={formik.values.experience}
+                onChange={(e) => {
+                  handleProfessionalChange("experience", e.target.value);
+                }}
                 options={EXPERIENCE_RANGES.map((v) => ({ value: v, label: t(lang, v) }))}
                 placeholder={t(lang, "Select years of experience")}
               />
               <Select
                 label={t(lang, "Industry")}
-                value={profile.professional.industry}
-                onChange={(e) => persist({ professional: { ...profile.professional, industry: e.target.value } })}
+                value={formik.values.industry}
+                onChange={(e) => {
+                  handleProfessionalChange("industry", e.target.value);
+                }}
                 options={INDUSTRIES.map((v) => ({ value: v, label: t(lang, v) }))}
                 placeholder={t(lang, "Select industry domain")}
               />
@@ -559,7 +669,7 @@ export default function OnboardingClient() {
             </div>
           )}
 
-          {/* ── Step 4: Experience (with month date pickers) ── */}
+          {/* ── Step 4: Experience ── */}
           {step === 4 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {profile.experience.length === 0 && (
@@ -583,7 +693,6 @@ export default function OnboardingClient() {
                       placeholder={t(lang, "e.g. Senior Software Engineer")}
                     />
 
-                    {/* Start Date – date picker */}
                     <div>
                       <Input
                         type="date"
@@ -600,7 +709,6 @@ export default function OnboardingClient() {
                       )}
                     </div>
 
-                    {/* End Date – month picker or "Currently working here" */}
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                         <label className="lv-field-label" style={{ marginBottom: 0 }}>{t(lang, "End Date")}</label>
@@ -649,7 +757,6 @@ export default function OnboardingClient() {
                     />
                   </div>
 
-                  {/* Duration display */}
                   {ex.start && (
                     <p className="lv-exp-duration">
                       <Icon name="calendar" size={12} />
@@ -751,10 +858,107 @@ export default function OnboardingClient() {
                 )}
               </div>
 
+              {/* ── Portfolio & Work Showcase Section ── */}
+              <div style={{ gridColumn: "1 / -1", borderTop: "1px solid #e2e8f0", paddingTop: 16, marginTop: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 8, background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon name="globe" size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                      {t(lang, "Portfolio & Work Showcase")}
+                    </h3>
+                    <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>
+                      {t(lang, "Link your GitHub, Behance, LinkedIn, or upload a project document.")}
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+                  <Input
+                    label={t(lang, "Portfolio / Website Link")}
+                    name="portfolioUrl"
+                    value={formik.values.portfolioUrl}
+                    onChange={(e) => handlePortfolioUrlChange(e.target.value)}
+                    onBlur={formik.handleBlur}
+                    placeholder="e.g. https://github.com/alexmitchell"
+                    error={formik.touched.portfolioUrl && formik.errors.portfolioUrl ? formik.errors.portfolioUrl : undefined}
+                  />
+
+                  <div>
+                    <label className="lv-field-label">{t(lang, "Upload Portfolio File (optional)")}</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                      <button
+                        type="button"
+                        className="lv-photo-btn"
+                        onClick={() => portfolioInputRef.current?.click()}
+                        disabled={portfolioUploading}
+                        style={{ fontSize: 12, padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                      >
+                        <Icon name="upload-cloud" size={14} />
+                        {portfolioUploading ? t(lang, "Uploading...") : t(lang, "Choose Portfolio File")}
+                      </button>
+                      <input
+                        ref={portfolioInputRef}
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (file) handlePortfolioFile(file);
+                        }}
+                      />
+                    </div>
+                    <p className="lv-field-hint" style={{ marginTop: 4 }}>
+                      {t(lang, "PDF, PNG, JPG, DOCX up to 5MB")}
+                    </p>
+                  </div>
+                </div>
+
+                {(profile.portfolio?.fileName || profile.portfolioFile?.fileName) && (
+                  <div className="lv-resume-chip" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Icon name="file-text" size={16} style={{ color: "#0891b2", flexShrink: 0 }} />
+                      <div>
+                        <p className="lv-resume-chip-name">{profile.portfolio?.fileName || profile.portfolioFile?.fileName}</p>
+                        <p className="lv-resume-chip-meta">
+                          {(profile.portfolio?.size || profile.portfolioFile?.size) ? `${((profile.portfolio?.size || profile.portfolioFile?.size) / 1024).toFixed(0)} KB` : ""}
+                          {(profile.portfolio?.uploadedAt || profile.portfolioFile?.uploadedAt) ? ` · ${t(lang, "Uploaded")} ${profile.portfolio?.uploadedAt || profile.portfolioFile?.uploadedAt}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {(profile.portfolio?.dataUrl || profile.portfolioFile?.dataUrl) && (
+                        <a
+                          href={profile.portfolio?.dataUrl || profile.portfolioFile?.dataUrl}
+                          download={profile.portfolio?.fileName || profile.portfolioFile?.fileName}
+                          className="lv-photo-btn"
+                          style={{ padding: "4px 10px", fontSize: 12 }}
+                        >
+                          <Icon name="download" size={12} /> {t(lang, "Download")}
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleRemovePortfolioFile}
+                        className="lv-photo-btn"
+                        style={{ padding: "4px 10px", fontSize: 12, color: "#dc2626", borderColor: "#fecaca" }}
+                      >
+                        <Icon name="trash-2" size={12} /> {t(lang, "Remove")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <Select
                 label={t(lang, "Preferred Work Mode")}
-                value={profile.preferences.workMode}
-                onChange={(e) => persist({ preferences: { ...profile.preferences, workMode: e.target.value } })}
+                value={formik.values.workMode}
+                onChange={(e) => {
+                  formik.setFieldValue("workMode", e.target.value);
+                  persist({ preferences: { ...profile.preferences, workMode: e.target.value } });
+                }}
                 options={WORK_MODES.map((v) => ({ value: v, label: t(lang, v) }))}
                 placeholder={t(lang, "Select preferred work mode")}
               />
@@ -773,19 +977,16 @@ export default function OnboardingClient() {
               <div>
                 <Input
                   label={t(lang, "Desired Salary (1M–500M VND/month)")}
-                  value={profile.preferences.salary}
+                  name="salary"
+                  value={formik.values.salary}
                   onChange={(e) => {
+                    formik.setFieldValue("salary", e.target.value);
+                    formik.setFieldTouched("salary", true, true);
                     persist({ preferences: { ...profile.preferences, salary: e.target.value } });
-                    const msg = validate("salary", e.target.value);
-                    setErrors((prev) => ({ ...prev, salary: msg }));
                   }}
-                  onBlur={() => {
-                    setTouched((prev) => ({ ...prev, salary: true }));
-                    const msg = validate("salary", profile.preferences.salary);
-                    setErrors((prev) => ({ ...prev, salary: msg }));
-                  }}
+                  onBlur={formik.handleBlur}
                   placeholder={t(lang, "e.g. 35,000,000 VND")}
-                  error={touched.salary && errors.salary ? errors.salary : undefined}
+                  error={formik.touched.salary && formik.errors.salary ? formik.errors.salary : undefined}
                 />
                 <p className="lv-field-hint" style={{ marginTop: 4 }}>
                   {t(lang, "Range: 1M–500M VND/month")}
@@ -795,9 +996,10 @@ export default function OnboardingClient() {
               {/* BR-101-07: Profile Visibility */}
               <Select
                 label={t(lang, "Profile Visibility")}
-                value={profile.visibility || "public"}
+                value={formik.values.visibility}
                 onChange={(e) => {
                   const val = e.target.value;
+                  formik.setFieldValue("visibility", val);
                   persist({ visibility: val, is_visible: val === "public" });
                 }}
                 placeholder={t(lang, "Select profile visibility")}

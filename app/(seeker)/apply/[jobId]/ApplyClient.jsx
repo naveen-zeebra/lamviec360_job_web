@@ -46,8 +46,8 @@ export default function ApplyClient({ jobId }) {
       setErr(t(lang, "Use a PDF, DOC, DOCX, JPG or PNG file."));
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setErr(t(lang, "File is larger than 10MB."));
+    if (file.size > 5 * 1024 * 1024) {
+      setErr(t(lang, "File is larger than 5MB."));
       return;
     }
     setErr("");
@@ -522,8 +522,8 @@ export default function ApplyClient({ jobId }) {
               {/* Card Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16, borderBottom: "1px solid #e2e8f0", paddingBottom: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 8, background: "#e0e7ff", color: "#4f46e5", flexShrink: 0 }}>
-                    <Icon name="award" size={20} />
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, borderRadius: 10, background: "#e0e7ff", color: "#4f46e5", flexShrink: 0 }}>
+                    <Icon name="award" size={22} />
                   </div>
                   <div>
                     <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0 }}>
@@ -539,108 +539,136 @@ export default function ApplyClient({ jobId }) {
                 </span>
               </div>
 
-              {/* 1. Saved Profile Certifications Selection */}
-              {profile.certifications && profile.certifications.length > 0 && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
-                      {t(lang, "Select from your profile certifications")}:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const allIds = profile.certifications.map((c) => c.id || c.name);
-                        const isAll = allIds.every((id) => selectedCertIds.includes(id));
-                        setSelectedCertIds(isAll ? [] : allIds);
-                      }}
-                      style={{ fontSize: 12, fontWeight: 600, color: "var(--surface-brand, #2563eb)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                    >
-                      {profile.certifications.every((c) => selectedCertIds.includes(c.id || c.name))
-                        ? t(lang, "Deselect all")
-                        : t(lang, "Select all")}
-                    </button>
-                  </div>
+              {/* Helper to normalize profile certification item */}
+              {(() => {
+                const rawCerts = profile.certifications || [];
+                const normalizedCerts = rawCerts.map((c, idx) => {
+                  if (typeof c === "string") {
+                    return {
+                      id: c,
+                      name: c,
+                      issuer: "",
+                      issueDate: "",
+                      credentialId: "",
+                      fileName: null,
+                    };
+                  }
+                  return {
+                    id: c.id || c.name || c.title || `cert-${idx}`,
+                    name: c.name || c.title || t(lang, "Certification"),
+                    issuer: c.issuer || "",
+                    issueDate: c.issueDate || "",
+                    credentialId: c.credentialId || "",
+                    fileName: c.fileName || (c.fileData ? t(lang, "Document attached") : null),
+                  };
+                });
 
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
-                    {profile.certifications.map((c, idx) => {
-                      const certId = c.id || c.name;
-                      const isSelected = selectedCertIds.includes(certId);
-                      return (
-                        <div
-                          key={certId || idx}
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedCertIds(selectedCertIds.filter((id) => id !== certId));
-                            } else {
-                              setSelectedCertIds([...selectedCertIds, certId]);
-                            }
-                          }}
-                          style={{
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: 10,
-                            padding: "12px 14px",
-                            borderRadius: 10,
-                            background: isSelected ? "#eff6ff" : "#ffffff",
-                            border: isSelected ? "1.5px solid #3b82f6" : "1px solid #cbd5e1",
-                            boxShadow: isSelected ? "0 1px 3px rgba(59, 130, 246, 0.15)" : "none",
-                            transition: "all 0.15s ease",
-                            userSelect: "none",
-                          }}
-                        >
-                          <div
-                            style={{
-                              marginTop: 2,
-                              width: 18,
-                              height: 18,
-                              borderRadius: 4,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              background: isSelected ? "var(--surface-brand, #2563eb)" : "#ffffff",
-                              border: isSelected ? "none" : "1.5px solid #cbd5e1",
-                              color: "#ffffff",
-                              flexShrink: 0,
+                const allIds = normalizedCerts.map((c) => c.id);
+                const isAllSelected = allIds.length > 0 && allIds.every((id) => selectedCertIds.includes(id));
+
+                return (
+                  <>
+                    {/* 1. Saved Profile Certifications Selection */}
+                    {normalizedCerts.length > 0 && (
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
+                            {t(lang, "Select from your profile certifications")}:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCertIds(isAllSelected ? [] : allIds);
                             }}
+                            style={{ fontSize: 12, fontWeight: 600, color: "var(--surface-brand, #2563eb)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                           >
-                            {isSelected && <Icon name="check" size={12} />}
-                          </div>
-
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <strong style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {c.name}
-                            </strong>
-                            {c.issuer && (
-                              <span style={{ display: "block", fontSize: 11, color: "#64748b", margin: "1px 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {c.issuer}
-                              </span>
-                            )}
-                            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, fontSize: 10 }}>
-                              {c.issueDate && (
-                                <span style={{ background: "#f1f5f9", padding: "1px 6px", borderRadius: 4, color: "#475569" }}>
-                                  {c.issueDate}
-                                </span>
-                              )}
-                              {c.credentialId && (
-                                <span style={{ background: "#f1f5f9", padding: "1px 6px", borderRadius: 4, color: "#475569" }}>
-                                  ID: {c.credentialId}
-                                </span>
-                              )}
-                              {c.fileName && (
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "#dcfce7", padding: "1px 6px", borderRadius: 4, color: "#166534", fontWeight: 600 }}>
-                                  <Icon name="file-text" size={10} />
-                                  {t(lang, "Document attached")}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                            {isAllSelected ? t(lang, "Deselect all") : t(lang, "Select all")}
+                          </button>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
+                          {normalizedCerts.map((c) => {
+                            const isSelected = selectedCertIds.includes(c.id);
+                            return (
+                              <div
+                                key={c.id}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setSelectedCertIds(selectedCertIds.filter((id) => id !== c.id));
+                                  } else {
+                                    setSelectedCertIds([...selectedCertIds, c.id]);
+                                  }
+                                }}
+                                style={{
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "flex-start",
+                                  gap: 12,
+                                  padding: "12px 14px",
+                                  borderRadius: 10,
+                                  background: isSelected ? "#eff6ff" : "#ffffff",
+                                  border: isSelected ? "1.5px solid #3b82f6" : "1px solid #cbd5e1",
+                                  boxShadow: isSelected ? "0 2px 6px rgba(59, 130, 246, 0.15)" : "none",
+                                  transition: "all 0.15s ease",
+                                  userSelect: "none",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    marginTop: 2,
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: 5,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    background: isSelected ? "var(--surface-brand, #2563eb)" : "#ffffff",
+                                    border: isSelected ? "none" : "1.5px solid #cbd5e1",
+                                    color: "#ffffff",
+                                    flexShrink: 0,
+                                    transition: "all 0.15s ease",
+                                  }}
+                                >
+                                  {isSelected && <Icon name="check" size={14} />}
+                                </div>
+
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <strong style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {c.name}
+                                  </strong>
+                                  {c.issuer && (
+                                    <span style={{ display: "block", fontSize: 11, color: "#64748b", margin: "1px 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                      {c.issuer}
+                                    </span>
+                                  )}
+                                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, fontSize: 10, marginTop: 4 }}>
+                                    {c.issueDate && (
+                                      <span style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, color: "#475569", fontWeight: 500 }}>
+                                        {c.issueDate}
+                                      </span>
+                                    )}
+                                    {c.credentialId && (
+                                      <span style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, color: "#475569", fontWeight: 500 }}>
+                                        ID: {c.credentialId}
+                                      </span>
+                                    )}
+                                    {c.fileName && (
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "#dcfce7", padding: "2px 6px", borderRadius: 4, color: "#166534", fontWeight: 600 }}>
+                                        <Icon name="file-text" size={11} />
+                                        {c.fileName}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* 2. Upload Certificate for this application */}
               <div>
@@ -661,10 +689,10 @@ export default function ApplyClient({ jobId }) {
                 </div>
 
                 {appliedCertFile ? (
-                  <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 12, padding: "16px 18px", boxShadow: "0 2px 8px rgba(34, 197, 94, 0.08)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: 8, background: "#dcfce7", color: "#16a34a", flexShrink: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 42, height: 42, borderRadius: 10, background: "#dcfce7", color: "#16a34a", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                           <Icon name="file-text" size={22} />
                         </div>
                         <div style={{ minWidth: 0 }}>
@@ -735,7 +763,7 @@ export default function ApplyClient({ jobId }) {
                     </div>
 
                     {/* Metadata fields for uploaded certificate */}
-                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #bbf7d0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #bbf7d0", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
                       <div>
                         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
                           {t(lang, "Certificate / License Title (optional)")}
@@ -793,8 +821,8 @@ export default function ApplyClient({ jobId }) {
                         flexDirection: "column",
                         alignItems: "center",
                         justifyContent: "center",
-                        padding: "24px 16px",
-                        borderRadius: 10,
+                        padding: "26px 16px",
+                        borderRadius: 12,
                         border: certDragOver ? "2px dashed var(--surface-brand, #2563eb)" : "1.5px dashed #cbd5e1",
                         background: certDragOver ? "#eff6ff" : "#ffffff",
                         transition: "all 0.15s ease",
@@ -813,17 +841,17 @@ export default function ApplyClient({ jobId }) {
                         }
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 10, background: "#eff6ff", color: "var(--surface-brand, #2563eb)", marginBottom: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 46, height: 46, borderRadius: 12, background: "#eff6ff", color: "var(--surface-brand, #2563eb)", marginBottom: 10, boxShadow: "0 2px 5px rgba(37,99,235,0.1)" }}>
                         <Icon name="upload-cloud" size={24} />
                       </div>
                       <strong style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 3 }}>
                         {t(lang, "Click to upload certificate or drag & drop")}
                       </strong>
-                      <span style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>
-                        {t(lang, "PDF, PNG, JPG, JPEG, DOC, DOCX up to 10MB")}
+                      <span style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>
+                        {t(lang, "PDF, PNG, JPG, JPEG, DOC, DOCX up to 5MB")}
                       </span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b", background: "#f8fafc", padding: "6px 16px", borderRadius: 6, border: "1px solid #cbd5e1", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
-                        {t(lang, "Browse")}
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b", background: "#ffffff", padding: "6px 18px", borderRadius: 8, border: "1px solid #cbd5e1", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                        {t(lang, "Browse file")}
                       </span>
                     </label>
                   </div>

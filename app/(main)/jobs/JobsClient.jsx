@@ -12,7 +12,7 @@ import Field from "../../../components/ds/Field";
 import Check from "../../../components/ds/Check";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { FILTER_VI } from "../../../lib/data";
-import { isSaved, toggleSavedJob } from "../../../lib/seekerStore";
+import { isSaved, toggleSavedJob, isLoggedIn, hasAppliedToJob } from "../../../lib/seekerStore";
 import { fetchPublicJobs } from "../../../lib/api/publicApi";
 
 const TYPES = ["Full-time", "Part-time", "Contract", "Internship"];
@@ -40,6 +40,8 @@ export default function JobsClient() {
   const [sort, setSort] = useState("recent");
   const [page, setPage] = useState(1);
   const [saved, setSaved] = useState({});
+  const [appliedMap, setAppliedMap] = useState({});
+  const [loggedIn, setLoggedIn] = useState(false);
   const [jobList, setJobList] = useState([]);
   const [toast, setToast] = useToast();
 
@@ -58,16 +60,23 @@ export default function JobsClient() {
   }, []);
 
   useEffect(() => {
-    const updateSavedMap = () => {
-      const map = {};
+    const updateStoreState = () => {
+      const isUserLoggedIn = isLoggedIn();
+      setLoggedIn(isUserLoggedIn);
+
+      const savedMap = {};
+      const applied = {};
       jobList.forEach((j) => {
-        map[j.id] = isSaved(j.id);
+        savedMap[j.id] = isSaved(j.id);
+        applied[j.id] = hasAppliedToJob(j.id);
       });
-      setSaved(map);
+      setSaved(savedMap);
+      setAppliedMap(applied);
     };
-    updateSavedMap();
-    window.addEventListener("lv360-store", updateSavedMap);
-    return () => window.removeEventListener("lv360-store", updateSavedMap);
+
+    updateStoreState();
+    window.addEventListener("lv360-store", updateStoreState);
+    return () => window.removeEventListener("lv360-store", updateStoreState);
   }, [jobList]);
 
   const toggle = (list, set, v) => {
@@ -225,7 +234,13 @@ export default function JobsClient() {
                     job={j}
                     lang={lang}
                     saved={saved[j.id]}
+                    isLoggedIn={loggedIn}
+                    hasApplied={appliedMap[j.id]}
                     onSave={() => {
+                      if (!loggedIn) {
+                        setToast(t(lang, "Please log in to save jobs."));
+                        return;
+                      }
                       toggleSavedJob(j.id, j);
                       const nowSaved = !saved[j.id];
                       setSaved((s) => ({ ...s, [j.id]: nowSaved }));

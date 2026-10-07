@@ -2,6 +2,8 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { Button, Input, Select, PhoneInput } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import Toast, { useToast } from "../../../components/ds/Toast";
@@ -83,26 +85,47 @@ function fmtMonth(val) {
   return val;
 }
 
-function ChipInput({ label, values, onAdd, onRemove, placeholder }) {
+function ChipInput({ label, values, onAdd, onRemove, placeholder, allowSpecial = true, error }) {
   const [v, setV] = useState("");
+  const [chipErr, setChipErr] = useState("");
+
+  const handleAdd = () => {
+    let clean = v.trim();
+    if (!clean) return;
+    if (!allowSpecial) {
+      if (/[^a-zA-Z0-9\s\u00C0-\u024F\u1EA0-\u1EF9\-\.]/.test(clean)) {
+        setChipErr("Special characters are not allowed.");
+        return;
+      }
+    }
+    setChipErr("");
+    onAdd(clean);
+    setV("");
+  };
+
   return (
     <div>
       <label style={{ fontSize: "var(--text-sm)", fontWeight: 600, display: "block", marginBottom: 6 }}>{label}</label>
       <div style={{ display: "flex", gap: 8 }}>
-        <Input value={v} onChange={(e) => setV(e.target.value)} placeholder={placeholder} />
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => {
-            if (v.trim()) {
-              onAdd(v.trim());
-              setV("");
+        <Input
+          value={v}
+          onChange={(e) => {
+            let val = e.target.value;
+            if (!allowSpecial) {
+              val = val.replace(/[^a-zA-Z0-9\s\u00C0-\u024F\u1EA0-\u1EF9\-\.]/g, "");
             }
+            setV(val);
+            setChipErr("");
           }}
-        >
+          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAdd())}
+          placeholder={placeholder}
+          error={chipErr || error}
+        />
+        <Button type="button" variant="secondary" onClick={handleAdd}>
           Add
         </Button>
       </div>
+      {chipErr && <p className="text-xs text-danger" style={{ marginTop: 4 }}>{chipErr}</p>}
       <div className="lv-job-tags" style={{ marginTop: 12 }}>
         {values.map((x) => (
           <span key={x} className="lv-chip">
@@ -142,8 +165,10 @@ export default function SettingsClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [isResumeDragging, setIsResumeDragging] = useState(false);
   const [resumeUploading, setResumeUploading] = useState(false);
+  const [portfolioUploading, setPortfolioUploading] = useState(false);
   const photoInputRef = useRef(null);
   const resumeInputRef = useRef(null);
+  const portfolioInputRef = useRef(null);
 
   useEffect(() => {
     setProfile(getProfile());
@@ -154,6 +179,76 @@ export default function SettingsClient() {
       if (slug && SLUG_TABS[slug]) setTabState(SLUG_TABS[slug]);
     } catch (e) { }
   }, []);
+
+  const validationSchema = Yup.object().shape({
+    fullName: Yup.string()
+      .required(t(lang, "Please enter your full name."))
+      .max(30, t(lang, "Full name must not exceed 30 characters."))
+      .min(2, t(lang, "Full name must be at least 2 characters."))
+      .test("no-leading-space", t(lang, "First character cannot be a space."), (val) => !val || !/^\s/.test(val))
+      .test("no-numbers", t(lang, "Numbers are not allowed in full name."), (val) => !val || !/\d/.test(val))
+      .matches(
+        /^[a-zA-Z\s\u00C0-\u024F\u1EA0-\u1EF9\-\'.]+$/,
+        t(lang, "Numbers and special characters are not allowed in full name.")
+      ),
+    location: Yup.string().max(30, t(lang, "Location must not exceed 30 characters.")).test("no-special-chars", t(lang, "Special characters are not allowed in location."), (val) => !val || /^[a-zA-Z0-9\s\u00C0-\u024F\u1EA0-\u1EF9\-\.,]*$/.test(val)),
+    phone: Yup.string().test("phone-valid", t(lang, "Please enter a valid phone number."), function (val) {
+      if (!val || !val.trim()) return true;
+      const digits = val.replace(/\D/g, "");
+      return digits.length >= 7 && digits.length <= 15;
+    }),
+    title: Yup.string(),
+    portfolioUrl: Yup.string().test(
+      "url-valid",
+      t(lang, "Please enter a valid URL (e.g. https://github.com/yourname)"),
+      function (value) {
+        if (!value || !value.trim()) return true;
+        try {
+          const test = value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
+          new URL(test);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    ),
+    salary: Yup.string().test("salary-valid", t(lang, "Salary expectation must be between 1M and 500M VND per month"), function (val) {
+      if (!val || !val.trim()) return true;
+      const raw = String(val).replace(/,/g, "").trim();
+      let num = null;
+      const matchM = raw.match(/(\d+(\.\d+)?)\s*M/i);
+      if (matchM) {
+        num = parseFloat(matchM[1]) * 1000000;
+      } else {
+        const matchNum = raw.match(/\d+/);
+        if (matchNum) {
+          const parsed = parseFloat(matchNum[0]);
+          num = parsed < 1000 ? parsed * 1000000 : parsed;
+        }
+      }
+      if (num !== null && (num < 1000000 || num > 500000000)) {
+        return false;
+      }
+      return true;
+    }),
+  });
+
+  const formik = useFormik({
+    enableReinitialize: true,
+    initialValues: {
+      fullName: profile?.personal?.fullName || "",
+      phone: profile?.personal?.phone || "",
+      location: profile?.personal?.location || "",
+      title: profile?.professional?.title || "",
+      experience: profile?.professional?.experience || "",
+      industry: profile?.professional?.industry || "",
+      portfolioUrl: profile?.portfolio?.url || profile?.portfolioUrl || "",
+      workMode: profile?.preferences?.workMode || "",
+      salary: profile?.preferences?.salary || "",
+    },
+    validationSchema,
+    onSubmit: async () => { },
+  });
 
   const setTab = (tb) => {
     setTabState(tb);
@@ -192,7 +287,48 @@ export default function SettingsClient() {
     setToast(t(lang, "Saved"));
   };
 
+  const handleFullNameInput = (e) => {
+    let val = e.target.value;
+    // Disallow leading space
+    if (val.startsWith(" ")) {
+      val = val.trimStart();
+    }
+    // Max 30 chars
+    if (val.length > 30) {
+      val = val.slice(0, 30);
+    }
+    // Disallow numbers and special characters (allow letters, spaces, hyphens, apostrophes)
+    val = val.replace(/[^a-zA-Z\s\u00C0-\u024F\u1EA0-\u1EF9\-\'.]/g, "");
+
+    formik.setFieldValue("fullName", val);
+    formik.setFieldTouched("fullName", true, true);
+    persist({ personal: { ...profile.personal, fullName: val } });
+  };
+
+  const handleLocationInput = (e) => {
+    let val = e.target.value;
+    // Disallow special characters
+    val = val.replace(/[^a-zA-Z0-9\s\u00C0-\u024F\u1EA0-\u1EF9\-\.,]/g, "");
+    formik.setFieldValue("location", val);
+    formik.setFieldTouched("location", true, true);
+    persist({ personal: { ...profile.personal, location: val } });
+  };
+
   const handleSaveProfile = async () => {
+    formik.setTouched({
+      fullName: true,
+      location: true,
+      phone: true,
+      title: true,
+      salary: true,
+    });
+    const errors = await formik.validateForm();
+    if (Object.keys(errors).length > 0) {
+      const firstErr = Object.values(errors)[0];
+      setToast(firstErr || t(lang, "Please fix validation errors before saving."));
+      return;
+    }
+
     setIsSaving(true);
     try {
       await saveProfile(profile);
@@ -222,7 +358,17 @@ export default function SettingsClient() {
   const removeCertification = (i) => persist({ certifications: (profile.certifications || []).filter((_, idx) => idx !== i) });
   const handleCertFileUpload = async (i, file) => {
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size === 0) {
+      setToast(t(lang, "File is empty. Please select a valid document."));
+      return;
+    }
+    const okExts = [".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"];
+    const ext = "." + file.name.split(".").pop().toLowerCase();
+    if (!okExts.includes(ext)) {
+      setToast(t(lang, "Unsupported file format. Allowed formats: PDF, PNG, JPG, and DOCX only."));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
       setToast(t(lang, "File exceeds 5MB limit."));
       return;
     }
@@ -345,6 +491,66 @@ export default function SettingsClient() {
     setToast(t(lang, "Résumé removed"));
   };
 
+  // ── Portfolio handlers ──
+  const handlePortfolioFile = async (file) => {
+    if (!file) return;
+    const okExts = [".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"];
+    const ext = "." + file.name.split(".").pop().toLowerCase();
+    if (!okExts.includes(ext)) {
+      setToast(t(lang, "Unsupported portfolio format. Allowed: PDF, PNG, JPG, DOC, DOCX"));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setToast(t(lang, "Portfolio file size must not exceed 5 MB"));
+      return;
+    }
+    setPortfolioUploading(true);
+    setToast(t(lang, "Reading portfolio file…"));
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const mime = file.type || "application/pdf";
+      const portObj = {
+        ...profile?.portfolio,
+        url: formik.values.portfolioUrl || profile?.portfolio?.url || "",
+        fileName: file.name,
+        size: file.size,
+        type: mime,
+        dataUrl,
+        uploadedAt: new Date().toISOString().slice(0, 10),
+      };
+      persist({ portfolio: portObj, portfolioFile: portObj });
+      setToast(t(lang, "Portfolio document saved successfully!"));
+    } catch (err) {
+      console.error("Portfolio read error:", err);
+      setToast(t(lang, "Could not read portfolio file."));
+    } finally {
+      setPortfolioUploading(false);
+    }
+  };
+
+  const handleRemovePortfolioFile = () => {
+    const portObj = {
+      ...profile?.portfolio,
+      fileName: "",
+      size: 0,
+      type: "",
+      dataUrl: "",
+      uploadedAt: "",
+    };
+    persist({ portfolio: portObj, portfolioFile: null });
+    setToast(t(lang, "Portfolio file removed"));
+  };
+
+  const handlePortfolioUrlChange = (val) => {
+    formik.setFieldValue("portfolioUrl", val);
+    formik.setFieldTouched("portfolioUrl", true, true);
+    const portObj = {
+      ...profile?.portfolio,
+      url: val,
+    };
+    persist({ portfolio: portObj, portfolioUrl: val });
+  };
+
   const submitPassword = () => {
     if (!pw.current || !pw.next) return setPwErr(t(lang, "Fill in both password fields."));
     if (pw.next.length < 8) return setPwErr(t(lang, "New password must be at least 8 characters."));
@@ -386,15 +592,40 @@ export default function SettingsClient() {
             <div>
               <h3 style={{ marginBottom: 14 }}>{t(lang, "Personal")}</h3>
               <div className="lv-form-grid">
-                <Input label={t(lang, "Full Name")} value={profile.personal.fullName} onChange={(e) => persist({ personal: { ...profile.personal, fullName: e.target.value } })} placeholder={t(lang, "e.g. Alex Mitchell")} />
+                <Input
+                  label={t(lang, "Full Name")}
+                  name="fullName"
+                  value={formik.values.fullName}
+                  onChange={handleFullNameInput}
+                  onBlur={formik.handleBlur}
+                  placeholder={t(lang, "e.g. Alex Mitchell")}
+                  maxLength={30}
+                  error={formik.touched.fullName && formik.errors.fullName ? formik.errors.fullName : undefined}
+                />
                 <PhoneInput
+                  id="phone"
+                  name="phone"
                   label={t(lang, "Phone")}
-                  value={profile.personal.phone}
-                  onChange={(phone) => persist({ personal: { ...profile.personal, phone } })}
+                  value={formik.values.phone}
+                  onChange={(phone) => {
+                    formik.setFieldValue("phone", phone);
+                    formik.setFieldTouched("phone", true, true);
+                    persist({ personal: { ...profile.personal, phone } });
+                  }}
+                  onBlur={() => formik.setFieldTouched("phone", true, true)}
                   placeholder="912 345 678"
                   defaultCountry="vn"
+                  error={formik.touched.phone && formik.errors.phone ? formik.errors.phone : undefined}
                 />
-                <Input label={t(lang, "Location")} value={profile.personal.location} onChange={(e) => persist({ personal: { ...profile.personal, location: e.target.value } })} placeholder={t(lang, "e.g. Ho Chi Minh City, Vietnam")} />
+                <Input
+                  label={t(lang, "Location")}
+                  name="location"
+                  value={formik.values.location}
+                  onChange={handleLocationInput}
+                  onBlur={formik.handleBlur}
+                  placeholder={t(lang, "e.g. Ho Chi Minh City, Vietnam")}
+                  error={formik.touched.location && formik.errors.location ? formik.errors.location : undefined}
+                />
               </div>
 
               {/* Profile Photo Upload + Random Avatar */}
@@ -452,15 +683,44 @@ export default function SettingsClient() {
             <div>
               <h3 style={{ marginBottom: 14 }}>{t(lang, "Professional")}</h3>
               <div className="lv-form-grid">
-                <Input label={t(lang, "Current Job Title")} value={profile.professional.title} onChange={(e) => persist({ professional: { ...profile.professional, title: e.target.value } })} placeholder={t(lang, "e.g. Senior Software Engineer")} />
-                <Select label={t(lang, "Experience")} value={profile.professional.experience} onChange={(e) => persist({ professional: { ...profile.professional, experience: e.target.value } })} options={EXPERIENCE_RANGES.map((v) => ({ value: v, label: t(lang, v) }))} placeholder={t(lang, "Select years of experience")} />
-                <Select label={t(lang, "Industry")} value={profile.professional.industry} onChange={(e) => persist({ professional: { ...profile.professional, industry: e.target.value } })} options={INDUSTRIES.map((v) => ({ value: v, label: t(lang, v) }))} placeholder={t(lang, "Select industry domain")} />
+                <Input
+                  label={t(lang, "Current Job Title")}
+                  name="title"
+                  value={formik.values.title}
+                  onChange={(e) => {
+                    formik.setFieldValue("title", e.target.value);
+                    persist({ professional: { ...profile.professional, title: e.target.value } });
+                  }}
+                  onBlur={formik.handleBlur}
+                  placeholder={t(lang, "e.g. Senior Software Engineer")}
+                />
+                <Select
+                  label={t(lang, "Experience")}
+                  value={formik.values.experience}
+                  onChange={(e) => {
+                    formik.setFieldValue("experience", e.target.value);
+                    persist({ professional: { ...profile.professional, experience: e.target.value } });
+                  }}
+                  options={EXPERIENCE_RANGES.map((v) => ({ value: v, label: t(lang, v) }))}
+                  placeholder={t(lang, "Select years of experience")}
+                />
+                <Select
+                  label={t(lang, "Industry")}
+                  value={formik.values.industry}
+                  onChange={(e) => {
+                    formik.setFieldValue("industry", e.target.value);
+                    persist({ professional: { ...profile.professional, industry: e.target.value } });
+                  }}
+                  options={INDUSTRIES.map((v) => ({ value: v, label: t(lang, v) }))}
+                  placeholder={t(lang, "Select industry domain")}
+                />
               </div>
               <div style={{ marginTop: 16 }}>
                 <ChipInput
                   label={t(lang, "Skills")}
                   values={profile.professional.skills}
                   placeholder={t(lang, "e.g. React, TypeScript, Python")}
+                  allowSpecial={false}
                   onAdd={(v) => persist({ professional: { ...profile.professional, skills: [...profile.professional.skills, v] } })}
                   onRemove={(v) => persist({ professional: { ...profile.professional, skills: profile.professional.skills.filter((x) => x !== v) } })}
                 />
@@ -484,7 +744,17 @@ export default function SettingsClient() {
                   <div className="lv-form-grid">
                     <Input label={t(lang, "Degree")} value={ed.degree} onChange={(e) => updateEducation(i, "degree", e.target.value)} placeholder={t(lang, "e.g. Bachelor of Computer Science")} />
                     <Input label={t(lang, "Institution")} value={ed.institution} onChange={(e) => updateEducation(i, "institution", e.target.value)} placeholder={t(lang, "e.g. Ho Chi Minh City University of Technology")} />
-                    <Input label={t(lang, "Graduation Year")} value={ed.year} onChange={(e) => updateEducation(i, "year", e.target.value)} placeholder={t(lang, "e.g. 2024")} />
+                    <Input
+                      label={t(lang, "Graduation Year")}
+                      value={ed.year}
+                      onChange={(e) => {
+                        // Numbers only allowed
+                        const onlyNums = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        updateEducation(i, "year", onlyNums);
+                      }}
+                      placeholder={t(lang, "e.g. 2024")}
+                      maxLength={4}
+                    />
                   </div>
                   <button type="button" className="lv-repeat-remove" onClick={() => removeEducation(i)}>
                     <Icon name="trash-2" size={14} /> {t(lang, "Remove")}
@@ -601,7 +871,7 @@ export default function SettingsClient() {
                                 {t(lang, "Choose Certificate File")}
                               </span>
                               <span style={{ display: "block", fontSize: 11, color: "#64748b" }}>
-                                {t(lang, "PDF, PNG, JPG, or DOCX (max 10MB)")}
+                                {t(lang, "PDF, PNG, JPG, or DOCX (max 5MB)")}
                               </span>
                             </div>
                           </div>
@@ -816,6 +1086,100 @@ export default function SettingsClient() {
               </div>
             </div>
 
+            {/* ── Portfolio & Work Showcase Section ── */}
+            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon name="globe" size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                    {t(lang, "Portfolio & Work Showcase")}
+                  </h3>
+                  <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>
+                    {t(lang, "Showcase your GitHub, Behance, LinkedIn, or upload portfolio work samples.")}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+                <Input
+                  label={t(lang, "Portfolio / Website Link")}
+                  name="portfolioUrl"
+                  value={formik.values.portfolioUrl}
+                  onChange={(e) => handlePortfolioUrlChange(e.target.value)}
+                  onBlur={formik.handleBlur}
+                  placeholder="e.g. https://github.com/alexmitchell"
+                  error={formik.touched.portfolioUrl && formik.errors.portfolioUrl ? formik.errors.portfolioUrl : undefined}
+                />
+
+                <div>
+                  <label className="lv-field-label">{t(lang, "Upload Portfolio File (optional)")}</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    <button
+                      type="button"
+                      className="lv-photo-btn"
+                      onClick={() => portfolioInputRef.current?.click()}
+                      disabled={portfolioUploading}
+                      style={{ fontSize: 12, padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                    >
+                      <Icon name="upload-cloud" size={14} />
+                      {portfolioUploading ? t(lang, "Uploading...") : t(lang, "Choose Portfolio File")}
+                    </button>
+                    <input
+                      ref={portfolioInputRef}
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) handlePortfolioFile(file);
+                      }}
+                    />
+                  </div>
+                  <p className="lv-field-hint" style={{ marginTop: 4 }}>
+                    {t(lang, "PDF, PNG, JPG, DOCX up to 5MB")}
+                  </p>
+                </div>
+              </div>
+
+              {(profile.portfolio?.fileName || profile.portfolioFile?.fileName) && (
+                <div className="lv-resume-chip" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <Icon name="file-text" size={16} style={{ color: "#0891b2", flexShrink: 0 }} />
+                    <div>
+                      <p className="lv-resume-chip-name">{profile.portfolio?.fileName || profile.portfolioFile?.fileName}</p>
+                      <p className="lv-resume-chip-meta">
+                        {(profile.portfolio?.size || profile.portfolioFile?.size) ? `${((profile.portfolio?.size || profile.portfolioFile?.size) / 1024).toFixed(0)} KB` : ""}
+                        {(profile.portfolio?.uploadedAt || profile.portfolioFile?.uploadedAt) ? ` · ${t(lang, "Uploaded")} ${profile.portfolio?.uploadedAt || profile.portfolioFile?.uploadedAt}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {(profile.portfolio?.dataUrl || profile.portfolioFile?.dataUrl) && (
+                      <a
+                        href={profile.portfolio?.dataUrl || profile.portfolioFile?.dataUrl}
+                        download={profile.portfolio?.fileName || profile.portfolioFile?.fileName}
+                        className="lv-photo-btn"
+                        style={{ padding: "4px 10px", fontSize: 12 }}
+                      >
+                        <Icon name="download" size={12} /> {t(lang, "Download")}
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleRemovePortfolioFile}
+                      className="lv-photo-btn"
+                      style={{ padding: "4px 10px", fontSize: 12, color: "#dc2626", borderColor: "#fecaca" }}
+                    >
+                      <Icon name="trash-2" size={12} /> {t(lang, "Remove")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* ── Save Profile Action Bar ── */}
             <div style={{
               display: "flex",
@@ -856,6 +1220,7 @@ export default function SettingsClient() {
               label={t(lang, "Preferred Locations")}
               values={profile.preferences.locations}
               placeholder={t(lang, "e.g. Ho Chi Minh City")}
+              allowSpecial={false}
               onAdd={(v) => persist({ preferences: { ...profile.preferences, locations: [...profile.preferences.locations, v] } })}
               onRemove={(v) => persist({ preferences: { ...profile.preferences, locations: profile.preferences.locations.filter((x) => x !== v) } })}
             />

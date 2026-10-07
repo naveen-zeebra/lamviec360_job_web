@@ -6,7 +6,7 @@ import Icon from "../ds/Icon";
 import { useLang, t } from "../../utils/lang";
 import { FILTER_VI } from "../../lib/data";
 
-export default function JobRow({ job, lang, saved, onSave }) {
+export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, hasApplied = false }) {
   const router = useRouter();
   const companyName =
     typeof job.company === "string"
@@ -54,17 +54,35 @@ export default function JobRow({ job, lang, saved, onSave }) {
         </div>
       </div>
       <div className="lv-jobrow-actions">
-        <button
-          className="lv-job-save"
-          aria-label={saved ? t(lang, "Unsave job") : t(lang, "Save job")}
-          aria-pressed={!!saved}
-          onClick={onSave}
-        >
-          <Icon name="heart" size={18} style={{ fill: saved ? "var(--red-500)" : "none", color: saved ? "var(--red-500)" : "var(--gray-400)" }} />
-        </button>
-        <Button variant="primary" size="sm" onClick={() => router.push(`/job-detail/${encodeURIComponent((job.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + job.id)}`)}>
-          {t(lang, "Apply")}
-        </Button>
+        {isLoggedIn && (
+          <button
+            className="lv-job-save"
+            aria-label={saved ? t(lang, "Unsave job") : t(lang, "Save job")}
+            aria-pressed={!!saved}
+            onClick={onSave}
+          >
+            <Icon name="heart" size={18} style={{ fill: saved ? "var(--red-500)" : "none", color: saved ? "var(--red-500)" : "var(--gray-400)" }} />
+          </button>
+        )}
+        {hasApplied ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled
+            style={{ opacity: 0.8, cursor: "not-allowed", display: "inline-flex", alignItems: "center", gap: 5 }}
+          >
+            <Icon name="check-circle" size={14} style={{ color: "#16a34a" }} />
+            {t(lang, "Applied")}
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => router.push(`/job-detail/${encodeURIComponent((job.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + job.id)}`)}
+          >
+            {t(lang, "Apply")}
+          </Button>
+        )}
       </div>
     </article>
   );

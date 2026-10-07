@@ -119,7 +119,7 @@ export default function ResumeClient() {
         <Link href="/settings" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold no-underline">
           <Icon name="arrow-left" size={14} /> {t(lang, "Back to Settings")}
         </Link>
-        <h1 className="text-2xl font-extrabold">{t(lang, "My Résumé")}</h1>
+        <h1 className="text-2xl font-extrabold">{t(lang, "My Resume")}</h1>
         <p className="mt-1 text-base text-muted">{t(lang, "This is the resume employers see when you apply.")}</p>
       </div>
 

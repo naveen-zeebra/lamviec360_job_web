@@ -19,7 +19,16 @@ export default function RegisterClient() {
   const [toast, setToast] = useToast();
 
   const registerSchema = Yup.object().shape({
-    name: Yup.string().required(t(lang, "Full name is required")),
+    name: Yup.string()
+      .required(t(lang, "Full name is required"))
+      .max(30, t(lang, "Full name must not exceed 30 characters"))
+      .min(2, t(lang, "Full name must be at least 2 characters"))
+      .test("no-leading-space", t(lang, "First character cannot be a space"), (val) => !val || !/^\s/.test(val))
+      .test("no-numbers", t(lang, "Numbers are not allowed in full name"), (val) => !val || !/\d/.test(val))
+      .matches(
+        /^[a-zA-Z\s\u00C0-\u024F\u1EA0-\u1EF9\-\'.]+$/,
+        t(lang, "Numbers and special characters are not allowed in full name")
+      ),
     email: Yup.string()
       .email(t(lang, "Invalid email address"))
       .required(t(lang, "Email is required")),
@@ -73,6 +82,15 @@ export default function RegisterClient() {
     if (e.key === " " && (!e.target.value || e.target.selectionStart === 0)) {
       e.preventDefault();
     }
+  };
+
+  // Name change handler: disallow leading space, disallow numbers & special characters, max 30 chars
+  const handleNameChange = (e) => {
+    let val = e.target.value;
+    if (val.startsWith(" ")) val = val.trimStart();
+    if (val.length > 30) val = val.slice(0, 30);
+    val = val.replace(/[^a-zA-Z\s\u00C0-\u024F\u1EA0-\u1EF9\-\'.]/g, "");
+    formik.setFieldValue("name", val);
   };
 
   // Strip leading spaces on change (e.g. if pasted)
@@ -200,10 +218,11 @@ export default function RegisterClient() {
                   type="text"
                   size="sm"
                   value={formik.values.name}
-                  onChange={handleChangeNoLeadingSpace("name")}
+                  onChange={handleNameChange}
                   onKeyDown={handleKeyDownNoLeadingSpace}
                   onBlur={formik.handleBlur}
                   placeholder={t(lang, "Enter your full name")}
+                  maxLength={30}
                   error={formik.touched.name && Boolean(formik.errors.name)}
                 />
                 <FieldError touched={formik.touched.name} error={formik.errors.name} />
