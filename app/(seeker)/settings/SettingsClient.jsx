@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button, Input, Select } from "../../../components/ds";
+import { Button, Input, Select, PhoneInput } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { useLang, t } from "../../../utils/lang";
@@ -27,12 +27,14 @@ const EXPERIENCE_RANGES = ["Less than 1 year", "1-3 years", "3-5 years", "5-10 y
 const WORK_MODES = ["Remote", "Hybrid", "On-site"];
 const VISIBILITY_OPTIONS = ["Public to employers", "Private", "Hidden from current employer"];
 const RESUME_VISIBILITY_OPTIONS = ["Visible when I apply", "Always visible to employers", "Hidden"];
-const MAX_RESUME_MB = 10;
+// BR-101-03: Resume file size must not exceed 5 MB
+const MAX_RESUME_MB = 5;
 
-/** Generate a random avatar as a coloured SVG initials circle, returned as base64 data-URL */
+/** Generate a random avatar as a coloured SVG initials circle, returned as robust SVG data-URL */
 function generateAvatarDataUrl(name = "?") {
   const initials = name
-    .split(" ")
+    .trim()
+    .split(/\s+/)
     .map((p) => p[0] || "")
     .slice(0, 2)
     .join("")
@@ -43,7 +45,7 @@ function generateAvatarDataUrl(name = "?") {
     <circle cx="64" cy="64" r="64" fill="${bg}"/>
     <text x="64" y="64" dy="0.35em" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="52" font-weight="700" fill="#ffffff">${initials}</text>
   </svg>`;
-  return "data:image/svg+xml;base64," + btoa(svg);
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
 }
 
 function emptyEducation() {
@@ -150,7 +152,7 @@ export default function SettingsClient() {
     try {
       const slug = new URLSearchParams(window.location.search).get("tab");
       if (slug && SLUG_TABS[slug]) setTabState(SLUG_TABS[slug]);
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   const setTab = (tb) => {
@@ -159,7 +161,7 @@ export default function SettingsClient() {
       const url = new URL(window.location.href);
       url.searchParams.set("tab", TAB_SLUGS[tb]);
       window.history.replaceState(null, "", url);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   if (!profile || !settings || !auth) return null;
@@ -170,10 +172,23 @@ export default function SettingsClient() {
     saveProfile(patch);
   };
 
-  const persistSettings = (patch) => {
+  const persistSettings = async (patch) => {
     const next = { ...settings, ...patch };
     setSettings(next);
     saveSettings(patch);
+    // BR-101-07: Profile visibility changes must take effect immediately across all views
+    if (patch.privacy?.profileVisibility) {
+      const isPublic = !patch.privacy.profileVisibility.toLowerCase().includes("private");
+      try {
+        await saveProfile({
+          visibility: isPublic ? "public" : "private",
+          is_visible: isPublic,
+          settings: next,
+        });
+      } catch (e) {
+        console.warn("Immediate visibility sync failed:", e);
+      }
+    }
     setToast(t(lang, "Saved"));
   };
 
@@ -272,14 +287,14 @@ export default function SettingsClient() {
   // ── Resume handlers ──
   const handleResumeFile = async (file) => {
     if (!file) return;
-    const okExts = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"];
+    const okExts = [".pdf", ".doc", ".docx"]; // BR-101-03: PDF, DOC, DOCX only
     const ext = "." + file.name.split(".").pop().toLowerCase();
     if (!okExts.includes(ext)) {
-      setToast(t(lang, "Use a PDF, DOC, DOCX, JPG or PNG file."));
+      setToast(t(lang, "Unsupported file format. Allowed formats: PDF, DOC, and DOCX only"));
       return;
     }
     if (file.size > MAX_RESUME_MB * 1024 * 1024) {
-      setToast(t(lang, `File is larger than ${MAX_RESUME_MB}MB.`));
+      setToast(t(lang, `Resume file size must not exceed ${MAX_RESUME_MB} MB .`));
       return;
     }
     setResumeUploading(true);
@@ -371,16 +386,15 @@ export default function SettingsClient() {
             <div>
               <h3 style={{ marginBottom: 14 }}>{t(lang, "Personal")}</h3>
               <div className="lv-form-grid">
-                <Input label={t(lang, "Full Name")} value={profile.personal.fullName} onChange={(e) => persist({ personal: { ...profile.personal, fullName: e.target.value } })} />
-                <div style={{ display: "flex", gap: 12 }}>
-                  <div style={{ width: "90px", flexShrink: 0 }}>
-                    <Input label={t(lang, "Code")} value="+84" disabled />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <Input label={t(lang, "Phone")} value={profile.personal.phone} onChange={(e) => persist({ personal: { ...profile.personal, phone: e.target.value } })} />
-                  </div>
-                </div>
-                <Input label={t(lang, "Location")} value={profile.personal.location} onChange={(e) => persist({ personal: { ...profile.personal, location: e.target.value } })} />
+                <Input label={t(lang, "Full Name")} value={profile.personal.fullName} onChange={(e) => persist({ personal: { ...profile.personal, fullName: e.target.value } })} placeholder={t(lang, "e.g. Alex Mitchell")} />
+                <PhoneInput
+                  label={t(lang, "Phone")}
+                  value={profile.personal.phone}
+                  onChange={(phone) => persist({ personal: { ...profile.personal, phone } })}
+                  placeholder="912 345 678"
+                  defaultCountry="vn"
+                />
+                <Input label={t(lang, "Location")} value={profile.personal.location} onChange={(e) => persist({ personal: { ...profile.personal, location: e.target.value } })} placeholder={t(lang, "e.g. Ho Chi Minh City, Vietnam")} />
               </div>
 
               {/* Profile Photo Upload + Random Avatar */}
@@ -389,7 +403,15 @@ export default function SettingsClient() {
                 <div className="lv-photo-row">
                   <div className="lv-photo-preview">
                     {profile.personal.photo ? (
-                      <img src={profile.personal.photo} alt="Profile" className="lv-photo-img" />
+                      <img
+                        src={profile.personal.photo}
+                        alt="Profile"
+                        className="lv-photo-img"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = generateAvatarDataUrl(profile.personal?.fullName || "User");
+                        }}
+                      />
                     ) : (
                       <div className="lv-photo-placeholder">
                         <Icon name="user" size={28} />
@@ -430,15 +452,15 @@ export default function SettingsClient() {
             <div>
               <h3 style={{ marginBottom: 14 }}>{t(lang, "Professional")}</h3>
               <div className="lv-form-grid">
-                <Input label={t(lang, "Current Job Title")} value={profile.professional.title} onChange={(e) => persist({ professional: { ...profile.professional, title: e.target.value } })} />
-                <Select label={t(lang, "Experience")} value={profile.professional.experience} onChange={(e) => persist({ professional: { ...profile.professional, experience: e.target.value } })} options={EXPERIENCE_RANGES.map((v) => ({ value: v, label: t(lang, v) }))} />
-                <Select label={t(lang, "Industry")} value={profile.professional.industry} onChange={(e) => persist({ professional: { ...profile.professional, industry: e.target.value } })} options={INDUSTRIES.map((v) => ({ value: v, label: t(lang, v) }))} />
+                <Input label={t(lang, "Current Job Title")} value={profile.professional.title} onChange={(e) => persist({ professional: { ...profile.professional, title: e.target.value } })} placeholder={t(lang, "e.g. Senior Software Engineer")} />
+                <Select label={t(lang, "Experience")} value={profile.professional.experience} onChange={(e) => persist({ professional: { ...profile.professional, experience: e.target.value } })} options={EXPERIENCE_RANGES.map((v) => ({ value: v, label: t(lang, v) }))} placeholder={t(lang, "Select years of experience")} />
+                <Select label={t(lang, "Industry")} value={profile.professional.industry} onChange={(e) => persist({ professional: { ...profile.professional, industry: e.target.value } })} options={INDUSTRIES.map((v) => ({ value: v, label: t(lang, v) }))} placeholder={t(lang, "Select industry domain")} />
               </div>
               <div style={{ marginTop: 16 }}>
                 <ChipInput
                   label={t(lang, "Skills")}
                   values={profile.professional.skills}
-                  placeholder={t(lang, "e.g. React")}
+                  placeholder={t(lang, "e.g. React, TypeScript, Python")}
                   onAdd={(v) => persist({ professional: { ...profile.professional, skills: [...profile.professional.skills, v] } })}
                   onRemove={(v) => persist({ professional: { ...profile.professional, skills: profile.professional.skills.filter((x) => x !== v) } })}
                 />
@@ -447,7 +469,7 @@ export default function SettingsClient() {
                 <ChipInput
                   label={t(lang, "Languages")}
                   values={profile.languages}
-                  placeholder={t(lang, "e.g. English")}
+                  placeholder={t(lang, "e.g. English, Vietnamese")}
                   onAdd={(v) => persist({ languages: [...profile.languages, v] })}
                   onRemove={(v) => persist({ languages: profile.languages.filter((x) => x !== v) })}
                 />
@@ -460,9 +482,9 @@ export default function SettingsClient() {
               {profile.education.map((ed, i) => (
                 <div key={i} className="lv-repeat-card">
                   <div className="lv-form-grid">
-                    <Input label={t(lang, "Degree")} value={ed.degree} onChange={(e) => updateEducation(i, "degree", e.target.value)} />
-                    <Input label={t(lang, "Institution")} value={ed.institution} onChange={(e) => updateEducation(i, "institution", e.target.value)} />
-                    <Input label={t(lang, "Graduation Year")} value={ed.year} onChange={(e) => updateEducation(i, "year", e.target.value)} />
+                    <Input label={t(lang, "Degree")} value={ed.degree} onChange={(e) => updateEducation(i, "degree", e.target.value)} placeholder={t(lang, "e.g. Bachelor of Computer Science")} />
+                    <Input label={t(lang, "Institution")} value={ed.institution} onChange={(e) => updateEducation(i, "institution", e.target.value)} placeholder={t(lang, "e.g. Ho Chi Minh City University of Technology")} />
+                    <Input label={t(lang, "Graduation Year")} value={ed.year} onChange={(e) => updateEducation(i, "year", e.target.value)} placeholder={t(lang, "e.g. 2024")} />
                   </div>
                   <button type="button" className="lv-repeat-remove" onClick={() => removeEducation(i)}>
                     <Icon name="trash-2" size={14} /> {t(lang, "Remove")}
@@ -613,13 +635,13 @@ export default function SettingsClient() {
                         label={t(lang, "Company")}
                         value={ex.company}
                         onChange={(e) => updateExperience(i, "company", e.target.value)}
-                        placeholder="e.g. Acme Corp"
+                        placeholder={t(lang, "e.g. VNG Corporation")}
                       />
                       <Input
                         label={t(lang, "Job Title")}
                         value={ex.title}
                         onChange={(e) => updateExperience(i, "title", e.target.value)}
-                        placeholder="e.g. Senior Software Engineer"
+                        placeholder={t(lang, "e.g. Senior Software Engineer")}
                       />
 
                       {/* Start Date Date Picker */}
@@ -630,6 +652,7 @@ export default function SettingsClient() {
                           value={ex.start}
                           onChange={(e) => updateExperience(i, "start", e.target.value)}
                           max={new Date().toISOString().slice(0, 10)}
+                          placeholder="YYYY-MM-DD"
                         />
                         {ex.start && (
                           <p className="lv-field-hint" style={{ marginTop: 4 }}>
@@ -682,7 +705,7 @@ export default function SettingsClient() {
                         rows={3}
                         value={ex.responsibilities || ""}
                         onChange={(e) => updateExperience(i, "responsibilities", e.target.value)}
-                        placeholder={t(lang, "Key responsibilities and achievements")}
+                        placeholder={t(lang, "e.g. Designed scalable microservices, collaborated with cross-functional teams, and optimized system performance...")}
                       />
                     </div>
 
@@ -708,7 +731,7 @@ export default function SettingsClient() {
             {/* ── Résumé Section (Upload with Drag-Drop + Base64 Storage + Actions) ── */}
             <div>
               <h3 style={{ marginBottom: 14 }}>{t(lang, "Résumé")}</h3>
-              
+
               <div
                 className={`lv-resume-drop ${isResumeDragging ? "active" : ""}`}
                 onDragOver={(e) => {
@@ -728,7 +751,7 @@ export default function SettingsClient() {
                   {t(lang, "Upload your resume")}
                 </p>
                 <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 12px" }}>
-                  {t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 5MB. Stored as base64.")}
+                  {t(lang, "PDF, DOC, DOCX only. Max 5MB.")}
                 </p>
                 <button
                   type="button"
@@ -742,7 +765,7 @@ export default function SettingsClient() {
                 <input
                   ref={resumeInputRef}
                   type="file"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  accept=".pdf,.doc,.docx"
                   style={{ display: "none" }}
                   onChange={onResumeChange}
                 />
@@ -825,7 +848,7 @@ export default function SettingsClient() {
             <ChipInput
               label={t(lang, "Preferred Roles")}
               values={profile.preferences.roles}
-              placeholder={t(lang, "e.g. Frontend Engineer")}
+              placeholder={t(lang, "e.g. Senior Software Engineer")}
               onAdd={(v) => persist({ preferences: { ...profile.preferences, roles: [...profile.preferences.roles, v] } })}
               onRemove={(v) => persist({ preferences: { ...profile.preferences, roles: profile.preferences.roles.filter((x) => x !== v) } })}
             />
@@ -837,14 +860,33 @@ export default function SettingsClient() {
               onRemove={(v) => persist({ preferences: { ...profile.preferences, locations: profile.preferences.locations.filter((x) => x !== v) } })}
             />
             <div className="lv-form-grid">
-              <Select label={t(lang, "Work Mode")} value={profile.preferences.workMode} onChange={(e) => persist({ preferences: { ...profile.preferences, workMode: e.target.value } })} options={WORK_MODES.map((v) => ({ value: v, label: t(lang, v) }))} />
-              <Input label={t(lang, "Desired Salary")} value={profile.preferences.salary} onChange={(e) => persist({ preferences: { ...profile.preferences, salary: e.target.value } })} placeholder="25M - 35M VND" />
+              <Select label={t(lang, "Work Mode")} value={profile.preferences.workMode} onChange={(e) => persist({ preferences: { ...profile.preferences, workMode: e.target.value } })} options={WORK_MODES.map((v) => ({ value: v, label: t(lang, v) }))} placeholder={t(lang, "Select preferred work mode")} />
+              <Input label={t(lang, "Desired Salary")} value={profile.preferences.salary} onChange={(e) => persist({ preferences: { ...profile.preferences, salary: e.target.value } })} placeholder={t(lang, "e.g. 35,000,000 VND")} />
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border-default)", paddingTop: 20, marginTop: 12 }}>
               <Button
                 type="button"
                 variant="primary"
                 onClick={async () => {
+                  // BR-101-05: Salary expectation must be within 1M-500M VND per month
+                  if (profile.preferences?.salary) {
+                    const raw = String(profile.preferences.salary).replace(/,/g, "").trim();
+                    let num = null;
+                    const matchM = raw.match(/(\d+(\.\d+)?)\s*M/i);
+                    if (matchM) {
+                      num = parseFloat(matchM[1]) * 1000000;
+                    } else {
+                      const matchNum = raw.match(/\d+/);
+                      if (matchNum) {
+                        const parsed = parseFloat(matchNum[0]);
+                        num = parsed < 1000 ? parsed * 1000000 : parsed;
+                      }
+                    }
+                    if (num !== null && (num < 1000000 || num > 500000000)) {
+                      setToast(t(lang, "Salary expectation must be between 1M and 500M VND per month"));
+                      return;
+                    }
+                  }
                   await saveProfile(profile);
                   setToast(t(lang, "Preferences saved!"));
                 }}
@@ -879,7 +921,12 @@ export default function SettingsClient() {
                 <label style={{ fontSize: "var(--text-sm)", fontWeight: 600, display: "block", marginBottom: 6 }}>{t(lang, "Email")}</label>
                 <p className="lv-file-chip" style={{ marginTop: 0 }}><Icon name="mail" size={14} /> {auth.email}</p>
               </div>
-              <Input label={t(lang, "Phone")} value={profile.personal.phone} onChange={(e) => persist({ personal: { ...profile.personal, phone: e.target.value } })} />
+              <PhoneInput
+                label={t(lang, "Phone")}
+                value={profile.personal.phone}
+                onChange={(phone) => persist({ personal: { ...profile.personal, phone } })}
+                defaultCountry="vn"
+              />
             </div>
             <div>
               <h3 style={{ marginBottom: 14 }}>{t(lang, "Change Password")}</h3>

@@ -1032,6 +1032,21 @@
   "Certificate Document (PDF, Image)": "Tài liệu chứng chỉ (PDF, Hình ảnh)",
   "Browse": "Chọn tệp",
   "Choose File": "Chọn tệp",
-  "None attached": "Không đính kèm",
-  "from profile": "từ hồ sơ"
+  "from profile": "từ hồ sơ",
+  "e.g. Alex Mitchell": "Ví dụ: Nguyễn Văn An",
+  "e.g. Ho Chi Minh City, Vietnam": "Ví dụ: TP. Hồ Chí Minh, Việt Nam",
+  "e.g. Senior Software Engineer": "Ví dụ: Kỹ sư phần mềm cao cấp",
+  "Select years of experience": "Chọn số năm kinh nghiệm",
+  "Select industry domain": "Chọn lĩnh vực ngành nghề",
+  "e.g. React, TypeScript, Python": "Ví dụ: React, TypeScript, Python",
+  "e.g. Bachelor of Computer Science": "Ví dụ: Cử nhân Khoa học Máy tính",
+  "e.g. Ho Chi Minh City University of Technology": "Ví dụ: Đại học Bách Khoa TP.HCM",
+  "e.g. 2024": "Ví dụ: 2024",
+  "e.g. VNG Corporation": "Ví dụ: Tập đoàn VNG",
+  "e.g. Designed scalable microservices, collaborated with cross-functional teams, and optimized system performance...": "Ví dụ: Thiết kế hệ thống microservices, phối hợp cùng các nhóm dự án và tối ưu hiệu năng hệ thống...",
+  "Select preferred work mode": "Chọn hình thức làm việc mong muốn",
+  "e.g. Ho Chi Minh City": "Ví dụ: TP. Hồ Chí Minh",
+  "e.g. 35,000,000 VND": "Ví dụ: 35.000.000 VNĐ",
+  "Brief summary of your professional background...": "Tóm tắt ngắn gọn kinh nghiệm chuyên môn của bạn...",
+  "e.g. English, Vietnamese": "Ví dụ: Tiếng Anh, Tiếng Việt"
 }

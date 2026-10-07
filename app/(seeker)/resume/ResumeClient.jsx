@@ -15,9 +15,10 @@ const CARD = "rounded-lg border border-line bg-card p-6 shadow-sm max-md:p-5";
 const EMPTY = "rounded-lg border border-dashed border-line bg-card px-6 py-14 text-center text-muted [&_h3]:mb-2 [&_h3]:text-lg";
 const LABEL = "mb-1.5 block text-sm font-semibold text-ink";
 
-const ACCEPT = ".pdf,.doc,.docx,.jpg,.jpeg,.png";
-const ALLOWED_EXT = ["pdf", "doc", "docx", "jpg", "jpeg", "png"];
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+// BR-101-03: Allowed formats: PDF, DOC, and DOCX only. Max file size: 5 MB.
+const ACCEPT = ".pdf,.doc,.docx";
+const ALLOWED_EXT = ["pdf", "doc", "docx"];
+const MAX_BYTES = 5 * 1024 * 1024; // 5 MB (BR-101-03)
 const STORE_BYTES = 2 * 1024 * 1024; // keep a preview copy only under 2 MB
 
 function useResumeData() {
@@ -56,11 +57,11 @@ export default function ResumeClient() {
     setUploadErr("");
     const ext = (file.name.split(".").pop() || "").toLowerCase();
     if (!ALLOWED_EXT.includes(ext)) {
-      setUploadErr(t(lang, "Use a PDF, DOC, DOCX, JPG or PNG file."));
+      setUploadErr(t(lang, "Unsupported format. Allowed formats: PDF, DOC, and DOCX only"));
       return;
     }
     if (file.size > MAX_BYTES) {
-      setUploadErr(t(lang, "File is larger than 5MB."));
+      setUploadErr(t(lang, "File size must not exceed 5 MB"));
       return;
     }
     const finish = (dataUrl) => {
@@ -119,16 +120,16 @@ export default function ResumeClient() {
           <Icon name="arrow-left" size={14} /> {t(lang, "Back to Settings")}
         </Link>
         <h1 className="text-2xl font-extrabold">{t(lang, "My Résumé")}</h1>
-        <p className="mt-1 text-base text-muted">{t(lang, "This is the résumé employers see when you apply.")}</p>
+        <p className="mt-1 text-base text-muted">{t(lang, "This is the resume employers see when you apply.")}</p>
       </div>
 
       {!hasResume ? (
         <div className={EMPTY}>
-          <h3>{t(lang, "No résumé on file yet")}</h3>
-          <p>{t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 5MB.")}</p>
+          <h3>{t(lang, "No resume on file yet")}</h3>
+          <p>{t(lang, "PDF, DOC, DOCX only. Max 5MB")}</p>
           <div className="mt-4">
             <Button variant="primary" onClick={() => fileRef.current && fileRef.current.click()}>
-              <Icon name="upload" size={16} /> {t(lang, "Upload résumé")}
+              <Icon name="upload" size={16} /> {t(lang, "Upload resume")}
             </Button>
           </div>
           {uploadErr && <p className="mt-3 text-sm text-danger-fg">{uploadErr}</p>}

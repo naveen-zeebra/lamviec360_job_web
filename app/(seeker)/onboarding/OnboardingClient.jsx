@@ -1,23 +1,25 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, Select } from "../../../components/ds";
+import { Button, Input, Select, PhoneInput } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import Stepper from "../../../components/ds/Stepper";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { useLang, t } from "../../../utils/lang";
-import { getProfile, saveProfile, saveProfileLocally, saveResume, removeResume, computeCompleteness } from "../../../lib/seekerStore";
+import { getProfile, saveProfile, saveProfileLocally, saveResume, removeResume, computeCompleteness, getAuth } from "../../../lib/seekerStore";
 
 const STEP_LABELS = ["Personal", "Professional", "Education", "Experience", "Resume & Preferences", "Completion"];
 const EXPERIENCE_RANGES = ["Less than 1 year", "1-3 years", "3-5 years", "5-10 years", "10+ years"];
 const INDUSTRIES = ["Technology", "Retail & Commerce", "Media & Creative", "Transport & Logistics", "Manufacturing", "Finance & Banking", "Other"];
 const WORK_MODES = ["Remote", "Hybrid", "On-site"];
-const MAX_RESUME_MB = 10;
+// BR-101-03: Resume file size must not exceed 5 MB
+const MAX_RESUME_MB = 5;
 
-/** Generate a random avatar as a coloured SVG initials circle, returned as base64 data-URL */
+/** Generate a random avatar as a coloured SVG initials circle, returned as robust SVG data-URL */
 function generateAvatarDataUrl(name = "?") {
   const initials = name
-    .split(" ")
+    .trim()
+    .split(/\s+/)
     .map((p) => p[0] || "")
     .slice(0, 2)
     .join("")
@@ -28,7 +30,7 @@ function generateAvatarDataUrl(name = "?") {
     <circle cx="64" cy="64" r="64" fill="${bg}"/>
     <text x="64" y="64" dy="0.35em" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="52" font-weight="700" fill="#ffffff">${initials}</text>
   </svg>`;
-  return "data:image/svg+xml;base64," + btoa(svg);
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
 }
 
 function emptyEducation() {
@@ -97,12 +99,33 @@ export default function OnboardingClient() {
       else if (value.trim().length < 2) msg = t(lang, "Full name must be at least 2 characters.");
     } else if (field === "phone") {
       if (value && value.trim()) {
-        const clean = value.replace(/[\s\-\(\)\.]/g, "");
-        if (clean.length > 0 && !/^\+?[0-9]{5,20}$/.test(clean)) msg = t(lang, "Please enter a valid phone number.");
+        const digits = value.replace(/\D/g, "");
+        if (digits.length > 0 && (digits.length < 7 || digits.length > 15)) {
+          msg = t(lang, "Please enter a valid phone number.");
+        }
       }
     } else if (field === "title") {
       if (!value || !value.trim()) msg = t(lang, "Please enter your current job title.");
       else if (value.trim().length < 2) msg = t(lang, "Job title must be at least 2 characters.");
+    } else if (field === "salary") {
+      // BR-101-05: Salary Expectation 1M - 500M VND
+      if (value && value.trim()) {
+        const clean = value.replace(/[,.\s]/g, "").trim().toUpperCase();
+        let num = null;
+        const matchM = clean.match(/([0-9]+(\.[0-9]+)?)\s*M/);
+        if (matchM) {
+          num = parseFloat(matchM[1]) * 1000000;
+        } else {
+          const digits = clean.match(/^[0-9]+/);
+          if (digits) {
+            const raw = parseFloat(digits[0]);
+            num = raw < 1000 ? raw * 1000000 : raw;
+          }
+        }
+        if (num !== null && (num < 1000000 || num > 500000000)) {
+          msg = t(lang, "Salary expectation must be within 1M–500M VND per month .");
+        }
+      }
     }
     return msg;
   };
@@ -150,9 +173,19 @@ export default function OnboardingClient() {
   };
 
   const goNext = () => {
+    setErr("");
     if (step === 1) {
       const nameErr = validate("fullName", profile.personal.fullName);
       const phoneErr = validate("phone", profile.personal.phone);
+      // BR-101-04: At least one contact method must be present (verified email or phone)
+      const auth = getAuth();
+      const hasEmail = Boolean(auth?.email);
+      const digits = (profile.personal.phone || "").replace(/\D/g, "");
+      const hasPhone = digits.length >= 7;
+      if (!hasEmail && !hasPhone) {
+        setErr(t(lang, "At least one contact method (email or phone) is required"));
+        return;
+      }
       if (nameErr || phoneErr) {
         setTouched((prev) => ({ ...prev, fullName: true, phone: true }));
         setErrors((prev) => ({ ...prev, fullName: nameErr, phone: phoneErr }));
@@ -164,6 +197,15 @@ export default function OnboardingClient() {
       if (titleErr) {
         setTouched((prev) => ({ ...prev, title: true }));
         setErrors((prev) => ({ ...prev, title: titleErr }));
+        return;
+      }
+    }
+    if (step === 5) {
+      const salErr = validate("salary", profile.preferences?.salary);
+      if (salErr) {
+        setTouched((prev) => ({ ...prev, salary: true }));
+        setErrors((prev) => ({ ...prev, salary: salErr }));
+        setErr(salErr);
         return;
       }
     }
@@ -238,14 +280,14 @@ export default function OnboardingClient() {
   // ── Resume handler – always full base64, no size shortcuts ──
   const handleResumeFile = async (file) => {
     if (!file) return;
-    const okExts = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"];
+    const okExts = [".pdf", ".doc", ".docx"]; // BR-101-03: Allowed formats: PDF, DOC, and DOCX only
     const ext = "." + file.name.split(".").pop().toLowerCase();
     if (!okExts.includes(ext)) {
-      setErr(t(lang, "Unsupported file type. Use PDF, DOC, DOCX, JPG or PNG."));
+      setErr(t(lang, "Unsupported file format. Allowed formats: PDF, DOC, and DOCX only"));
       return;
     }
     if (file.size > MAX_RESUME_MB * 1024 * 1024) {
-      setErr(t(lang, `File is larger than ${MAX_RESUME_MB}MB.`));
+      setErr(t(lang, `Resume file size must not exceed ${MAX_RESUME_MB} MB`));
       return;
     }
     setErr("");
@@ -330,86 +372,93 @@ export default function OnboardingClient() {
         <div className="lv-onboard-card">
           {/* ── Step 1: Personal ── */}
           {step === 1 && (
-            <div className="lv-form-grid">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
               <Input
                 label={t(lang, "Full Name")}
                 value={profile.personal.fullName}
                 onChange={(e) => handlePersonalChange("fullName", e.target.value)}
                 onKeyUp={(e) => handlePersonalKeyUp("fullName", e.target.value)}
                 onBlur={() => handlePersonalBlur("fullName", profile.personal.fullName)}
-                placeholder="Nguyen Van A"
+                placeholder={t(lang, "e.g. Alex Mitchell")}
                 error={touched.fullName && errors.fullName ? errors.fullName : undefined}
               />
-              <div style={{ display: "flex", gap: 12 }}>
-                <div style={{ width: "90px", flexShrink: 0 }}>
-                  <Input label={t(lang, "Code")} value="+84" disabled />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <Input
-                    label={t(lang, "Phone")}
-                    value={profile.personal.phone}
-                    onChange={(e) => handlePersonalChange("phone", e.target.value)}
-                    onKeyUp={(e) => handlePersonalKeyUp("phone", e.target.value)}
-                    onBlur={() => handlePersonalBlur("phone", profile.personal.phone)}
-                    placeholder="090 123 4567"
-                    error={touched.phone && errors.phone ? errors.phone : undefined}
-                  />
-                </div>
-              </div>
+              <PhoneInput
+                id="phone"
+                name="phone"
+                label={t(lang, "Phone Number")}
+                value={profile.personal.phone}
+                onChange={(phone) => handlePersonalChange("phone", phone)}
+                onBlur={() => handlePersonalBlur("phone", profile.personal.phone)}
+                placeholder="912 345 678"
+                defaultCountry="vn"
+                error={touched.phone && errors.phone ? errors.phone : undefined}
+              />
               <Input
                 label={t(lang, "Location")}
                 value={profile.personal.location}
                 onChange={(e) => handlePersonalChange("location", e.target.value)}
-                placeholder="Ho Chi Minh City"
+                placeholder={t(lang, "e.g. Ho Chi Minh City, Vietnam")}
               />
 
               {/* Profile photo upload + random avatar */}
-              <div>
-                <label className="lv-field-label">{t(lang, "Profile Photo")}</label>
-                <div className="lv-photo-row">
+              <div className="flex flex-col gap-1.5 font-body">
+                <label className="text-xs sm:text-sm font-semibold text-ink select-none">
+                  {t(lang, "Profile Photo")}
+                </label>
+                <div className="flex items-center gap-4 flex-wrap pt-0.5">
                   {/* Preview */}
-                  <div className="lv-photo-preview">
+                  <div className="relative shrink-0">
                     {profile.personal.photo ? (
-                      <img src={profile.personal.photo} alt="Profile" className="lv-photo-img" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover" }} />
+                      <img
+                        src={profile.personal.photo}
+                        alt="Profile"
+                        className="w-20 h-20 rounded-full object-cover border border-line shadow-xs"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = generateAvatarDataUrl(profile.personal?.fullName || "User");
+                        }}
+                      />
                     ) : (
-                      <div className="lv-photo-placeholder" style={{ width: 80, height: 80, borderRadius: "50%", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #e2e8f0" }}>
-                        <Icon name="user" size={32} style={{ color: "#94a3b8" }} />
+                      <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-line text-muted">
+                        <Icon name="user" size={32} />
                       </div>
                     )}
                   </div>
 
-                  <div className="lv-photo-actions">
-                    <button
-                      type="button"
-                      className="lv-photo-btn"
-                      onClick={() => photoInputRef.current?.click()}
-                    >
-                      <Icon name="upload" size={14} />
-                      {t(lang, "Upload Photo")}
-                    </button>
-                    <button
-                      type="button"
-                      className="lv-photo-btn lv-photo-btn--rand"
-                      onClick={onGenerateAvatar}
-                      title={t(lang, "Generate a random avatar from your name")}
-                    >
-                      <Icon name="refresh-cw" size={14} />
-                      {t(lang, "Random Avatar")}
-                    </button>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-md border border-line bg-card hover:bg-slate-50 transition-colors cursor-pointer text-ink shadow-xs"
+                        onClick={() => photoInputRef.current?.click()}
+                      >
+                        <Icon name="upload" size={14} />
+                        {t(lang, "Upload Photo")}
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-md border border-brand/30 bg-brand-subtle text-brand hover:bg-brand/10 transition-colors cursor-pointer shadow-xs"
+                        onClick={onGenerateAvatar}
+                        title={t(lang, "Generate a random avatar from your name")}
+                      >
+                        <Icon name="refresh-cw" size={14} />
+                        {t(lang, "Random Avatar")}
+                      </button>
+                    </div>
                     <input
                       ref={photoInputRef}
                       type="file"
                       accept="image/*"
-                      style={{ display: "none" }}
+                      className="hidden"
                       onChange={onPhotoChange}
                     />
                     {profile.personal.photoName && (
-                      <p className="lv-file-chip">
+                      <p className="inline-flex items-center gap-1.5 text-xs text-muted bg-sunken px-2.5 py-1 rounded-md w-fit">
                         <Icon name="image" size={13} />
                         {profile.personal.photoName}
                       </p>
                     )}
-                    <p className="lv-field-hint">{t(lang, "JPG, PNG. Max 5MB. Stored as base64.")}</p>
+                    <p className="text-[11px] text-muted">{t(lang, "JPG, PNG. Max 5MB. Stored as base64.")}</p>
                   </div>
                 </div>
               </div>
@@ -425,7 +474,7 @@ export default function OnboardingClient() {
                 onChange={(e) => handleProfessionalChange("title", e.target.value)}
                 onKeyUp={(e) => handleProfessionalKeyUp("title", e.target.value)}
                 onBlur={() => handleProfessionalBlur("title", profile.professional.title)}
-                placeholder="Frontend Engineer"
+                placeholder={t(lang, "e.g. Senior Software Engineer")}
                 error={touched.title && errors.title ? errors.title : undefined}
               />
               <Select
@@ -433,14 +482,14 @@ export default function OnboardingClient() {
                 value={profile.professional.experience}
                 onChange={(e) => persist({ professional: { ...profile.professional, experience: e.target.value } })}
                 options={EXPERIENCE_RANGES.map((v) => ({ value: v, label: t(lang, v) }))}
-                placeholder={t(lang, "Select range")}
+                placeholder={t(lang, "Select years of experience")}
               />
               <Select
                 label={t(lang, "Industry")}
                 value={profile.professional.industry}
                 onChange={(e) => persist({ professional: { ...profile.professional, industry: e.target.value } })}
                 options={INDUSTRIES.map((v) => ({ value: v, label: t(lang, v) }))}
-                placeholder={t(lang, "Select industry")}
+                placeholder={t(lang, "Select industry domain")}
               />
               <div>
                 <label className="lv-field-label">{t(lang, "Skills")}</label>
@@ -449,7 +498,7 @@ export default function OnboardingClient() {
                     value={skillInput}
                     onChange={(e) => setSkillInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
-                    placeholder={t(lang, "e.g. React")}
+                    placeholder={t(lang, "e.g. React, TypeScript, Python")}
                   />
                   <Button type="button" variant="secondary" onClick={addSkill}>
                     {t(lang, "Add")}
@@ -484,19 +533,19 @@ export default function OnboardingClient() {
                       label={t(lang, "Degree")}
                       value={ed.degree}
                       onChange={(e) => updateEducation(i, "degree", e.target.value)}
-                      placeholder="B.Sc. Computer Science"
+                      placeholder={t(lang, "e.g. Bachelor of Computer Science")}
                     />
                     <Input
                       label={t(lang, "Institution")}
                       value={ed.institution}
                       onChange={(e) => updateEducation(i, "institution", e.target.value)}
-                      placeholder="HCMC University of Technology"
+                      placeholder={t(lang, "e.g. Ho Chi Minh City University of Technology")}
                     />
                     <Input
                       label={t(lang, "Graduation Year")}
                       value={ed.year}
                       onChange={(e) => updateEducation(i, "year", e.target.value)}
-                      placeholder="2022"
+                      placeholder={t(lang, "e.g. 2024")}
                     />
                   </div>
                   <button type="button" className="lv-repeat-remove" onClick={() => removeEducation(i)}>
@@ -525,13 +574,13 @@ export default function OnboardingClient() {
                       label={t(lang, "Company")}
                       value={ex.company}
                       onChange={(e) => updateExperience(i, "company", e.target.value)}
-                      placeholder="ABC Technologies"
+                      placeholder={t(lang, "e.g. VNG Corporation")}
                     />
                     <Input
                       label={t(lang, "Job Title")}
                       value={ex.title}
                       onChange={(e) => updateExperience(i, "title", e.target.value)}
-                      placeholder="Software Engineer"
+                      placeholder={t(lang, "e.g. Senior Software Engineer")}
                     />
 
                     {/* Start Date – date picker */}
@@ -542,6 +591,7 @@ export default function OnboardingClient() {
                         value={ex.start}
                         onChange={(e) => updateExperience(i, "start", e.target.value)}
                         max={new Date().toISOString().slice(0, 10)}
+                        placeholder="YYYY-MM-DD"
                       />
                       {ex.start && (
                         <p className="lv-field-hint" style={{ marginTop: 4 }}>
@@ -571,6 +621,7 @@ export default function OnboardingClient() {
                             onChange={(e) => updateExperience(i, "end", e.target.value)}
                             min={ex.start || undefined}
                             max={new Date().toISOString().slice(0, 10)}
+                            placeholder="YYYY-MM-DD"
                           />
                           {ex.end && (
                             <p className="lv-field-hint" style={{ marginTop: 4 }}>
@@ -594,7 +645,7 @@ export default function OnboardingClient() {
                       rows={3}
                       value={ex.responsibilities}
                       onChange={(e) => updateExperience(i, "responsibilities", e.target.value)}
-                      placeholder={t(lang, "Key responsibilities and achievements")}
+                      placeholder={t(lang, "e.g. Designed scalable microservices, collaborated with cross-functional teams, and optimized system performance...")}
                     />
                   </div>
 
@@ -641,7 +692,7 @@ export default function OnboardingClient() {
                     {t(lang, "Upload your resume")}
                   </p>
                   <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 12px" }}>
-                    {t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 5MB. Stored as base64.")}
+                    {t(lang, "PDF, DOC, DOCX only. Max 5MB.")}
                   </p>
                   <button
                     type="button"
@@ -655,7 +706,7 @@ export default function OnboardingClient() {
                   <input
                     ref={resumeInputRef}
                     type="file"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    accept=".pdf,.doc,.docx"
                     style={{ display: "none" }}
                     onChange={onResumeChange}
                   />
@@ -705,25 +756,55 @@ export default function OnboardingClient() {
                 value={profile.preferences.workMode}
                 onChange={(e) => persist({ preferences: { ...profile.preferences, workMode: e.target.value } })}
                 options={WORK_MODES.map((v) => ({ value: v, label: t(lang, v) }))}
-                placeholder={t(lang, "Select mode")}
+                placeholder={t(lang, "Select preferred work mode")}
               />
               <Input
                 label={t(lang, "Preferred Role")}
                 value={profile.preferences.roles[0] || ""}
                 onChange={(e) => persist({ preferences: { ...profile.preferences, roles: e.target.value ? [e.target.value] : [] } })}
-                placeholder="Frontend Engineer"
+                placeholder={t(lang, "e.g. Senior Software Engineer")}
               />
               <Input
                 label={t(lang, "Preferred Location")}
                 value={profile.preferences.locations[0] || ""}
                 onChange={(e) => persist({ preferences: { ...profile.preferences, locations: e.target.value ? [e.target.value] : [] } })}
-                placeholder="Ho Chi Minh City"
+                placeholder={t(lang, "e.g. Ho Chi Minh City")}
               />
-              <Input
-                label={t(lang, "Desired Salary")}
-                value={profile.preferences.salary}
-                onChange={(e) => persist({ preferences: { ...profile.preferences, salary: e.target.value } })}
-                placeholder="25M - 35M VND"
+              <div>
+                <Input
+                  label={t(lang, "Desired Salary (1M–500M VND/month)")}
+                  value={profile.preferences.salary}
+                  onChange={(e) => {
+                    persist({ preferences: { ...profile.preferences, salary: e.target.value } });
+                    const msg = validate("salary", e.target.value);
+                    setErrors((prev) => ({ ...prev, salary: msg }));
+                  }}
+                  onBlur={() => {
+                    setTouched((prev) => ({ ...prev, salary: true }));
+                    const msg = validate("salary", profile.preferences.salary);
+                    setErrors((prev) => ({ ...prev, salary: msg }));
+                  }}
+                  placeholder={t(lang, "e.g. 35,000,000 VND")}
+                  error={touched.salary && errors.salary ? errors.salary : undefined}
+                />
+                <p className="lv-field-hint" style={{ marginTop: 4 }}>
+                  {t(lang, "Range: 1M–500M VND/month")}
+                </p>
+              </div>
+
+              {/* BR-101-07: Profile Visibility */}
+              <Select
+                label={t(lang, "Profile Visibility")}
+                value={profile.visibility || "public"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  persist({ visibility: val, is_visible: val === "public" });
+                }}
+                placeholder={t(lang, "Select profile visibility")}
+                options={[
+                  { value: "public", label: t(lang, "Public to employers (Active & Searchable)") },
+                  { value: "private", label: t(lang, "Private / Hidden from employers") },
+                ]}
               />
             </div>
           )}
@@ -735,6 +816,45 @@ export default function OnboardingClient() {
                 <strong>{completeness}%</strong>
               </div>
               <h2 style={{ fontSize: "var(--text-xl)", margin: "16px 0 8px" }}>{t(lang, "Your profile is ready")}</h2>
+
+              {/* BR-101-02 Completeness Banner */}
+              <div style={{
+                margin: "0 auto 20px",
+                maxWidth: 480,
+                padding: "14px 18px",
+                borderRadius: 10,
+                background: completeness >= 60 ? "#f0fdf4" : "#fffbeb",
+                border: completeness >= 60 ? "1px solid #86efac" : "1px solid #fde68a",
+                textAlign: "left",
+                display: "flex",
+                alignItems: "center",
+                gap: 12
+              }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "50%",
+                  background: completeness >= 60 ? "#dcfce7" : "#fef3c7",
+                  color: completeness >= 60 ? "#16a34a" : "#d97706",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0
+                }}>
+                  <Icon name={completeness >= 60 ? "check-circle" : "alert-triangle"} size={22} />
+                </div>
+                <div>
+                  <strong style={{ display: "block", fontSize: 13, color: completeness >= 60 ? "#166534" : "#92400e" }}>
+                    {completeness >= 60 ? t(lang, "Eligible to Apply (≥60% Completeness)") : t(lang, "Below 60% Profile Completeness")}
+                  </strong>
+                  <span style={{ fontSize: 11.5, color: completeness >= 60 ? "#15803d" : "#b45309" }}>
+                    {completeness >= 60
+                      ? t(lang, "Your profile meets the requirement. You can submit job applications immediately.")
+                      : t(lang, "Minimum of 60% completeness is required to apply for jobs. Current: ") + `${completeness}%.`}
+                  </span>
+                </div>
+              </div>
+
               <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", maxWidth: 420, margin: "0 auto 24px" }}>
                 {t(lang, "You can keep improving your profile from Settings at any time to get better job matches.")}
               </p>

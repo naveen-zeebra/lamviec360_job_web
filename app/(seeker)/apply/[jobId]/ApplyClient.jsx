@@ -8,12 +8,13 @@ import Stepper from "../../../../components/ds/Stepper";
 import Check from "../../../../components/ds/Check";
 import { useLang, t } from "../../../../utils/lang";
 
-import { getProfile, hasAppliedToJob, addApplication, addNotification, saveResume } from "../../../../lib/seekerStore";
+import { getProfile, hasAppliedToJob, addApplication, addNotification, saveResume, computeCompleteness } from "../../../../lib/seekerStore";
 import { fetchPublicJobDetail } from "../../../../lib/api/publicApi";
 
 const STEP_LABELS = ["Review Profile", "Resume", "Questions", "Additional", "Review", "Consent"];
 const NOTICE_OPTIONS = ["Immediately available", "2 weeks", "1 month", "2 months", "3+ months"];
-const MAX_RESUME_MB = 10;
+// BR-101-03: Resume file size must not exceed 5 MB
+const MAX_RESUME_MB = 5;
 const STORE_BYTES = 2 * 1024 * 1024;
 
 export default function ApplyClient({ jobId }) {
@@ -117,7 +118,7 @@ export default function ApplyClient({ jobId }) {
         if (d.step) setStep(d.step);
         setDraftSaved(true);
       }
-    } catch (e) {}
+    } catch (e) { }
   }, [job, jobId]);
 
   if (!job) {
@@ -142,12 +143,12 @@ export default function ApplyClient({ jobId }) {
     try {
       localStorage.setItem(draftKey, JSON.stringify({ answers, coverLetter, step }));
       setDraftSaved(true);
-    } catch (e) {}
+    } catch (e) { }
   };
   const clearDraft = () => {
     try {
       localStorage.removeItem(draftKey);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   if (alreadyApplied && !result) {
@@ -219,7 +220,14 @@ export default function ApplyClient({ jobId }) {
     );
   }
 
+  const completeness = profile ? computeCompleteness(profile) : 0;
+  const canApply = completeness >= 60;
+
   const validateStep = () => {
+    // BR-101-02: Profile Completeness (at least 60% required to apply)
+    if (!canApply) {
+      return t(lang, `A Job Seeker must have at least 60% profile completeness to apply for a job. Your profile is currently at ${completeness}%.`);
+    }
     if (step === 1 && !profile.personal.fullName.trim()) return t(lang, "Add your full name in Profile settings before applying.");
     if (step === 2 && !resumeFileName) return t(lang, "Please add a résumé before continuing.");
     if (step === 3 && !answers.noticePeriod) return t(lang, "Please answer the notice period question.");
@@ -246,12 +254,13 @@ export default function ApplyClient({ jobId }) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const ext = (file.name.split(".").pop() || "").toLowerCase();
-    if (!["pdf", "doc", "docx", "jpg", "jpeg", "png"].includes(ext)) {
-      setErr(t(lang, "Use a PDF, DOC, DOCX, JPG or PNG file."));
+    // BR-101-03: PDF, DOC, and DOCX only
+    if (!["pdf", "doc", "docx"].includes(ext)) {
+      setErr(t(lang, "Unsupported file format. Allowed formats: PDF, DOC, and DOCX only"));
       return;
     }
     if (file.size > MAX_RESUME_MB * 1024 * 1024) {
-      setErr(t(lang, "File is larger than 5MB."));
+      setErr(t(lang, `Resume file size must not exceed ${MAX_RESUME_MB} MB.`));
       return;
     }
     setErr("");
@@ -270,6 +279,11 @@ export default function ApplyClient({ jobId }) {
   };
 
   const submit = async () => {
+    // BR-101-02: Prevent job application if profile completeness is below 60%
+    if (!canApply) {
+      setErr(t(lang, `A Job Seeker must have at least 60% profile completeness to apply for a job. Your profile is currently at ${completeness}%.`));
+      return;
+    }
     if (!consent || submitting) return;
     setSubmitting(true);
     setErr("");
@@ -278,15 +292,15 @@ export default function ApplyClient({ jobId }) {
         ...(profile.certifications || []).filter((c) => selectedCertIds.includes(c.id || c.name)),
         ...(appliedCertFile
           ? [
-              {
-                id: "cert-app-" + Date.now(),
-                name: appliedCertTitle.trim() || appliedCertFile.name.replace(/\.[^/.]+$/, ""),
-                issuer: appliedCertIssuer.trim() || "",
-                fileName: appliedCertFile.name,
-                fileSize: appliedCertFile.size,
-                fileDataUrl: appliedCertFile.dataUrl || "",
-              },
-            ]
+            {
+              id: "cert-app-" + Date.now(),
+              name: appliedCertTitle.trim() || appliedCertFile.name.replace(/\.[^/.]+$/, ""),
+              issuer: appliedCertIssuer.trim() || "",
+              fileName: appliedCertFile.name,
+              fileSize: appliedCertFile.size,
+              fileDataUrl: appliedCertFile.dataUrl || "",
+            },
+          ]
           : []),
       ];
       const record = await addApplication({
@@ -298,10 +312,10 @@ export default function ApplyClient({ jobId }) {
         certifications: certsToAttach,
         certification: appliedCertFile
           ? {
-              name: appliedCertTitle.trim() || appliedCertFile.name,
-              fileName: appliedCertFile.name,
-              size: appliedCertFile.size,
-            }
+            name: appliedCertTitle.trim() || appliedCertFile.name,
+            fileName: appliedCertFile.name,
+            size: appliedCertFile.size,
+          }
           : certsToAttach[0] || null,
       });
       addNotification({
@@ -337,6 +351,63 @@ export default function ApplyClient({ jobId }) {
         {step === 1 && (
           <div>
             <h2 style={{ fontSize: "var(--text-lg)", marginBottom: 16 }}>{t(lang, "Review your profile")}</h2>
+
+            {/* BR-101-02 Completeness Banner */}
+            <div style={{
+              padding: "14px 18px",
+              borderRadius: 10,
+              background: canApply ? "#f0fdf4" : "#fef2f2",
+              border: canApply ? "1px solid #86efac" : "1px solid #fca5a5",
+              marginBottom: 20,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 12
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: canApply ? "#dcfce7" : "#fee2e2",
+                  color: canApply ? "#16a34a" : "#dc2626",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0
+                }}>
+                  <Icon name={canApply ? "check-circle" : "alert-circle"} size={20} />
+                </div>
+                <div>
+                  <strong style={{ display: "block", fontSize: 13, color: canApply ? "#166534" : "#991b1b" }}>
+                    {canApply ? `${t(lang, "Profile Completeness")}: ${completeness}% (Eligible to Apply)` : `${t(lang, "Profile Completeness")}: ${completeness}% / 60% Required`}
+                  </strong>
+                  <span style={{ fontSize: 11.5, color: canApply ? "#15803d" : "#b91c1c" }}>
+                    {canApply
+                      ? t(lang, "Meets minimum 60% completeness requirement.")
+                      : t(lang, "A Job Seeker must have at least 60% profile completeness to apply for a job.")}
+                  </span>
+                </div>
+              </div>
+              {!canApply && (
+                <Link
+                  href="/onboarding"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#ffffff",
+                    background: "#dc2626",
+                    padding: "6px 14px",
+                    borderRadius: 6,
+                    textDecoration: "none"
+                  }}
+                >
+                  {t(lang, "Complete Profile Now")}
+                </Link>
+              )}
+            </div>
+
             <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: 20 }}>{t(lang, "This information will be shared with the employer.")}</p>
             <dl className="lv-reg-summary">
               <div>
@@ -389,26 +460,26 @@ export default function ApplyClient({ jobId }) {
               </div>
             ) : (
               <div style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "24px", textAlign: "center", marginBottom: 20 }}>
-                 <Icon name="upload-cloud" size={32} style={{ color: "#94a3b8", marginBottom: 12 }} />
-                 <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{t(lang, "No resume on file yet.")}</p>
-                 <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{t(lang, "PDF, DOC, DOCX, JPG or PNG. Max 5MB.")}</p>
+                <Icon name="upload-cloud" size={32} style={{ color: "#94a3b8", marginBottom: 12 }} />
+                <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{t(lang, "No resume on file yet.")}</p>
+                <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{t(lang, "PDF, DOC, DOCX only. Max 5MB.")}</p>
               </div>
             )}
-            
+
             <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "16px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 12 }}>
                 {t(lang, "Upload or replace")} <span style={{ color: "var(--red-500)" }}>*</span>
               </label>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <input 
-                  type="file" 
-                  id="resume-upload" 
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" 
-                  onChange={onResumeChange} 
-                  style={{ display: "none" }} 
+                <input
+                  type="file"
+                  id="resume-upload"
+                  accept=".pdf,.doc,.docx"
+                  onChange={onResumeChange}
+                  style={{ display: "none" }}
                 />
-                <label 
-                  htmlFor="resume-upload" 
+                <label
+                  htmlFor="resume-upload"
                   style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, background: "#f8fafc", padding: "8px 16px", borderRadius: 6, fontSize: 13, fontWeight: 600, color: "#334155", border: "1px solid #cbd5e1" }}
                   onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
                   onMouseLeave={(e) => e.target.style.background = "#f8fafc"}
@@ -416,7 +487,7 @@ export default function ApplyClient({ jobId }) {
                   <Icon name="upload" size={16} />
                   {t(lang, "Choose File")}
                 </label>
-                <span style={{ fontSize: 12, color: "#64748b" }}>{t(lang, "Max size: 5MB")}</span>
+                <span style={{ fontSize: 12, color: "#64748b" }}>{t(lang, "PDF, DOC, DOCX up to 5MB")}</span>
               </div>
             </div>
           </div>

@@ -809,5 +809,21 @@
   "Browse": "Browse",
   "Choose File": "Choose File",
   "None attached": "None attached",
-  "from profile": "from profile"
+  "from profile": "from profile",
+  "e.g. Alex Mitchell": "e.g. Alex Mitchell",
+  "e.g. Ho Chi Minh City, Vietnam": "e.g. Ho Chi Minh City, Vietnam",
+  "e.g. Senior Software Engineer": "e.g. Senior Software Engineer",
+  "Select years of experience": "Select years of experience",
+  "Select industry domain": "Select industry domain",
+  "e.g. React, TypeScript, Python": "e.g. React, TypeScript, Python",
+  "e.g. Bachelor of Computer Science": "e.g. Bachelor of Computer Science",
+  "e.g. Ho Chi Minh City University of Technology": "e.g. Ho Chi Minh City University of Technology",
+  "e.g. 2024": "e.g. 2024",
+  "e.g. VNG Corporation": "e.g. VNG Corporation",
+  "e.g. Designed scalable microservices, collaborated with cross-functional teams, and optimized system performance...": "e.g. Designed scalable microservices, collaborated with cross-functional teams, and optimized system performance...",
+  "Select preferred work mode": "Select preferred work mode",
+  "e.g. Ho Chi Minh City": "e.g. Ho Chi Minh City",
+  "e.g. 35,000,000 VND": "e.g. 35,000,000 VND",
+  "Brief summary of your professional background...": "Brief summary of your professional background...",
+  "e.g. English, Vietnamese": "e.g. English, Vietnamese"
 }

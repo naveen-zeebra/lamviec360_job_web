@@ -51,7 +51,7 @@ export default function Input({
             rest.onBlur?.(e);
           }}
           className={[
-            "flex-1 w-full min-w-0 border-none bg-transparent font-body text-ink outline-none",
+            "flex-1 w-full min-w-0 border-none bg-transparent font-body text-ink outline-none placeholder:text-muted/60 placeholder:font-normal",
             size === "sm" ? "text-sm py-0.5" : "text-base py-0.5",
           ].join(" ")}
           {...rest}

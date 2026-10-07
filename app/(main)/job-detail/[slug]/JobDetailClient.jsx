@@ -10,7 +10,7 @@ import Footer from "../../../../components/layout/Footer";
 import JobRow from "../../../../components/jobs/JobRow";
 import Toast, { useToast } from "../../../../components/ds/Toast";
 import { FILTER_VI } from "../../../../lib/data";
-import { isSaved, toggleSavedJob, hasAppliedToJob, isLoggedIn, getAuth, getProfile } from "../../../../lib/seekerStore";
+import { isSaved, toggleSavedJob, hasAppliedToJob, isLoggedIn, getAuth, getProfile, computeCompleteness } from "../../../../lib/seekerStore";
 import { fetchPublicJobDetail, fetchPublicJobs, reportJob } from "../../../../lib/api/publicApi";
 
 const STAGES = [
@@ -47,12 +47,12 @@ export default function JobDetailClient() {
   const [reporterEmail, setReporterEmail] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
-  
+
   // Extract ID from slug, assuming format is `title-id`
   const slug = params.slug || "";
   const parts = slug.split("-");
   const rawId = parts[parts.length - 1];
-  
+
   const [job, setJob] = useState(null);
   const [related, setRelated] = useState([]);
 
@@ -67,11 +67,11 @@ export default function JobDetailClient() {
         } catch (e) {
           console.warn("Could not fetch remote job detail:", e.message);
         }
-        
+
         try {
           const allJobs = await fetchPublicJobs();
           if (Array.isArray(allJobs)) {
-             setRelated(allJobs.filter(j => String(j.id) !== String(rawId)).slice(0, 3));
+            setRelated(allJobs.filter(j => String(j.id) !== String(rawId)).slice(0, 3));
           }
         } catch (e) {
           // ignore
@@ -312,6 +312,17 @@ export default function JobDetailClient() {
               onClick={() => {
                 if (!isLoggedIn()) {
                   router.push("/login");
+                  return;
+                }
+                const prof = getProfile();
+                const pct = computeCompleteness(prof);
+                if (pct < 60) {
+                  setToast(
+                    lang === "VN" || lang === "VI"
+                      ? `Hồ sơ của bạn mới đạt ${pct}%. Cần ít nhất 60% độ hoàn thiện để ứng tuyển.`
+                      : `Your profile completeness is ${pct}%. A minimum of 60% completeness is required to apply for jobs.`
+                  );
+                  setTimeout(() => router.push("/onboarding"), 1000);
                   return;
                 }
                 if (!applied) router.push(`/apply/${job.id}`);

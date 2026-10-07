@@ -35,7 +35,7 @@ function useDashboardData() {
       if (typeof window !== "undefined") {
         return { loading: false, error: false, data: readDashboardData() };
       }
-    } catch {}
+    } catch { }
     return { loading: false, error: false, data: null };
   });
 
@@ -137,18 +137,29 @@ export default function DashboardClient() {
       </div>
 
       {completeness < 100 && (
-        <div className="mb-8 flex flex-wrap items-center gap-5 rounded-lg border border-line bg-card p-5">
+        <div className={`mb-8 flex flex-wrap items-center gap-5 rounded-lg border p-5 ${completeness < 60 ? "border-amber-300 bg-amber-50/60 dark:bg-amber-950/20" : "border-line bg-card"}`}>
           <div className="min-w-[200px] flex-1">
-            <div className="mb-2 flex justify-between">
-              <strong>{t(lang, "Profile Completion")}</strong>
-              <span>{completeness}%</span>
+            <div className="mb-2 flex justify-between items-center">
+              <div>
+                <strong>{t(lang, "Profile Completion")}</strong>
+                {completeness < 60 ? (
+                  <span className="ml-2 inline-flex items-center text-xs font-semibold text-amber-700 dark:text-amber-400">
+                    ⚠️ {t(lang, "Need ≥60% to apply for jobs")}
+                  </span>
+                ) : (
+                  <span className="ml-2 inline-flex items-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    ✓ {t(lang, "Eligible to apply for jobs (≥60%)")}
+                  </span>
+                )}
+              </div>
+              <span className="font-bold">{completeness}%</span>
             </div>
             <div className="h-2 overflow-hidden rounded-pill bg-sunken">
-              <i className="block h-full rounded-pill bg-brand" style={{ width: `${completeness}%` }} />
+              <i className={`block h-full rounded-pill ${completeness < 60 ? "bg-amber-500" : "bg-brand"}`} style={{ width: `${completeness}%` }} />
             </div>
           </div>
           <Link href="/settings?tab=profile">
-            <Button variant="primary" size="sm">
+            <Button variant={completeness < 60 ? "primary" : "secondary"} size="sm">
               {t(lang, "Complete Profile")}
             </Button>
           </Link>
