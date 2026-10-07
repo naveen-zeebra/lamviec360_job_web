@@ -8,6 +8,7 @@ import Icon from "../../../components/ds/Icon";
 import { useLang, t } from "../../../utils/lang";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import NaukriShell from "../../../components/auth/NaukriShell";
+import SocialAuthButtons from "../../../components/auth/SocialAuthButtons";
 import { login } from "../../../lib/seekerStore";
 
 export default function LoginClient() {
@@ -157,9 +158,24 @@ export default function LoginClient() {
           >
             {formik.isSubmitting ? t(lang, "Logging in...") : t(lang, "Login")}
           </button>
+
+          {/* Social Auth Divider */}
+          <div style={{ display: "flex", alignItems: "center", margin: "22px 0 16px", gap: 12 }}>
+            <div style={{ flex: 1, height: 1, backgroundColor: "#e2e8f0" }} />
+            <span style={{ fontSize: 12, color: "#64748b", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {t(lang, "or continue with")}
+            </span>
+            <div style={{ flex: 1, height: 1, backgroundColor: "#e2e8f0" }} />
+          </div>
+
+          {/* Google, Zalo, LinkedIn, Facebook OAuth */}
+          <SocialAuthButtons
+            layout="grid"
+            actionText="Sign in with"
+            onSuccess={() => router.push("/dashboard")}
+            onError={(msg) => setToast(msg)}
+          />
         </form>
-
-
 
       </NaukriShell>
       <Toast msg={toast} />
