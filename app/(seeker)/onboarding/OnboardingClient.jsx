@@ -9,6 +9,9 @@ import Stepper from "../../../components/ds/Stepper";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { useLang, t } from "../../../utils/lang";
 import { getProfile, saveProfile, saveProfileLocally, saveResume, removeResume, computeCompleteness, getAuth } from "../../../lib/seekerStore";
+import CitizenshipIdInput from "../../../components/seeker/CitizenshipIdInput";
+import SkillSelectorRedesigned from "../../../components/seeker/SkillSelectorRedesigned";
+import AchievementsManager from "../../../components/seeker/AchievementsManager";
 
 const STEP_LABELS = ["Personal", "Professional", "Education", "Experience", "Resume & Portfolio", "Completion"];
 const EXPERIENCE_RANGES = ["Less than 1 year", "1-3 years", "3-5 years", "5-10 years", "10+ years"];
@@ -106,11 +109,21 @@ export default function OnboardingClient() {
     ),
     phone: Yup.string().test(
       "phone-valid",
-      t(lang, "Please enter a valid phone number."),
+      t(lang, "Please enter a valid phone number (at least 7 digits)."),
       function (value) {
         if (!value || !value.trim()) return true;
         const digits = value.replace(/\D/g, "");
+        if (digits.length <= 3) return true;
         return digits.length >= 7 && digits.length <= 15;
+      }
+    ),
+    citizenId: Yup.string().test(
+      "citizen-id-valid",
+      t(lang, "Citizenship ID must be either 9 digits (Old CMND) or 12 digits (CCCD / New Citizen ID)."),
+      function (value) {
+        if (!value || !value.trim()) return true;
+        const digits = value.replace(/\D/g, "");
+        return digits.length === 9 || digits.length === 12;
       }
     ),
     title: Yup.string().when("$step", {
@@ -167,6 +180,7 @@ export default function OnboardingClient() {
       phone: profile?.personal?.phone || "",
       location: profile?.personal?.location || "",
       city: profile?.personal?.city || "",
+      citizenId: profile?.personal?.citizenId || "",
       title: profile?.professional?.title || "",
       experience: profile?.professional?.experience || "",
       industry: profile?.professional?.industry || "",
@@ -186,6 +200,12 @@ export default function OnboardingClient() {
     setProfile(next);
     saveProfileLocally(patch);
     return next;
+  };
+
+  const handleCitizenIdChange = (cleanDigits) => {
+    formik.setFieldValue("citizenId", cleanDigits);
+    formik.setFieldTouched("citizenId", true, true);
+    persist({ personal: { ...profile.personal, citizenId: cleanDigits } });
   };
 
   const handleNoSpecialCharInput = (field, rawValue, isNameField = false) => {
@@ -220,8 +240,13 @@ export default function OnboardingClient() {
       formik.setFieldTouched("phone", true, true);
       formik.setFieldTouched("location", true, true);
       formik.setFieldTouched("city", true, true);
+      formik.setFieldTouched("citizenId", true, true);
       const errors = await formik.validateForm();
-      if (errors.fullName || errors.phone || errors.location || errors.city) {
+      if (errors.fullName || errors.phone || errors.location || errors.city || errors.citizenId) {
+        if (errors.citizenId) setErr(errors.citizenId);
+        else if (errors.phone) setErr(errors.phone);
+        else if (errors.fullName) setErr(errors.fullName);
+        else if (errors.location || errors.city) setErr(errors.location || errors.city);
         return;
       }
       // BR-101-04: At least one contact method must be present (verified email or phone)
@@ -250,7 +275,35 @@ export default function OnboardingClient() {
       }
     }
 
-    saveProfile(profile).catch((e) => console.warn("Background save failed:", e.message));
+    const nextProfile = {
+      ...profile,
+      personal: {
+        ...(profile.personal || {}),
+        fullName: formik.values.fullName,
+        phone: formik.values.phone,
+        location: formik.values.location,
+        city: formik.values.city,
+        citizenId: formik.values.citizenId,
+      },
+      professional: {
+        ...(profile.professional || {}),
+        title: formik.values.title,
+        experience: formik.values.experience,
+        industry: formik.values.industry,
+      },
+      portfolio: {
+        ...(profile.portfolio || {}),
+        url: formik.values.portfolioUrl,
+      },
+      preferences: {
+        ...(profile.preferences || {}),
+        workMode: formik.values.workMode,
+        salary: formik.values.salary,
+      },
+    };
+    setProfile(nextProfile);
+    saveProfileLocally(nextProfile);
+    saveProfile(nextProfile).catch((e) => console.warn("Background save failed:", e.message));
     setToast(t(lang, "Progress saved"));
     setStep((s) => Math.min(6, s + 1));
   };
@@ -487,6 +540,18 @@ export default function OnboardingClient() {
                 defaultCountry="vn"
                 error={formik.touched.phone && formik.errors.phone ? formik.errors.phone : undefined}
               />
+
+              {/* Citizenship ID (9 or 12 digits format) */}
+              <div className="col-span-1 md:col-span-2">
+                <CitizenshipIdInput
+                  value={formik.values.citizenId}
+                  onChange={handleCitizenIdChange}
+                  onBlur={() => formik.setFieldTouched("citizenId", true, true)}
+                  error={formik.touched.citizenId && formik.errors.citizenId ? formik.errors.citizenId : undefined}
+                  lang={lang}
+                />
+              </div>
+
               <Input
                 label={t(lang, "Location")}
                 name="location"
@@ -571,7 +636,7 @@ export default function OnboardingClient() {
             </div>
           )}
 
-          {/* ── Step 2: Professional ── */}
+          {/* ── Step 2: Professional (Redesigned with SkillSelectorRedesigned) ── */}
           {step === 2 && (
             <div className="lv-form-grid">
               <Input
@@ -592,38 +657,29 @@ export default function OnboardingClient() {
                 options={EXPERIENCE_RANGES.map((v) => ({ value: v, label: t(lang, v) }))}
                 placeholder={t(lang, "Select years of experience")}
               />
-              <Select
-                label={t(lang, "Industry")}
-                value={formik.values.industry}
-                onChange={(e) => {
-                  handleProfessionalChange("industry", e.target.value);
-                }}
-                options={INDUSTRIES.map((v) => ({ value: v, label: t(lang, v) }))}
-                placeholder={t(lang, "Select industry domain")}
-              />
-              <div>
-                <label className="lv-field-label">{t(lang, "Skills")}</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Input
-                    value={skillInput}
-                    onChange={(e) => setSkillInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
-                    placeholder={t(lang, "e.g. React, TypeScript, Python")}
-                  />
-                  <Button type="button" variant="secondary" onClick={addSkill}>
-                    {t(lang, "Add")}
-                  </Button>
-                </div>
-                <div className="lv-job-tags" style={{ marginTop: 12 }}>
-                  {profile.professional.skills.map((s) => (
-                    <span key={s} className="lv-chip">
-                      {s}
-                      <button type="button" aria-label={t(lang, "Remove") + " " + s} onClick={() => removeSkill(s)}>
-                        <Icon name="x" size={12} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <Select
+                  label={t(lang, "Industry")}
+                  value={formik.values.industry}
+                  onChange={(e) => {
+                    handleProfessionalChange("industry", e.target.value);
+                  }}
+                  options={INDUSTRIES.map((v) => ({ value: v, label: t(lang, v) }))}
+                  placeholder={t(lang, "Select industry domain")}
+                />
+              </div>
+
+              {/* Redesigned interactive skills adding experience */}
+              <div style={{ gridColumn: "1 / -1", marginTop: 8 }}>
+                <SkillSelectorRedesigned
+                  skills={profile.professional?.skills || []}
+                  onChange={(newSkills) =>
+                    persist({ professional: { ...profile.professional, skills: newSkills } })
+                  }
+                  jobTitle={formik.values.title}
+                  industry={formik.values.industry}
+                  lang={lang}
+                />
               </div>
             </div>
           )}
@@ -775,11 +831,21 @@ export default function OnboardingClient() {
             </div>
           )}
 
-          {/* ── Step 5: Resume & Preferences ── */}
+          {/* ── Step 5: Resume, Portfolio & Achievements ── */}
           {step === 5 && (
-            <div className="lv-form-grid">
-              <div>
-                <label className="lv-field-label">{t(lang, "Resume / CV")}</label>
+            <div className="flex flex-col gap-6">
+              {/* 1. Resume / CV Section */}
+              <div className="p-4 sm:p-5 rounded-xl border border-line bg-card shadow-xs">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <Icon name="file-text" size={17} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-ink">{t(lang, "Resume / CV")}</h3>
+                    <p className="text-xs text-muted">{t(lang, "Upload your latest résumé (PDF, DOC, DOCX up to 5MB)")}</p>
+                  </div>
+                </div>
+
                 <div
                   className={`lv-resume-drop ${isResumeDragging ? "active" : ""}`}
                   onDragOver={(e) => {
@@ -820,7 +886,7 @@ export default function OnboardingClient() {
                 </div>
 
                 {profile.resume?.fileName && (
-                  <div className="lv-resume-chip" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div className="lv-resume-chip mt-3" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                       <Icon name="file-text" size={16} style={{ color: "#4f46e5", marginTop: 2, flexShrink: 0 }} />
                       <div>
@@ -858,23 +924,19 @@ export default function OnboardingClient() {
                 )}
               </div>
 
-              {/* ── Portfolio & Work Showcase Section ── */}
-              <div style={{ gridColumn: "1 / -1", borderTop: "1px solid #e2e8f0", paddingTop: 16, marginTop: 4 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 8, background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Icon name="globe" size={18} />
+              {/* 2. Portfolio & Work Showcase ("portil") */}
+              <div className="p-4 sm:p-5 rounded-xl border border-line bg-card shadow-xs flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <Icon name="globe" size={17} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>
-                      {t(lang, "Portfolio & Work Showcase")}
-                    </h3>
-                    <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>
-                      {t(lang, "Link your GitHub, Behance, LinkedIn, or upload a project document.")}
-                    </p>
+                    <h3 className="text-sm font-bold text-ink">{t(lang, "Portfolio & Work Showcase")}</h3>
+                    <p className="text-xs text-muted">{t(lang, "Link your GitHub, Behance, website, and showcase your featured projects.")}</p>
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
                     label={t(lang, "Portfolio / Website Link")}
                     name="portfolioUrl"
@@ -917,7 +979,7 @@ export default function OnboardingClient() {
                 </div>
 
                 {(profile.portfolio?.fileName || profile.portfolioFile?.fileName) && (
-                  <div className="lv-resume-chip" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                  <div className="lv-resume-chip" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <Icon name="file-text" size={16} style={{ color: "#0891b2", flexShrink: 0 }} />
                       <div>
@@ -952,62 +1014,87 @@ export default function OnboardingClient() {
                 )}
               </div>
 
-              <Select
-                label={t(lang, "Preferred Work Mode")}
-                value={formik.values.workMode}
-                onChange={(e) => {
-                  formik.setFieldValue("workMode", e.target.value);
-                  persist({ preferences: { ...profile.preferences, workMode: e.target.value } });
-                }}
-                options={WORK_MODES.map((v) => ({ value: v, label: t(lang, v) }))}
-                placeholder={t(lang, "Select preferred work mode")}
-              />
-              <Input
-                label={t(lang, "Preferred Role")}
-                value={profile.preferences.roles[0] || ""}
-                onChange={(e) => persist({ preferences: { ...profile.preferences, roles: e.target.value ? [e.target.value] : [] } })}
-                placeholder={t(lang, "e.g. Senior Software Engineer")}
-              />
-              <Input
-                label={t(lang, "Preferred Location")}
-                value={profile.preferences.locations[0] || ""}
-                onChange={(e) => persist({ preferences: { ...profile.preferences, locations: e.target.value ? [e.target.value] : [] } })}
-                placeholder={t(lang, "e.g. Ho Chi Minh City")}
-              />
-              <div>
-                <Input
-                  label={t(lang, "Desired Salary (1M–500M VND/month)")}
-                  name="salary"
-                  value={formik.values.salary}
-                  onChange={(e) => {
-                    formik.setFieldValue("salary", e.target.value);
-                    formik.setFieldTouched("salary", true, true);
-                    persist({ preferences: { ...profile.preferences, salary: e.target.value } });
-                  }}
-                  onBlur={formik.handleBlur}
-                  placeholder={t(lang, "e.g. 35,000,000 VND")}
-                  error={formik.touched.salary && formik.errors.salary ? formik.errors.salary : undefined}
+              {/* 3. Achievements & Honors Section ("acheiments aslo") */}
+              <div className="p-4 sm:p-5 rounded-xl border border-line bg-card shadow-xs">
+                <AchievementsManager
+                  achievements={profile.achievements || []}
+                  onChange={(achievements) => persist({ achievements })}
+                  lang={lang}
                 />
-                <p className="lv-field-hint" style={{ marginTop: 4 }}>
-                  {t(lang, "Range: 1M–500M VND/month")}
-                </p>
               </div>
 
-              {/* BR-101-07: Profile Visibility */}
-              <Select
-                label={t(lang, "Profile Visibility")}
-                value={formik.values.visibility}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  formik.setFieldValue("visibility", val);
-                  persist({ visibility: val, is_visible: val === "public" });
-                }}
-                placeholder={t(lang, "Select profile visibility")}
-                options={[
-                  { value: "public", label: t(lang, "Public to employers (Active & Searchable)") },
-                  { value: "private", label: t(lang, "Private / Hidden from employers") },
-                ]}
-              />
+              {/* 4. Career Preferences & Visibility */}
+              <div className="p-4 sm:p-5 rounded-xl border border-line bg-card shadow-xs">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <Icon name="sliders" size={17} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-ink">{t(lang, "Availability & Job Preferences")}</h3>
+                    <p className="text-xs text-muted">{t(lang, "Set your desired role, salary expectations, and employer visibility.")}</p>
+                  </div>
+                </div>
+
+                <div className="lv-form-grid">
+                  <Select
+                    label={t(lang, "Preferred Work Mode")}
+                    value={formik.values.workMode}
+                    onChange={(e) => {
+                      formik.setFieldValue("workMode", e.target.value);
+                      persist({ preferences: { ...profile.preferences, workMode: e.target.value } });
+                    }}
+                    options={WORK_MODES.map((v) => ({ value: v, label: t(lang, v) }))}
+                    placeholder={t(lang, "Select preferred work mode")}
+                  />
+                  <Input
+                    label={t(lang, "Preferred Role")}
+                    value={profile.preferences.roles[0] || ""}
+                    onChange={(e) => persist({ preferences: { ...profile.preferences, roles: e.target.value ? [e.target.value] : [] } })}
+                    placeholder={t(lang, "e.g. Senior Software Engineer")}
+                  />
+                  <Input
+                    label={t(lang, "Preferred Location")}
+                    value={profile.preferences.locations[0] || ""}
+                    onChange={(e) => persist({ preferences: { ...profile.preferences, locations: e.target.value ? [e.target.value] : [] } })}
+                    placeholder={t(lang, "e.g. Ho Chi Minh City")}
+                  />
+                  <div>
+                    <Input
+                      label={t(lang, "Desired Salary (1M–500M VND/month)")}
+                      name="salary"
+                      value={formik.values.salary}
+                      onChange={(e) => {
+                        formik.setFieldValue("salary", e.target.value);
+                        formik.setFieldTouched("salary", true, true);
+                        persist({ preferences: { ...profile.preferences, salary: e.target.value } });
+                      }}
+                      onBlur={formik.handleBlur}
+                      placeholder={t(lang, "e.g. 35,000,000 VND")}
+                      error={formik.touched.salary && formik.errors.salary ? formik.errors.salary : undefined}
+                    />
+                    <p className="lv-field-hint" style={{ marginTop: 4 }}>
+                      {t(lang, "Range: 1M–500M VND/month")}
+                    </p>
+                  </div>
+
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <Select
+                      label={t(lang, "Profile Visibility")}
+                      value={formik.values.visibility}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        formik.setFieldValue("visibility", val);
+                        persist({ visibility: val, is_visible: val === "public" });
+                      }}
+                      placeholder={t(lang, "Select profile visibility")}
+                      options={[
+                        { value: "public", label: t(lang, "Public to employers (Active & Searchable)") },
+                        { value: "private", label: t(lang, "Private / Hidden from employers") },
+                      ]}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

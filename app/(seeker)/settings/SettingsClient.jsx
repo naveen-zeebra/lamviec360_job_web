@@ -20,6 +20,9 @@ import {
   resetAll,
   computeCompleteness,
 } from "../../../lib/seekerStore";
+import CitizenshipIdInput from "../../../components/seeker/CitizenshipIdInput";
+import SkillSelectorRedesigned from "../../../components/seeker/SkillSelectorRedesigned";
+import AchievementsManager from "../../../components/seeker/AchievementsManager";
 
 const TABS = ["Profile", "Preferences", "Notifications", "Privacy", "Account"];
 const TAB_SLUGS = { Profile: "profile", Preferences: "preferences", Notifications: "notifications", Privacy: "privacy", Account: "account" };
@@ -169,9 +172,14 @@ export default function SettingsClient() {
   const photoInputRef = useRef(null);
   const resumeInputRef = useRef(null);
   const portfolioInputRef = useRef(null);
+  const [accountPhone, setAccountPhone] = useState("");
+  const [accountPhoneErr, setAccountPhoneErr] = useState("");
+  const [isSavingAccountPhone, setIsSavingAccountPhone] = useState(false);
 
   useEffect(() => {
-    setProfile(getProfile());
+    const prof = getProfile();
+    setProfile(prof);
+    setAccountPhone(prof?.personal?.phone || "");
     setSettings(getSettings());
     setAuth(getAuth());
     try {
@@ -192,11 +200,21 @@ export default function SettingsClient() {
         t(lang, "Numbers and special characters are not allowed in full name.")
       ),
     location: Yup.string().max(30, t(lang, "Location must not exceed 30 characters.")).test("no-special-chars", t(lang, "Special characters are not allowed in location."), (val) => !val || /^[a-zA-Z0-9\s\u00C0-\u024F\u1EA0-\u1EF9\-\.,]*$/.test(val)),
-    phone: Yup.string().test("phone-valid", t(lang, "Please enter a valid phone number."), function (val) {
+    phone: Yup.string().test("phone-valid", t(lang, "Please enter a valid phone number (at least 7 digits)."), function (val) {
       if (!val || !val.trim()) return true;
       const digits = val.replace(/\D/g, "");
+      if (digits.length <= 3) return true;
       return digits.length >= 7 && digits.length <= 15;
     }),
+    citizenId: Yup.string().test(
+      "citizen-id-valid",
+      t(lang, "Citizenship ID must be either 9 digits (Old CMND) or 12 digits (CCCD / New Citizen ID)."),
+      function (value) {
+        if (!value || !value.trim()) return true;
+        const digits = value.replace(/\D/g, "");
+        return digits.length === 9 || digits.length === 12;
+      }
+    ),
     title: Yup.string(),
     portfolioUrl: Yup.string().test(
       "url-valid",
@@ -239,6 +257,7 @@ export default function SettingsClient() {
       fullName: profile?.personal?.fullName || "",
       phone: profile?.personal?.phone || "",
       location: profile?.personal?.location || "",
+      citizenId: profile?.personal?.citizenId || "",
       title: profile?.professional?.title || "",
       experience: profile?.professional?.experience || "",
       industry: profile?.professional?.industry || "",
@@ -319,6 +338,7 @@ export default function SettingsClient() {
       fullName: true,
       location: true,
       phone: true,
+      citizenId: true,
       title: true,
       salary: true,
     });
@@ -329,15 +349,72 @@ export default function SettingsClient() {
       return;
     }
 
+    const profileToSave = {
+      ...profile,
+      personal: {
+        ...(profile.personal || {}),
+        fullName: formik.values.fullName,
+        phone: formik.values.phone,
+        location: formik.values.location,
+        citizenId: formik.values.citizenId,
+      },
+      professional: {
+        ...(profile.professional || {}),
+        title: formik.values.title,
+        experience: formik.values.experience,
+        industry: formik.values.industry,
+      },
+      portfolio: {
+        ...(profile.portfolio || {}),
+        url: formik.values.portfolioUrl,
+      },
+      preferences: {
+        ...(profile.preferences || {}),
+        workMode: formik.values.workMode,
+        salary: formik.values.salary,
+      },
+    };
+
     setIsSaving(true);
     try {
-      await saveProfile(profile);
+      const saved = await saveProfile(profileToSave);
+      setProfile(saved);
+      setAccountPhone(saved?.personal?.phone || "");
       setToast(t(lang, "Profile saved successfully!"));
     } catch (err) {
       console.error("Save profile error:", err);
-      setToast(t(lang, "Failed to save profile. Please try again."));
+      setToast(err.message || t(lang, "Failed to save profile. Please check your phone number and try again."));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveAccountPhone = async () => {
+    setAccountPhoneErr("");
+    const cleanDigits = (accountPhone || "").replace(/\D/g, "");
+    if (cleanDigits.length > 3 && cleanDigits.length < 7) {
+      setAccountPhoneErr(t(lang, "Please enter a valid phone number (at least 7 digits)."));
+      return;
+    }
+    setIsSavingAccountPhone(true);
+    try {
+      const updated = {
+        ...profile,
+        personal: {
+          ...(profile.personal || {}),
+          phone: accountPhone,
+        },
+      };
+      const saved = await saveProfile(updated);
+      setProfile(saved);
+      formik.setFieldValue("phone", accountPhone);
+      setToast(t(lang, "Phone number updated successfully!"));
+    } catch (err) {
+      console.error("Save account phone error:", err);
+      setAccountPhoneErr(err.message || t(lang, "Failed to update phone number."));
+      setToast(err.message || t(lang, "Failed to update phone number."));
+    } finally {
+      setIsSavingAccountPhone(false);
     }
   };
 
@@ -610,7 +687,7 @@ export default function SettingsClient() {
                   onChange={(phone) => {
                     formik.setFieldValue("phone", phone);
                     formik.setFieldTouched("phone", true, true);
-                    persist({ personal: { ...profile.personal, phone } });
+                    persist({ personal: { ...(profile?.personal || {}), phone } });
                   }}
                   onBlur={() => formik.setFieldTouched("phone", true, true)}
                   placeholder="912 345 678"
@@ -626,6 +703,21 @@ export default function SettingsClient() {
                   placeholder={t(lang, "e.g. Ho Chi Minh City, Vietnam")}
                   error={formik.touched.location && formik.errors.location ? formik.errors.location : undefined}
                 />
+
+                {/* Citizenship ID (9 or 12 digits format) */}
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <CitizenshipIdInput
+                    value={formik.values.citizenId}
+                    onChange={(cleanDigits) => {
+                      formik.setFieldValue("citizenId", cleanDigits);
+                      formik.setFieldTouched("citizenId", true, true);
+                      persist({ personal: { ...profile.personal, citizenId: cleanDigits } });
+                    }}
+                    onBlur={() => formik.setFieldTouched("citizenId", true, true)}
+                    error={formik.touched.citizenId && formik.errors.citizenId ? formik.errors.citizenId : undefined}
+                    lang={lang}
+                  />
+                </div>
               </div>
 
               {/* Profile Photo Upload + Random Avatar */}
@@ -716,13 +808,14 @@ export default function SettingsClient() {
                 />
               </div>
               <div style={{ marginTop: 16 }}>
-                <ChipInput
-                  label={t(lang, "Skills")}
-                  values={profile.professional.skills}
-                  placeholder={t(lang, "e.g. React, TypeScript, Python")}
-                  allowSpecial={false}
-                  onAdd={(v) => persist({ professional: { ...profile.professional, skills: [...profile.professional.skills, v] } })}
-                  onRemove={(v) => persist({ professional: { ...profile.professional, skills: profile.professional.skills.filter((x) => x !== v) } })}
+                <SkillSelectorRedesigned
+                  skills={profile.professional?.skills || []}
+                  onChange={(newSkills) =>
+                    persist({ professional: { ...profile.professional, skills: newSkills } })
+                  }
+                  jobTitle={formik.values.title}
+                  industry={formik.values.industry}
+                  lang={lang}
                 />
               </div>
               <div style={{ marginTop: 16 }}>
@@ -891,6 +984,15 @@ export default function SettingsClient() {
               <Button type="button" variant="secondary" onClick={addCertification}>
                 <Icon name="plus" size={16} /> {t(lang, "Add certification")}
               </Button>
+            </div>
+
+            {/* ── Achievements, Honors & Awards Section ── */}
+            <div>
+              <AchievementsManager
+                achievements={profile.achievements || []}
+                onChange={(achievements) => persist({ achievements })}
+                lang={lang}
+              />
             </div>
 
             {/* ── Experience Section (Month Picker + Present Checkbox + Formatted Display) ── */}
@@ -1178,6 +1280,7 @@ export default function SettingsClient() {
                   </div>
                 </div>
               )}
+
             </div>
 
             {/* ── Save Profile Action Bar ── */}
@@ -1286,12 +1389,31 @@ export default function SettingsClient() {
                 <label style={{ fontSize: "var(--text-sm)", fontWeight: 600, display: "block", marginBottom: 6 }}>{t(lang, "Email")}</label>
                 <p className="lv-file-chip" style={{ marginTop: 0 }}><Icon name="mail" size={14} /> {auth.email}</p>
               </div>
-              <PhoneInput
-                label={t(lang, "Phone")}
-                value={profile.personal.phone}
-                onChange={(phone) => persist({ personal: { ...profile.personal, phone } })}
-                defaultCountry="vn"
-              />
+              <div>
+                <PhoneInput
+                  id="accountPhone"
+                  name="accountPhone"
+                  label={t(lang, "Phone")}
+                  value={accountPhone}
+                  onChange={(phone) => {
+                    setAccountPhone(phone);
+                    setAccountPhoneErr("");
+                  }}
+                  error={accountPhoneErr}
+                  defaultCountry="vn"
+                />
+                <div style={{ marginTop: 10 }}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    loading={isSavingAccountPhone}
+                    onClick={handleSaveAccountPhone}
+                  >
+                    <Icon name="phone" size={14} /> {t(lang, "Update Phone Number")}
+                  </Button>
+                </div>
+              </div>
             </div>
             <div>
               <h3 style={{ marginBottom: 14 }}>{t(lang, "Change Password")}</h3>
