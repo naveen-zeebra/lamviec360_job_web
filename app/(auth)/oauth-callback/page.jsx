@@ -70,7 +70,7 @@ function OAuthCallbackContent() {
 
         setStatus("success");
         setTimeout(() => {
-          router.push("/dashboard");
+          router.push("/onboarding");
         }, 800);
       } catch (err) {
         console.error("OAuth callback exchange failed:", err);

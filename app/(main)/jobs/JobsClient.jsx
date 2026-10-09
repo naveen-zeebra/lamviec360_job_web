@@ -106,7 +106,29 @@ export default function JobsClient() {
   if (sort === "salary") jobs = [...jobs].sort((a, b) => parseInt(b.salary) - parseInt(a.salary));
   if (sort === "title") jobs = [...jobs].sort((a, b) => a.title.localeCompare(b.title));
   const pages = Math.max(1, Math.ceil(jobs.length / PER));
-  const shown = jobs.slice((page - 1) * PER, page * PER);
+  const currentPage = Math.min(Math.max(1, page), pages);
+  const shown = jobs.slice((currentPage - 1) * PER, currentPage * PER);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pages) {
+      setPage(newPage);
+      window.scrollTo({ top: 300, behavior: "smooth" });
+    }
+  };
+
+  const getPageNumbers = () => {
+    if (pages <= 7) {
+      return Array.from({ length: pages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, "...", pages];
+    }
+    if (currentPage >= pages - 3) {
+      return [1, "...", pages - 4, pages - 3, pages - 2, pages - 1, pages];
+    }
+    return [1, "...", currentPage - 1, currentPage, currentPage + 1, "...", pages];
+  };
+
   const clearAll = () => {
     setTypes([]);
     setModes([]);
@@ -262,15 +284,34 @@ export default function JobsClient() {
             )}
             {pages > 1 && (
               <nav className="lv-pager" aria-label={t(lang, "Pagination")}>
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} aria-label={t(lang, "Previous page")}>
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  aria-label={t(lang, "Previous page")}
+                >
                   ‹
                 </button>
-                {Array.from({ length: pages }).map((_, i) => (
-                  <button key={i} className={page === i + 1 ? "active" : ""} aria-current={page === i + 1 ? "page" : undefined} onClick={() => setPage(i + 1)}>
-                    {i + 1}
-                  </button>
-                ))}
-                <button onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page === pages} aria-label={t(lang, "Next page")}>
+                {getPageNumbers().map((num, i) =>
+                  num === "..." ? (
+                    <span key={`dots-${i}`} style={{ padding: "0 8px", opacity: 0.6, userSelect: "none" }}>
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={num}
+                      className={currentPage === num ? "active" : ""}
+                      aria-current={currentPage === num ? "page" : undefined}
+                      onClick={() => handlePageChange(num)}
+                    >
+                      {num}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === pages}
+                  aria-label={t(lang, "Next page")}
+                >
                   ›
                 </button>
               </nav>
