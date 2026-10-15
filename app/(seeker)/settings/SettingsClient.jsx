@@ -11,14 +11,21 @@ import { useLang, t } from "../../../utils/lang";
 import {
   getProfile,
   saveProfile,
+  saveProfileLocally,
+  syncSeekerWithBackend,
   saveResume,
   removeResume,
+  getResumes,
+  MAX_PROFILE_RESUMES,
+  MAX_RESUME_ERROR,
   getSettings,
   saveSettings,
   getAuth,
   logout,
   resetAll,
   computeCompleteness,
+  uploadAvatar,
+  avatarPublicHref,
 } from "../../../lib/seekerStore";
 import CitizenshipIdInput from "../../../components/seeker/CitizenshipIdInput";
 import SkillSelectorRedesigned from "../../../components/seeker/SkillSelectorRedesigned";
@@ -182,6 +189,19 @@ export default function SettingsClient() {
     setAccountPhone(prof?.personal?.phone || "");
     setSettings(getSettings());
     setAuth(getAuth());
+
+    syncSeekerWithBackend()
+      .then(() => {
+        const syncedProf = getProfile();
+        setProfile(syncedProf);
+        setAccountPhone(syncedProf?.personal?.phone || "");
+        setSettings(getSettings());
+        setAuth(getAuth());
+      })
+      .catch((e) => {
+        console.warn("syncSeekerWithBackend in SettingsClient failed:", e);
+      });
+
     try {
       const slug = new URLSearchParams(window.location.search).get("tab");
       if (slug && SLUG_TABS[slug]) setTabState(SLUG_TABS[slug]);
@@ -281,9 +301,8 @@ export default function SettingsClient() {
   if (!profile || !settings || !auth) return null;
 
   const persist = (patch) => {
-    const next = { ...profile, ...patch };
+    const next = saveProfileLocally(patch);
     setProfile(next);
-    saveProfile(patch);
   };
 
   const persistSettings = async (patch) => {
@@ -383,7 +402,24 @@ export default function SettingsClient() {
       setToast(t(lang, "Profile saved successfully!"));
     } catch (err) {
       console.error("Save profile error:", err);
-      setToast(err.message || t(lang, "Failed to save profile. Please check your phone number and try again."));
+      const errMsg = err.message || "";
+      const isPhoneErr =
+        err.status === 400 ||
+        errMsg.toLowerCase().includes("phone") ||
+        errMsg.toLowerCase().includes("mobile") ||
+        errMsg.toLowerCase().includes("already exists") ||
+        errMsg.toLowerCase().includes("already added");
+
+      if (isPhoneErr) {
+        const phoneErrorText =
+          errMsg.includes("already exists") || errMsg.includes("already added") || errMsg.includes("BR-101-01")
+            ? t(lang, "An active account with this phone number already exists.")
+            : (errMsg || t(lang, "Invalid phone number. Please check and try again."));
+        formik.setFieldError("phone", phoneErrorText);
+        setToast(phoneErrorText);
+      } else {
+        setToast(errMsg || t(lang, "Failed to save profile. Please check your phone number and try again."));
+      }
     } finally {
       setIsSaving(false);
     }
@@ -411,8 +447,21 @@ export default function SettingsClient() {
       setToast(t(lang, "Phone number updated successfully!"));
     } catch (err) {
       console.error("Save account phone error:", err);
-      setAccountPhoneErr(err.message || t(lang, "Failed to update phone number."));
-      setToast(err.message || t(lang, "Failed to update phone number."));
+      const errMsg = err.message || "";
+      const isPhoneErr =
+        err.status === 400 ||
+        errMsg.toLowerCase().includes("phone") ||
+        errMsg.toLowerCase().includes("mobile") ||
+        errMsg.toLowerCase().includes("already exists") ||
+        errMsg.toLowerCase().includes("already added");
+
+      const phoneErrorText =
+        isPhoneErr && (errMsg.includes("already exists") || errMsg.includes("already added") || errMsg.includes("BR-101-01"))
+          ? t(lang, "An active account with this phone number already exists.")
+          : (errMsg || t(lang, "Failed to update phone number."));
+
+      setAccountPhoneErr(phoneErrorText);
+      setToast(phoneErrorText);
     } finally {
       setIsSavingAccountPhone(false);
     }
@@ -484,17 +533,37 @@ export default function SettingsClient() {
     const file = e.target.files && e.target.files[0];
     e.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setToast(t(lang, "Please select an image file (JPG, PNG, etc.)."));
+
+    // Validate format: JPG, JPEG, PNG only
+    const validExtensions = [".jpg", ".jpeg", ".png"];
+    const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
+    const isImageMime = file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/jpg";
+    if (!validExtensions.includes(ext) || (!isImageMime && file.type)) {
+      setToast(t(lang, "Unsupported file format. Allowed formats: JPG, JPEG, and PNG only."));
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setToast(t(lang, "Profile photo must be under 5MB."));
+
+    // Validate size: max 2MB
+    if (file.size > 2 * 1024 * 1024) {
+      setToast(t(lang, "Profile photo must not exceed 2MB."));
       return;
     }
+
     try {
+      // 1. Instant local preview
       const dataUrl = await readFileAsDataUrl(file);
       persist({ personal: { ...profile.personal, photo: dataUrl, photoName: file.name } });
+
+      // 2. Direct upload to server
+      try {
+        const uploadedUrl = await uploadAvatar(file);
+        if (uploadedUrl) {
+          persist({ personal: { ...profile.personal, photo: uploadedUrl, photoName: file.name } });
+        }
+      } catch (uploadErr) {
+        console.warn("Direct avatar upload fallback:", uploadErr);
+      }
+
       setToast(t(lang, "Photo updated"));
     } catch {
       setToast(t(lang, "Could not read image file."));
@@ -525,21 +594,12 @@ export default function SettingsClient() {
     try {
       const dataUrl = await readFileAsDataUrl(file);
       const mime = file.type || (ext === ".pdf" ? "application/pdf" : "application/octet-stream");
-      const saved = await saveResume({ fileName: file.name, size: file.size, type: mime, dataUrl });
-      setProfile((prev) => ({
-        ...prev,
-        resume: {
-          fileName: file.name,
-          size: file.size,
-          type: mime,
-          dataUrl,
-          uploadedAt: saved?.uploadedAt || new Date().toISOString().slice(0, 10),
-        },
-      }));
+      await saveResume({ fileName: file.name, size: file.size, type: mime, dataUrl, file });
+      setProfile(getProfile());
       setToast(t(lang, "Résumé saved successfully!"));
     } catch (err) {
       console.error("Resume read error:", err);
-      setToast(t(lang, "Could not read resume file."));
+      setToast(t(lang, err.message || "Could not read resume file."));
     } finally {
       setResumeUploading(false);
     }
@@ -559,12 +619,9 @@ export default function SettingsClient() {
     if (file) handleResumeFile(file);
   };
 
-  const handleRemoveResume = async () => {
-    await removeResume();
-    setProfile((prev) => ({
-      ...prev,
-      resume: { fileName: "", uploadedAt: "", size: 0, type: "", dataUrl: "" },
-    }));
+  const handleRemoveResume = async (id) => {
+    await removeResume(id);
+    setProfile(getProfile());
     setToast(t(lang, "Résumé removed"));
   };
 
@@ -722,12 +779,18 @@ export default function SettingsClient() {
 
               {/* Profile Photo Upload + Random Avatar */}
               <div style={{ marginTop: 16 }}>
-                <label className="lv-field-label">{t(lang, "Profile Photo")}</label>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <label className="lv-field-label" style={{ marginBottom: 0 }}>{t(lang, "Profile Photo")}</label>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#64748b" }}>
+                    <Icon name="info" size={13} style={{ color: "#3b82f6" }} />
+                    {t(lang, "JPG, JPEG, PNG · Max 2MB")}
+                  </span>
+                </div>
                 <div className="lv-photo-row">
                   <div className="lv-photo-preview">
                     {profile.personal.photo ? (
                       <img
-                        src={profile.personal.photo}
+                        src={avatarPublicHref(profile.personal.photo) || profile.personal.photo}
                         alt="Profile"
                         className="lv-photo-img"
                         onError={(e) => {
@@ -762,7 +825,7 @@ export default function SettingsClient() {
                     <input
                       ref={photoInputRef}
                       type="file"
-                      accept="image/*"
+                      accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                       style={{ display: "none" }}
                       onChange={onPhotoChange}
                     />
@@ -1102,7 +1165,7 @@ export default function SettingsClient() {
 
             {/* ── Résumé Section (Upload with Drag-Drop + Base64 Storage + Actions) ── */}
             <div>
-              <h3 style={{ marginBottom: 14 }}>{t(lang, "Résumé")}</h3>
+              <h3 style={{ marginBottom: 14 }}>{t(lang, "Résumé")} <span style={{ fontWeight: 500, color: "#64748b", fontSize: 13 }}>({(profile.resumes || []).length}/{MAX_PROFILE_RESUMES})</span></h3>
 
               <div
                 className={`lv-resume-drop ${isResumeDragging ? "active" : ""}`}
@@ -1129,7 +1192,7 @@ export default function SettingsClient() {
                   type="button"
                   className="lv-photo-btn"
                   onClick={() => resumeInputRef.current?.click()}
-                  disabled={resumeUploading}
+                  disabled={resumeUploading || (profile.resumes || []).length >= MAX_PROFILE_RESUMES}
                 >
                   <Icon name="upload" size={14} />
                   {resumeUploading ? t(lang, "Uploading...") : t(lang, "Choose file")}
@@ -1377,8 +1440,20 @@ export default function SettingsClient() {
 
         {tab === "Privacy" && (
           <div className="lv-form-grid">
-            <Select label={t(lang, "Profile visibility")} value={settings.privacy.profileVisibility} onChange={(e) => persistSettings({ privacy: { ...settings.privacy, profileVisibility: e.target.value } })} options={VISIBILITY_OPTIONS.map((v) => ({ value: v, label: t(lang, v) }))} />
-            <Select label={t(lang, "Resume visibility")} value={settings.privacy.resumeVisibility} onChange={(e) => persistSettings({ privacy: { ...settings.privacy, resumeVisibility: e.target.value } })} options={RESUME_VISIBILITY_OPTIONS.map((v) => ({ value: v, label: t(lang, v) }))} />
+            <Select
+              label={t(lang, "Profile visibility")}
+              value={settings.privacy.profileVisibility}
+              onChange={(e) => persistSettings({ privacy: { ...settings.privacy, profileVisibility: e.target.value } })}
+              options={VISIBILITY_OPTIONS.map((v) => ({ value: v, label: t(lang, v) }))}
+              placeholder={t(lang, "Select profile visibility")}
+            />
+            <Select
+              label={t(lang, "Resume visibility")}
+              value={settings.privacy.resumeVisibility}
+              onChange={(e) => persistSettings({ privacy: { ...settings.privacy, resumeVisibility: e.target.value } })}
+              options={RESUME_VISIBILITY_OPTIONS.map((v) => ({ value: v, label: t(lang, v) }))}
+              placeholder={t(lang, "Select resume visibility")}
+            />
           </div>
         )}
 
@@ -1443,16 +1518,6 @@ export default function SettingsClient() {
                 }}
               >
                 <Icon name="log-out" size={16} /> {t(lang, "Logout")}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  resetAll();
-                  setToast(t(lang, "Demo data reset"));
-                  setTimeout(() => router.push("/"), 900);
-                }}
-              >
-                {t(lang, "Reset demo data")}
               </Button>
             </div>
             <div style={{ borderTop: "1px solid var(--border-default)", paddingTop: 24 }}>

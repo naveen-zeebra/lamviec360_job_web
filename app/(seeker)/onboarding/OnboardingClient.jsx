@@ -8,7 +8,7 @@ import Icon from "../../../components/ds/Icon";
 import Stepper from "../../../components/ds/Stepper";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { useLang, t } from "../../../utils/lang";
-import { getProfile, saveProfile, saveProfileLocally, saveResume, removeResume, computeCompleteness, getAuth } from "../../../lib/seekerStore";
+import { getProfile, saveProfile, saveProfileLocally, saveResume, removeResume, computeCompleteness, getAuth, MAX_PROFILE_RESUMES, MAX_RESUME_ERROR, uploadAvatar, avatarPublicHref } from "../../../lib/seekerStore";
 import CitizenshipIdInput from "../../../components/seeker/CitizenshipIdInput";
 import SkillSelectorRedesigned from "../../../components/seeker/SkillSelectorRedesigned";
 import AchievementsManager from "../../../components/seeker/AchievementsManager";
@@ -343,18 +343,40 @@ export default function OnboardingClient() {
   const onPhotoChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setErr(t(lang, "Please select an image file (JPG, PNG, etc.)."));
+    // Validate format: JPG, JPEG, PNG only
+    const validExtensions = [".jpg", ".jpeg", ".png"];
+    const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
+    const isImageMime = file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/jpg";
+    if (!validExtensions.includes(ext) || (!isImageMime && file.type)) {
+      const msg = t(lang, "Unsupported file format. Allowed formats: JPG, JPEG, and PNG only.");
+      setErr(msg);
+      setToast(msg);
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setErr(t(lang, "Profile photo must be under 5MB."));
+
+    // Validate size: max 2MB
+    if (file.size > 2 * 1024 * 1024) {
+      const msg = t(lang, "Profile photo must not exceed 2MB.");
+      setErr(msg);
+      setToast(msg);
       return;
     }
     setErr("");
     try {
+      // 1. Instant local preview
       const dataUrl = await readFileAsDataUrl(file);
       persist({ personal: { ...profile.personal, photo: dataUrl, photoName: file.name } });
+
+      // 2. Direct upload to server
+      try {
+        const uploadedUrl = await uploadAvatar(file);
+        if (uploadedUrl) {
+          persist({ personal: { ...profile.personal, photo: uploadedUrl, photoName: file.name } });
+        }
+      } catch (uploadErr) {
+        console.warn("Direct avatar upload fallback in onboarding:", uploadErr);
+      }
+
       setToast(t(lang, "Photo updated"));
     } catch {
       setErr(t(lang, "Could not read image file."));
@@ -387,21 +409,12 @@ export default function OnboardingClient() {
     try {
       const dataUrl = await readFileAsDataUrl(file);
       const mime = file.type || (ext === ".pdf" ? "application/pdf" : "application/octet-stream");
-      const saved = await saveResume({ fileName: file.name, size: file.size, type: mime, dataUrl });
-      setProfile((prev) => ({
-        ...prev,
-        resume: {
-          fileName: file.name,
-          size: file.size,
-          type: mime,
-          dataUrl,
-          uploadedAt: saved?.uploadedAt || new Date().toISOString().slice(0, 10),
-        },
-      }));
+      await saveResume({ fileName: file.name, size: file.size, type: mime, dataUrl, file });
+      setProfile(getProfile());
       setToast(t(lang, "Resume uploaded successfully!"));
     } catch (e) {
       console.error("Resume upload error:", e);
-      setErr(t(lang, "Could not read resume file."));
+      setErr(t(lang, e.message || "Could not read resume file."));
     } finally {
       setResumeUploading(false);
     }
@@ -421,12 +434,9 @@ export default function OnboardingClient() {
     if (file) handleResumeFile(file);
   };
 
-  const handleRemoveResume = async () => {
-    await removeResume();
-    setProfile((prev) => ({
-      ...prev,
-      resume: { fileName: "", uploadedAt: "", size: 0, type: "", dataUrl: "" },
-    }));
+  const handleRemoveResume = async (id) => {
+    await removeResume(id);
+    setProfile(getProfile());
     setToast(t(lang, "Resume removed"));
   };
 
@@ -573,15 +583,21 @@ export default function OnboardingClient() {
 
               {/* Profile photo upload + random avatar */}
               <div className="flex flex-col gap-1.5 font-body col-span-1 md:col-span-2">
-                <label className="text-xs sm:text-sm font-semibold text-ink select-none">
-                  {t(lang, "Profile Photo")}
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs sm:text-sm font-semibold text-ink select-none">
+                    {t(lang, "Profile Photo")}
+                  </label>
+                  <span className="inline-flex items-center gap-1 text-xs text-muted">
+                    <Icon name="info" size={13} className="text-blue-500" />
+                    {t(lang, "JPG, JPEG, PNG · Max 2MB")}
+                  </span>
+                </div>
                 <div className="flex items-center gap-4 flex-wrap pt-0.5">
                   {/* Preview */}
                   <div className="relative shrink-0">
                     {profile.personal.photo ? (
                       <img
-                        src={profile.personal.photo}
+                        src={avatarPublicHref(profile.personal.photo) || profile.personal.photo}
                         alt="Profile"
                         className="w-20 h-20 rounded-full object-cover border border-line shadow-xs"
                         onError={(e) => {
@@ -619,7 +635,7 @@ export default function OnboardingClient() {
                     <input
                       ref={photoInputRef}
                       type="file"
-                      accept="image/*"
+                      accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                       className="hidden"
                       onChange={onPhotoChange}
                     />

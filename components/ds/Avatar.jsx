@@ -7,10 +7,15 @@ export default function Avatar({ src, name = "", size = 40, shape = "circle" }) 
     .join("")
     .toUpperCase();
   const radius = shape === "circle" ? "50%" : "var(--radius-md)";
-  if (src) {
+  const resolvedSrc =
+    src && !src.startsWith("http") && !src.startsWith("data:") && !src.startsWith("blob:")
+      ? `${process.env.NEXT_PUBLIC_LOCAL_API_TARGET || "http://localhost:8001"}${src.startsWith("/") ? src : `/${src}`}`
+      : src;
+
+  if (resolvedSrc) {
     return (
       <img
-        src={src}
+        src={resolvedSrc}
         alt={name}
         className="border border-line object-cover"
         style={{ width: size, height: size, borderRadius: radius }}

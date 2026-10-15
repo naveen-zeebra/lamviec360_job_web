@@ -8,7 +8,18 @@ import Stepper from "../../../../components/ds/Stepper";
 import Check from "../../../../components/ds/Check";
 import { useLang, t } from "../../../../utils/lang";
 
-import { getProfile, hasAppliedToJob, addApplication, addNotification, saveResume, computeCompleteness } from "../../../../lib/seekerStore";
+import {
+  getProfile,
+  hasAppliedToJob,
+  getApplicationByJobId,
+  withdrawApplication,
+  addApplication,
+  addNotification,
+  refreshResumesFromApi,
+  computeCompleteness,
+  MAX_PROFILE_RESUMES,
+  MAX_RESUME_ERROR,
+} from "../../../../lib/seekerStore";
 import { fetchPublicJobDetail } from "../../../../lib/api/publicApi";
 
 const STEP_LABELS = ["Review Profile", "Resume", "Questions", "Additional", "Review", "Consent"];
@@ -24,8 +35,16 @@ export default function ApplyClient({ jobId }) {
   const draftKey = `lv360-apply-draft-${jobId}`;
   const [profile, setProfile] = useState(null);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
+  const [existingApp, setExistingApp] = useState(null);
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [step, setStep] = useState(1);
   const [resumeFileName, setResumeFileName] = useState("");
+  const [resumes, setResumes] = useState([]);
+  const [selectedResumeId, setSelectedResumeId] = useState("");
+  const [applyResumeFile, setApplyResumeFile] = useState(null);
+  const [saveApplyResumeToProfile, setSaveApplyResumeToProfile] = useState(true);
   const [answers, setAnswers] = useState({ noticePeriod: "", expectedSalary: "", whyFit: "" });
   const [coverLetter, setCoverLetter] = useState("");
   const [consent, setConsent] = useState(false);
@@ -104,10 +123,21 @@ export default function ApplyClient({ jobId }) {
     if (!job) return;
     const p = getProfile();
     setProfile(p);
-    setResumeFileName(p.resume?.fileName || "");
+    refreshResumesFromApi().then((list) => {
+      setResumes(list);
+      const def = list.find((r) => r.isDefault) || list[0];
+      if (def) {
+        setSelectedResumeId(def.id);
+        setResumeFileName(def.fileName);
+      } else {
+        setResumeFileName(p.resume?.fileName || "");
+      }
+    });
     if (p.certifications && p.certifications.length > 0) {
       setSelectedCertIds(p.certifications.map((c) => c.id || c.name));
     }
+    const foundApp = getApplicationByJobId(job.id);
+    setExistingApp(foundApp);
     setAlreadyApplied(hasAppliedToJob(job.id));
     try {
       const raw = localStorage.getItem(draftKey);
@@ -116,6 +146,7 @@ export default function ApplyClient({ jobId }) {
         if (d.answers) setAnswers(d.answers);
         if (d.coverLetter) setCoverLetter(d.coverLetter);
         if (d.step) setStep(d.step);
+        if (d.selectedResumeId) setSelectedResumeId(d.selectedResumeId);
         setDraftSaved(true);
       }
     } catch (e) { }
@@ -141,7 +172,7 @@ export default function ApplyClient({ jobId }) {
 
   const saveDraft = () => {
     try {
-      localStorage.setItem(draftKey, JSON.stringify({ answers, coverLetter, step }));
+      localStorage.setItem(draftKey, JSON.stringify({ answers, coverLetter, step, selectedResumeId }));
       setDraftSaved(true);
     } catch (e) { }
   };
@@ -151,25 +182,193 @@ export default function ApplyClient({ jobId }) {
     } catch (e) { }
   };
 
+  const handleWithdrawFromApplyPage = async () => {
+    if (!existingApp) return;
+    setWithdrawing(true);
+    try {
+      await withdrawApplication(existingApp.id);
+      setAlreadyApplied(false);
+      setWithdrawSuccess(true);
+      setIsWithdrawModalOpen(false);
+      setExistingApp((prev) => ({
+        ...prev,
+        stage: "Withdrawn",
+        status: "withdrawn",
+        closed: true,
+      }));
+    } catch (err) {
+      setErr(err.message || t(lang, "Could not withdraw application"));
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
   if (alreadyApplied && !result) {
+    const rawStage = existingApp?.stage || existingApp?.status || "Applied";
+    const currentAppStage = rawStage.toLowerCase() === "applied" ? "Applied" : rawStage;
+    // BR-301-04: Talent can withdraw application before screening stage only (status == "applied")
+    const canWithdraw = currentAppStage.toLowerCase() === "applied";
+
     return (
       <div className="lv-page-container">
         <div className="lv-empty">
-          <Icon name="check-circle" size={28} style={{ color: "var(--color-success)", margin: "0 auto 12px" }} />
+          <Icon name="check-circle" size={32} style={{ color: "var(--color-success)", margin: "0 auto 12px" }} />
           <h3>{t(lang, "You've already applied to this role")}</h3>
           <p>{titleText} · {job.company}</p>
-          <div style={{ marginTop: 20, display: "flex", gap: 12, justifyContent: "center" }}>
-            <Link href="/applications">
-              <Button variant="primary">{t(lang, "View Application Tracker")}</Button>
-            </Link>
+
+          <div style={{
+            margin: "12px auto 16px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 14px",
+            background: canWithdraw ? "#ecfdf5" : "#eff6ff",
+            color: canWithdraw ? "#065f46" : "#1e40af",
+            borderRadius: "9999px",
+            fontSize: "var(--text-xs)",
+            fontWeight: 600
+          }}>
+            <Icon name={canWithdraw ? "clock" : "search"} size={13} />
+            <span>{t(lang, "Status")}: {t(lang, currentAppStage)}</span>
+          </div>
+
+          <p style={{ maxWidth: 460, margin: "0 auto 24px", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: 1.6 }}>
+            {canWithdraw
+              ? (lang === "VN" || lang === "VI"
+                ? "Hồ sơ của bạn đã được gửi tới nhà tuyển dụng và đang chờ xét duyệt. Bạn có thể rút hồ sơ trước khi nhà tuyển dụng bắt đầu xét duyệt (BR-301-04)."
+                : "Your application is waiting for employer screening. You may withdraw your application before employer screening begins per BR-301-04.")
+              : (lang === "VN" || lang === "VI"
+                ? "Hồ sơ đang trong quy trình xét duyệt của nhà tuyển dụng. Chỉ có thể rút hồ sơ khi ở trạng thái 'Đã nộp' (BR-301-04)."
+                : "Employer screening is underway for this position; applications cannot be withdrawn after screening begins (BR-301-04).")}
+          </p>
+
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            {existingApp && (
+              <Link href={`/applications/${existingApp.id}`}>
+                <Button variant="primary">{t(lang, "View Application Details")}</Button>
+              </Link>
+            )}
+            {canWithdraw && (
+              <Button
+                variant="secondary"
+                onClick={() => setIsWithdrawModalOpen(true)}
+                style={{
+                  color: "var(--color-error, #ef4444)",
+                  borderColor: "rgba(239, 68, 68, 0.4)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                <Icon name="undo-2" size={14} />
+                {t(lang, "Withdraw application")}
+              </Button>
+            )}
             <Link href="/jobs">
               <Button variant="secondary">{t(lang, "Find More Jobs")}</Button>
             </Link>
           </div>
         </div>
+
+        {/* Confirmation Modal for Withdrawal */}
+        {isWithdrawModalOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            style={{
+              position: "fixed",
+              inset: 0,
+              backgroundColor: "rgba(15, 23, 42, 0.6)",
+              backdropFilter: "blur(4px)",
+              zIndex: 9999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "16px",
+            }}
+            onClick={() => !withdrawing && setIsWithdrawModalOpen(false)}
+          >
+            <div
+              style={{
+                background: "#ffffff",
+                color: "#0f172a",
+                borderRadius: "16px",
+                maxWidth: "460px",
+                width: "100%",
+                padding: "24px",
+                boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                border: "1px solid #e2e8f0",
+                textAlign: "left",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    background: "#fef2f2",
+                    color: "#ef4444",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon name="alert-triangle" size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 700 }}>
+                    {t(lang, "Withdraw application")}
+                  </h3>
+
+                </div>
+              </div>
+
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", lineHeight: 1.6, margin: "0 0 20px" }}>
+                <strong>{t(lang, "Withdraw this application? This can't be undone.")}</strong>
+                <br />
+                {lang === "VN" || lang === "VI"
+                  ? `Bạn đang rút hồ sơ cho vị trí "${titleText}" tại ${job.company}. Nhà tuyển dụng sẽ không tiếp tục xét duyệt hồ sơ này.`
+                  : `You are withdrawing your application for "${titleText}" at ${job.company}. The employer will no longer consider this application.`}
+              </p>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                <Button
+                  variant="secondary"
+                  disabled={withdrawing}
+                  onClick={() => setIsWithdrawModalOpen(false)}
+                >
+                  {t(lang, "Cancel")}
+                </Button>
+                <Button
+                  variant="primary"
+                  disabled={withdrawing}
+                  onClick={handleWithdrawFromApplyPage}
+                  style={{
+                    background: "#ef4444",
+                    borderColor: "#ef4444",
+                    color: "#ffffff",
+                  }}
+                >
+                  {withdrawing ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <Icon name="loader" size={14} className="spin" />
+                      {lang === "VN" || lang === "VI" ? "Đang xử lý..." : "Withdrawing..."}
+                    </span>
+                  ) : (
+                    t(lang, "Withdraw")
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
+
 
   if (result) {
     return (
@@ -229,7 +428,7 @@ export default function ApplyClient({ jobId }) {
       return t(lang, `A Job Seeker must have at least 60% profile completeness to apply for a job. Your profile is currently at ${completeness}%.`);
     }
     if (step === 1 && !profile.personal.fullName.trim()) return t(lang, "Add your full name in Profile settings before applying.");
-    if (step === 2 && !resumeFileName) return t(lang, "Please add a résumé before continuing.");
+    if (step === 2 && !resumeFileName && !applyResumeFile) return t(lang, "Please add a résumé before continuing.");
     if (step === 3 && !answers.noticePeriod) return t(lang, "Please answer the notice period question.");
     if (step === 3 && !answers.whyFit.trim()) return t(lang, "Please tell the employer why you're a good fit.");
     return "";
@@ -264,18 +463,9 @@ export default function ApplyClient({ jobId }) {
       return;
     }
     setErr("");
-    const persist = (dataUrl) => {
-      saveResume({ fileName: file.name, size: file.size, type: file.type, dataUrl: dataUrl || "" });
-      setResumeFileName(file.name);
-    };
-    if (file.size <= STORE_BYTES) {
-      const reader = new FileReader();
-      reader.onload = () => persist(reader.result);
-      reader.onerror = () => persist("");
-      reader.readAsDataURL(file);
-    } else {
-      persist("");
-    }
+    setApplyResumeFile(file);
+    setResumeFileName(file.name);
+    setSelectedResumeId("");
   };
 
   const submit = async () => {
@@ -307,6 +497,9 @@ export default function ApplyClient({ jobId }) {
         jobId: job.id,
         job: job,
         resumeFileName,
+        resumeId: applyResumeFile ? null : selectedResumeId,
+        resumeFile: applyResumeFile,
+        saveToProfile: saveApplyResumeToProfile,
         coverLetter,
         answers,
         certifications: certsToAttach,
@@ -339,7 +532,31 @@ export default function ApplyClient({ jobId }) {
         <h1>{t(lang, "Apply for")} {titleText}</h1>
         <p>{job.company} · {lang === "VN" || lang === "VI" ? job.locationVi : job.location}</p>
       </div>
+
+      {(withdrawSuccess || (existingApp && (existingApp.status === "withdrawn" || (existingApp.stage || "").toLowerCase() === "withdrawn"))) && (
+        <div style={{
+          padding: "12px 16px",
+          marginBottom: 20,
+          background: "#f0fdf4",
+          border: "1px solid #bbf7d0",
+          borderRadius: 10,
+          color: "#166534",
+          fontSize: "var(--text-sm)",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}>
+          <Icon name="info" size={18} style={{ color: "#16a34a", flexShrink: 0 }} />
+          <span>
+            {lang === "VN" || lang === "VI"
+              ? "Bạn đã rút hồ sơ cho vị trí này trước đó. Bạn có thể nộp lại hồ sơ ứng tuyển mới bên dưới."
+              : "You previously withdrew your application for this position. You can submit a fresh application below."}
+          </span>
+        </div>
+      )}
+
       <Stepper steps={STEP_LABELS.map((l) => t(lang, l))} current={step} />
+
 
       {draftSaved && step < 6 && (
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: "12px 0 -4px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -439,38 +656,67 @@ export default function ApplyClient({ jobId }) {
 
         {step === 2 && (
           <div>
-            <h2 style={{ fontSize: "var(--text-lg)", marginBottom: 16 }}>{t(lang, "Resume")}</h2>
-            {resumeFileName ? (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 8, padding: "12px 16px", marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ background: "#e0e7ff", color: "#4f46e5", padding: 8, borderRadius: 6 }}>
-                    <Icon name="file-text" size={20} />
-                  </div>
-                  <div>
-                    <strong style={{ display: "block", fontSize: 14, color: "#0f172a", marginBottom: 2 }}>{resumeFileName}</strong>
-                    <span style={{ fontSize: 12, color: "#64748b" }}>{profile.resume?.size ? (profile.resume.size / 1024 / 1024).toFixed(2) + " MB" : t(lang, "Resume ready")}</span>
-                  </div>
-                </div>
-                {profile.resume?.dataUrl && (
-                  <a href={profile.resume.dataUrl} download={resumeFileName} style={{ display: "flex", alignItems: "center", gap: 6, color: "#0284c7", fontSize: 13, fontWeight: 600, textDecoration: "none", padding: "6px 12px", background: "#e0f2fe", borderRadius: 6 }}>
-                    <Icon name="download" size={14} />
-                    {t(lang, "Download")}
-                  </a>
-                )}
-              </div>
-            ) : (
+            <h2 style={{ fontSize: "var(--text-lg)", marginBottom: 8 }}>{t(lang, "Resume")}</h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: 16 }}>
+              {t(lang, "Choose a saved résumé or upload a new file for this application.")}
+            </p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
+                {t(lang, "Select from your profile")} ({resumes.length}/{MAX_PROFILE_RESUMES})
+              </span>
+              <Link href="/resume" className="lv-job-view" style={{ display: "inline-flex" }}>
+                {t(lang, "Manage résumés")} <Icon name="arrow-right" size={14} />
+              </Link>
+            </div>
+
+            {resumes.length === 0 && !applyResumeFile ? (
               <div style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "24px", textAlign: "center", marginBottom: 20 }}>
                 <Icon name="upload-cloud" size={32} style={{ color: "#94a3b8", marginBottom: 12 }} />
                 <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{t(lang, "No resume on file yet.")}</p>
                 <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{t(lang, "PDF, DOC, DOCX only. Max 5MB.")}</p>
               </div>
+            ) : (
+              <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
+                {resumes.map((r) => {
+                  const isSelected = !applyResumeFile && String(selectedResumeId) === String(r.id);
+                  return (
+                    <div
+                      key={r.id}
+                      onClick={() => {
+                        setApplyResumeFile(null);
+                        setSelectedResumeId(r.id);
+                        setResumeFileName(r.fileName);
+                      }}
+                      style={{
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "12px 14px",
+                        borderRadius: 10,
+                        background: isSelected ? "#eff6ff" : "#ffffff",
+                        border: isSelected ? "1.5px solid #3b82f6" : "1px solid #cbd5e1",
+                      }}
+                    >
+                      <div style={{ width: 20, height: 20, borderRadius: "50%", border: isSelected ? "6px solid #2563eb" : "1.5px solid #cbd5e1", flexShrink: 0 }} />
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <strong style={{ display: "block", fontSize: 13 }}>{r.fileName}</strong>
+                        <span style={{ fontSize: 11, color: "#64748b" }}>
+                          {r.size ? `${(r.size / 1024).toFixed(0)} KB` : t(lang, "Saved résumé")}
+                          {r.isDefault ? ` · ${t(lang, "Default")}` : ""}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
 
             <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "16px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 12 }}>
-                {t(lang, "Upload or replace")} <span style={{ color: "var(--red-500)" }}>*</span>
+                {t(lang, "Upload new for this application")}
               </label>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                 <input
                   type="file"
                   id="resume-upload"
@@ -481,14 +727,30 @@ export default function ApplyClient({ jobId }) {
                 <label
                   htmlFor="resume-upload"
                   style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, background: "#f8fafc", padding: "8px 16px", borderRadius: 6, fontSize: 13, fontWeight: 600, color: "#334155", border: "1px solid #cbd5e1" }}
-                  onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
-                  onMouseLeave={(e) => e.target.style.background = "#f8fafc"}
                 >
                   <Icon name="upload" size={16} />
                   {t(lang, "Choose File")}
                 </label>
                 <span style={{ fontSize: 12, color: "#64748b" }}>{t(lang, "PDF, DOC, DOCX up to 5MB")}</span>
               </div>
+              {applyResumeFile && (
+                <div style={{ marginTop: 12, padding: "10px 12px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8 }}>
+                  <strong style={{ display: "block", fontSize: 13 }}>{applyResumeFile.name}</strong>
+                  <span style={{ fontSize: 12, color: "#166534" }}>{t(lang, "Will be attached to this application")}</span>
+                  {resumes.length < MAX_PROFILE_RESUMES ? (
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12 }}>
+                      <input
+                        type="checkbox"
+                        checked={saveApplyResumeToProfile}
+                        onChange={(e) => setSaveApplyResumeToProfile(e.target.checked)}
+                      />
+                      {t(lang, "Also save to my profile")}
+                    </label>
+                  ) : (
+                    <p style={{ fontSize: 12, color: "#64748b", marginTop: 8 }}>{t(lang, MAX_RESUME_ERROR)}</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -825,5 +825,11 @@
   "e.g. Ho Chi Minh City": "e.g. Ho Chi Minh City",
   "e.g. 35,000,000 VND": "e.g. 35,000,000 VND",
   "Brief summary of your professional background...": "Brief summary of your professional background...",
-  "e.g. English, Vietnamese": "e.g. English, Vietnamese"
+  "e.g. English, Vietnamese": "e.g. English, Vietnamese",
+  "JPG, JPEG, PNG · Max 2MB": "JPG, JPEG, PNG · Max 2MB",
+  "Profile photo must not exceed 2MB.": "Profile photo must not exceed 2MB.",
+  "Unsupported file format. Allowed formats: JPG, JPEG, and PNG only.": "Unsupported file format. Allowed formats: JPG, JPEG, and PNG only.",
+  "Select profile visibility": "Select profile visibility",
+  "Select resume visibility": "Select resume visibility"
+
 }

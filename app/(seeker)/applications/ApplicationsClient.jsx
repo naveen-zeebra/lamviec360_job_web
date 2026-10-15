@@ -9,7 +9,8 @@ import StageBadge from "../../../components/seeker/StageBadge";
 import { useLang, t } from "../../../utils/lang";
 import { formatDate } from "../../../utils/format";
 
-import { listApplications } from "../../../lib/seekerStore";
+import { listApplications, syncSeekerWithBackend } from "../../../lib/seekerStore";
+import { getSeekerToken } from "../../../lib/api/client";
 
 const FILTERS = [
   { key: "active", label: "Active" },
@@ -29,8 +30,14 @@ export default function ApplicationsClient() {
       setState({ loading: false, error: true, data: null });
     }
   };
+
   useEffect(() => {
     load();
+    if (getSeekerToken()) {
+      syncSeekerWithBackend()
+        .then(() => load())
+        .catch(() => {});
+    }
   }, []);
 
   const { loading, error, data } = state;
@@ -53,12 +60,24 @@ export default function ApplicationsClient() {
     );
   }
 
-  const dataWithDefaults = data.map(a => {
-    const isClosed = a.closed !== undefined ? a.closed : (a.status === 'rejected' || a.status === 'hired' || a.status === 'closed');
-    const stage = a.stage || a.status || "Applied";
+  const dataWithDefaults = (data || []).map(a => {
+    const rawStage = a.stage || a.status || "Applied";
+    const stage = rawStage.toLowerCase() === "withdrawn" ? "Withdrawn" : (rawStage.toLowerCase() === "applied" ? "Applied" : rawStage);
+    const isClosed = a.closed !== undefined
+      ? a.closed
+      : (
+          a.status === 'rejected' ||
+          a.status === 'hired' ||
+          a.status === 'closed' ||
+          a.status === 'withdrawn' ||
+          stage === 'Withdrawn' ||
+          stage === 'Rejected' ||
+          stage === 'Hired'
+        );
     const appliedAt = a.appliedDate || a.applied_at || a.created_at;
     return { ...a, _isClosed: isClosed, _stage: stage, _appliedAt: appliedAt };
   });
+
 
   const counts = {
     all: dataWithDefaults.length,

@@ -1,0 +1,344 @@
+Functional Specification Document
+Public Portal & Job Seeker Experience
+Public job search + JSP — apply, track, profile, documents, AI interview prep
+Document ID
+LV360-FSD-002
+Module
+Public Portal (p01–p05) + JSP — Job Seeker Portal (js01–js13)
+Based On
+LamViec360 BRD v1.1 (Ch. 10.3, 10.6, 11.4) — governing business layer; PRD v1.1 Sections 3.2, 4–8.3 — screen/field detail
+Primary Roles
+Guest (unauthenticated visitor), Job Seeker
+Version
+1.1
+Status
+Draft for Review — Realigned to finalized BRD
+1. Purpose & Scope
+This Functional Specification Document elaborates the public-facing job portal and the authenticated Job Seeker Portal (JSP) into implementation-ready detail. The two are combined into a single document because they form one continuous journey: a guest browses jobs anonymously (Public Portal) and, on applying, is required to authenticate and continues into the Job Seeker Portal proper. Screen IDs p01–p05 are pre-login/public; js01, js03–js13 (js02 and js08 are reserved, unassigned IDs) are post-login.
+This document should be read alongside:
+LV360-FSD-001 — Authentication & Account Management (registration/login triggered from Apply)
+LV360-FSD-004 — Candidate Pipeline & Team Management (employer side of the application lifecycle)
+LV360-FSD-006 — Notifications & Communication (status-change and interview emails)
+2. Traceability to Business Requirements Document (BRD)
+FSD Requirement
+BRD Requirement
+BRD Requirement Text
+JSP-FR-001/002/013a/b (Search & Discovery)
+LV-BRD-REQ-0004
+Enable talent to discover relevant employment opportunities
+JSP-FR-003 (Job Detail)
+LV-BRD-REQ-0004
+Enable talent to discover relevant employment opportunities
+JSP-FR-004 (Profile) / FR-004b (Multi-Resume, new)
+LV-BRD-REQ-0002 / 0003
+Maintain a comprehensive professional profile / support creation, upload and ongoing management of professional resumes
+JSP-FR-005 (One-Click Apply)
+LV-BRD-REQ-0006
+Enable talent to apply for suitable opportunities
+JSP-FR-006 (Saved Jobs)
+LV-BRD-REQ-0004
+Enable talent to discover relevant employment opportunities
+JSP-FR-007/007b (Application Tracker)
+LV-BRD-REQ-0007
+Enable talent to monitor recruitment progress throughout the hiring lifecycle
+JSP-FR-008 (Status Notifications)
+LV-BRD-REQ-0007
+Monitor recruitment progress throughout the hiring lifecycle
+JSP-FR-009 (AI Interview Prep)
+LV-BRD-REQ-0023
+Artificial Intelligence shall assist interview preparation
+JSP-FR-010 (Job Recommendations)
+LV-BRD-REQ-0005
+Recommend relevant opportunities using Artificial Intelligence
+JSP-FR-011 (Guided Profile Completion)
+LV-BRD-REQ-0002
+Maintain a comprehensive professional profile
+JSP-FR-012 (Document Archive)
+LV-BRD-REQ-0003
+Support creation, upload and ongoing management of professional resumes
+2.1 Gap Identified During BRD Alignment — Multiple Resume Support
+BRD requirement LV-BRD-REQ-0003 explicitly calls for 'ongoing management of professional resumes' (plural), and this is reinforced directly by Business Rule LV-BR-0007: 'A Talent may maintain multiple resumes tailored for different industries, roles, or career objectives.' The BRD goes further and flags this as a competitive differentiator — most competing platforms support only a single resume.
+The original PRD-derived JSP-FR-004 only specified a single resume/document upload as part of the profile. This is a genuine capability gap, not a documentation gap — the underlying data model and screens need to change. This revision adds JSP-FR-004b (Section 6) to close it; see the Open Items section for the follow-on screen-design question this raises.
+3. Roles in Scope
+Role
+Relevance
+Guest
+Browses jobs, views employer directory, cannot apply or save jobs without registering
+Job Seeker
+Full portal access: apply, track, save jobs, manage profile and documents, AI interview prep
+4. Screens in Scope
+Screen ID
+Screen Name
+Access
+Purpose
+p01
+Homepage
+Public
+Landing page, featured jobs, employer highlights
+p02
+Job Search
+Public
+Keyword/filter search across all published jobs
+p03
+Job Detail
+Public
+Full JD; 'Apply Now' gated behind login
+p04
+Employer Landing
+Public
+Marketing page directing employers to register
+p05
+Company Directory
+Public
+Browsable list of verified/registered companies
+js01
+JS Dashboard
+Job Seeker
+Personalized home: recommendations, events, quick links
+js03
+Apply Form
+Job Seeker
+One-click apply using saved profile + optional cover letter
+js04
+Application Tracker
+Job Seeker
+List of all applications with current stage
+js05
+Application Detail
+Job Seeker
+Single application detail incl. stage-duration indicator
+js06
+Saved Jobs
+Job Seeker
+Personal shortlist of jobs saved for later
+js07
+Profile Editor
+Job Seeker
+Personal details, experience, education, skills, resume
+js09
+Document Archive
+Job Seeker
+Named, multi-resume management (js09) + encrypted storage of past employment documents
+js10
+Upload Document
+Job Seeker
+Upload flow feeding both Profile and Document Archive
+js11
+AI Interview Prep
+Job Seeker
+AI-generated practice questions per selected application
+js12
+Notifications
+Job Seeker
+In-app notification center
+js13
+Account Settings
+Job Seeker
+Security, language, and notification preference settings
+5. Functional Specifications — Public Portal
+JSP-FR-001  — Public Job Search
+The system shall provide public-facing job search, accessible without login, filterable by keyword, job title, location (province/city), industry, salary range (VND), and job type (full-time, part-time, remote, contract).
+Priority: P1 Must Have   |   Screens: p01, p02, p05
+JSP-FR-002  — Job Search Results
+Search results shall be presented as job cards showing: Job Title, Company Name, Logo, Location, Salary Range (VND), Date Posted, and Job Type tag. Results shall be sortable by date and by relevance.
+Priority: P1 Must Have   |   Screens: p01, p02
+JSP-FR-003  — Job Detail Page
+The Job Detail page shall display the full job description, qualifications, company description, application deadline, location, and salary range, with an 'Apply Now' action that requires login before the application can proceed.
+Salary Range display format: "[Min] - [Max] VND (Gross/Net)". If Negotiable, display: "Mức lương: Thỏa thuận"
+Priority: P1 Must Have   |   Screens: p03   |   Business Rules: BR-009
+JSP-FR-013a  — Homepage Events Widget
+The Homepage shall include a section showing events for the current month (seminars, webinars, exhibitions related to job seekers and employers) that candidates can click through to review externally hosted event details.
+Priority: P2 Should Have   |   Screens: p01, js01
+JSP-FR-013b  — Employer Directory Slider
+The Homepage/landing page shall show a slide-style list of employer companies with their current job openings.
+Priority: P2 Should Have   |   Screens: p01, p05
+6. Functional Specifications — Job Seeker Portal
+JSP-FR-004  — Job Seeker Profile
+Job Seekers shall create and maintain a profile covering personal details, work experience, education, skills, languages, desired salary range (VND), and resume/document upload.
+Priority: P1 Must Have   |   Screens: js07, js10
+Field-Level Detail:
+Accepted upload formats: PDF, DOC, DOCX, JPG, PNG
+Maximum file size: 10MB. Example: Resume (3MB) + Portfolio (5MB) + Certificate (2MB) = 10MB total. If total exceeds 10MB: error message "Total file size cannot exceed 10MB. Please reduce file sizes or remove some documents."
+JSP-FR-004b  — Multiple Resume Management (new — added per BRD LV-BR-0007)
+A Job Seeker shall be able to maintain more than one named resume/CV within their profile — e.g. 'Software Engineer CV', 'Product Management CV' — each independently uploadable or built from profile data, editable, and deletable. One resume shall be marked as Default. This extends js07/js10 and is a required addition, not an optional enhancement, per BRD LV-BR-0007.
+Priority: P1 Must Have   |   Screens: js07, js09, js10   |   Business Rules: LV-BR-0007
+Field-Level Detail:
+Resume list view (extends js09 Document Archive): Resume Name, Last Updated, Default flag, Used-in-Application count
+'Set as Default' action — the Default resume is what One-Click Apply (JSP-FR-005) pre-fills unless the candidate explicitly picks a different one at the point of application
+Application Detail (js05) should show which named resume was submitted with a given application, for the candidate's own reference
+JSP-FR-005  — One-Click Apply
+JSP-FR-005a
+Job Seekers shall be able to apply using their saved profile in one click, with an optional cover letter. 
+- Profile completeness must be ≥ 60% to enable Apply button (per BRD BR-101-02). 
+- If < 60%: Apply button disabled with tooltip: "Please complete your profile to at least 60% before applying." 
+- Completeness calculation: (filled required fields / total required fields) × 100% 
+- Required fields: Name, Email, Phone, Location, Work Experience (≥1), Education (≥1), Skills (≥3), Resume (≥1)
+The system shall pre-populate the application form from the profile, using the Default resume (JSP-FR-004b) unless the candidate selects a different named resume for this specific application. A mandatory candidate data consent checkbox shall be displayed before final submission; applications cannot be submitted without explicit consent.
+JSP-FR-005b
+Candidates who have been rejected for a job cannot reapply to the same job for 90 days (per BRD BR-301-09).
+Field-Level Detail: 
+- If candidate previously applied and was rejected: Apply button disabled 
+- Tooltip message: "You applied for this position on [date] and were not selected. You can reapply after [date + 90 days]." 
+- If job is reposted by employer (new Job ID): reapplication allowed immediately 
+- System automatically unlocks reapplication after 90 days 
+- Reapplication treated as new application (fresh pipeline, no history carried over)
+Priority: P1 Must Have   |   Screens: js03   |   Business Rules: BR-011   |   Acceptance Criteria: AC-004, AC-016
+JSP-FR-006  — Saved Jobs
+Job Seekers shall be able to save listings to a personal 'Saved Jobs' list for later review.
+- Maximum 100 saved jobs per user (per BRD BR-201-05). 
+- Saved jobs automatically expire and are removed after 90 days if the job is closed (per BRD BR-201-04). 
+- Expired saved jobs show "Job No Longer Available" status with option to remove from list. 
+- User receives notification 7 days before expiry: "Your saved job '[Job Title]' will expire in 7 days."
+Priority: P2 Should Have   |   Screens: js06
+JSP-FR-007  — Application Tracker
+The Application Tracker shall show all submitted applications with current status: Applied, Under Review, Shortlisted, Phone Screening, Interview Scheduled, Offer Sent, Hired, Rejected. The progress visualization should be a clear, modern stepper (an improvement over prior baseline design per UX feedback).
+Job Seekers shall be able to withdraw their application before it reaches the Screening stage. 
+Field-Level Detail: 
+- "Withdraw Application" button visible only when status = "Applied" (before HR review) 
+- Confirmation modal: "Are you sure you want to withdraw this application? This action cannot be undone." 
+- Withdrawn applications move to "Withdrawn" status (not deleted, for audit trail) 
+- Withdrawn applications excluded from "Active Applications" count 
+- Employer notified of withdrawal (optional, configurable)
+Priority: P1 Must Have   |   Screens: js04, js05   |   Acceptance Criteria: AC-005
+JSP-FR-007b  — Estimated Stage Duration Indicator
+The Application Tracker/Detail view may optionally display an estimated stage-duration indicator per stage, based on the hiring company's average processing time, sourced from that company's pipeline configuration.
+Priority: P2 Should Have   |   Screens: js04, js05
+JSP-FR-008  — Status Notifications
+The system shall push notifications (in-app and email) to the Job Seeker on: application confirmed, CV viewed, status change, phone screening scheduled (Vietnam practice), interview invitation, offer received. 
+Detailed message content and triggers are specified in LV360-FSD-006 — Notifications & Communication.
+Priority: P1 Must Have   |   Screens: js04, js12   |   Acceptance Criteria: AC-008
+JSP-FR-009  — AI Interview Preparation
+A Job Seeker shall be able to select a saved application and receive AI-generated practice interview questions relevant to that job's description.
+Priority: P2 Should Have   |   Screens: js05, js11   |   Acceptance Criteria: AC-019
+JSP-FR-010  — Rule-Based Job Recommendations
+- The system shall show rule-based job recommendations ('Similar Jobs') on the Job Seeker Dashboard and Job Detail page. 
+- Recommendation algorithm (Phase 1 - Rule-Based): 
+- Match by same category (40%) 
+- Match by same location (30%)
+- Match by overlapping skills (20%) 
+- Match by salary range (10%) 
+- Recommendations updated daily based on user activity (apply/save/browse). 
+- Phase 2 will introduce ML-based collaborative filtering (user behavior patterns) and deep learning (semantic job matching).
+Priority: P1 Must Have   |   Screens: p03, js01   |   Acceptance Criteria: AC-018
+JSP-FR-011  — Guided Profile Completion
+The system shall prompt the Job Seeker to complete any missing required profile fields immediately after login.
+The system shall display a profile completeness progress bar (0-100%) on the Dashboard (js01) and Profile Editor (js07). Real-time updates as user fills required fields. Tooltip shows missing fields when hovering over incomplete sections
+Priority: P1 Must Have   |   Screens: js01, js07
+JSP-FR-012  — Candidate Document Archive
+The system shall provide password-protected, encrypted storage for the Job Seeker's previous employment contracts, relieving letters, payslips, and certificates. Documents are uploaded by the Job Seeker and are accessible only to the Job Seeker and — from the Shortlisted stage onward — the employer, per the visibility rule in EMP-FR-026b (see LV360-FSD-004).
+Document Archive storage limits: 
+- Per-file limit: 10MB 
+- Total storage per user: 100MB (across all archived documents) 
+- Storage quota displayed in js09 with usage indicator 
+- When quota exceeded: user must delete old documents before uploading new ones
+Priority: P1 Must Have   |   Screens: js09, js10
+7. Process Flows
+Actor color key: teal = Job Seeker/Guest, navy = Employer/Company Admin/HR, plum = Super Admin, orange = AI, slate = System (automated step, no human actor).
+7.1 Guest Job Search to Apply (Login-Gated)
+Covers JSP-FR-001–003. Trigger: an anonymous visitor lands on the Homepage. Outcome: the visitor authenticates and continues into Apply, or leaves without applying. Hands off to LV360-FSD-001, Flow 1/2 for login/registration.
+7.2 One-Click Apply (Multi-Resume & Consent)
+Covers JSP-FR-005 and JSP-FR-004b. Trigger: an authenticated Job Seeker reaches the Apply Form. Outcome: a submitted application, or a blocked submission if the mandatory consent checkbox (BR-011) is unchecked.
+7.3 Application Tracking & Notification
+Covers JSP-FR-007, JSP-FR-007b, JSP-FR-008. Trigger: HR moves a candidate to a new pipeline stage (LV360-FSD-004, Flow 1). Outcome: the candidate is notified (unless HR suppressed it per NTF-FR-006) and sees the updated status.
+7.4 AI Interview Preparation
+Covers JSP-FR-009. Trigger: a candidate at the Interview Scheduled stage opens AI Interview Prep. Outcome: AI-generated practice questions relevant to the job description.
+8. Applicable Business Rules
+8.1 Governing BRD Business Rules
+Rule ID
+BRD Business Rule
+LV-BR-0005
+Every Talent Profile shall represent truthful professional information.
+LV-BR-0006
+Talent remains responsible for maintaining the accuracy and currency of profile information.
+LV-BR-0007
+A Talent may maintain multiple resumes tailored for different industries, roles, or career objectives. (See JSP-FR-004b, added this revision.)
+LV-BR-0008
+Talents shall have control over the visibility of their Talent Profile, subject to platform policies and subscription features.
+LV-BR-0009
+Employers shall access Talent information only in accordance with the Talent's privacy preferences and applicable legal requirements.
+8.2 FSD Implementation Rules
+Rule ID
+Business Rule
+BR-009
+Salary data is stored and displayed in VND with mandatory gross/net specification (per BRD LV-BP-103, BR-103-04). If marked 'Negotiable', the exact range is hidden from the public listing. Numbers formatted as 999,999,999,999 — no decimals. Default display: "15,000,000 - 20,000,000 VND (Gross)" or "Thỏa thuận (Gross/Net to be discussed)
+BR-011
+Candidate data consent checkbox is mandatory on the application form. Applications cannot be submitted without explicit consent. Consent flag and timestamp are stored with the application record.
+BR-014
+Candidate contact details (email, phone) visibility is configurable by Company Admin: minimum stage required to view contact details. Default: HR/Recruiters can view contact from Screening stage onward. (Implements LV-BR-0009.)
+BR-015
+Saved Jobs Management 
+- Maximum 100 saved jobs per user (per BRD BR-201-05) 
+- Saved jobs expire 90 days after job closure (per BRD BR-201-04) 
+- System sends expiry reminder 7 days before removal 
+- Expired jobs marked "No Longer Available" before final deletion
+9. Applicable Non-Functional Requirements
+NFR ID
+Category
+Requirement
+Target
+NFR-001
+Performance
+Page load time — public job search
+< 3 seconds on 4G
+NFR-013
+Accessibility
+Web accessibility compliance
+WCAG 2.1 Level AA — all core user flows
+NFR-015
+Compatibility
+Mobile OS support
+iOS 15+ (Safari) · Android 10+ (Chrome)
+NFR-018
+Compliance
+Data privacy
+Vietnam Decree 13/2023 — mandatory candidate consent + configurable retention with auto-delete
+10. Data Entities Referenced
+Entity
+Key Attributes
+Candidate Profile
+Profile ID, User ID, Full Name, Phone, Location, Work Experience[], Education[], Skills[], Desired Salary, Completeness %
+Resume (new — JSP-FR-004b)
+Resume ID, Profile ID, Resume Name, File URL / Built-From-Profile Flag, Is Default, Created Date, Last Updated
+Candidate Application
+Application ID, Job ID, Candidate User ID, Applied Date, Current Stage, Cover Letter, Documents[], AI Match Score, Source, Consent Flag, Consent Timestamp, Withdrawn Flag, Withdrawn Date, Reapplication Eligible Date
+Job Posting
+Job ID, Company ID, Title, Department, Type, Location, Salary Range, Description, Skills[], Deadline, Vacancies, Status, AI Flag, Posted Date
+11. Applicable Acceptance Criteria
+AC ID
+Feature
+Acceptance Criteria
+AC-003
+Job Search
+Job seeker searches using ≥ 3 simultaneous filters and receives results within 3 seconds.
+AC-004
+Application Submission
+Logged-in job seeker applies using saved profile (one-click apply) in under 60 seconds. Consent checkbox must be presented and checked before submission.
+AC-005
+Application Tracking
+Job seeker can view current stage of all submitted applications with correct status in Application Tracker.
+AC-008
+Notifications
+Job seeker receives email notification within 5 minutes of application status update (unless suppressed by HR).
+AC-011
+Mobile Responsiveness
+Core flows fully usable on a 375px-wide mobile screen without horizontal scrolling.
+AC-016
+Data Consent
+Application form cannot be submitted without the candidate data consent checkbox being checked.
+AC-018
+Job Recommendations
+Dashboard and Job Detail page show rule-based similar job recommendations. No ML recommendations in Phase 1.
+12. Open Items & Clarifications Needed
+The PRD assigns the ID JSP-FR-013 to two distinct requirements — the Homepage events widget and the employer directory slider. This document has renumbered them JSP-FR-013a and JSP-FR-013b respectively for traceability; recommend the PRD be corrected to match before this FSD is baselined.
+Screen IDs js02 and js08 are reserved but unassigned in the PRD's screen inventory. No functionality is missing as a result, but confirm with the UX team that no screen was dropped during design.
+OTP/resend cooldown and reset-link expiry are governed by LV360-FSD-001 (AUTH); this document assumes the Apply flow (js03) hands off to that spec whenever an unauthenticated user triggers login from p03.
+New from BRD review — JSP-FR-004b (multiple resumes) reuses screen js09, previously scoped only as a 'Document Archive' for past-employment paperwork (contracts, payslips). Recommend UX confirm whether resume management and employment-document storage should be two visually distinct tabs within js09, or whether js09 should be split into two screens — the underlying purpose (named CVs vs. verification documents) is different enough that combining them may confuse candidates.
+The Resume-Name and Default-flag data model implied by JSP-FR-004b is not present anywhere in the original PRD's data model (Section 5) or screen inventory. This is a genuine scope addition, not a documentation fix — flagging for Solution Architect sizing before this is committed to a sprint.
+13. Approval
+Role
+Name
+Signature
+Date
+Product Owner
+UX Lead
+QA Lead
