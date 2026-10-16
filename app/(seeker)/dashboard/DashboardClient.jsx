@@ -10,7 +10,7 @@ import { useLang, t } from "../../../utils/lang";
 import { formatDateTime } from "../../../utils/format";
 import { FILTER_VI } from "../../../lib/data";
 import { fetchPublicJobs } from "../../../lib/api/publicApi";
-import { getProfile, listApplications, listSavedJobs, listNotifications, computeCompleteness } from "../../../lib/seekerStore";
+import { getProfile, listApplications, listSavedJobs, listNotifications, computeCompleteness, getProfileCompletenessDetails } from "../../../lib/seekerStore";
 
 const PAGE = "mx-auto max-w-[1200px] px-6 pb-24 pt-10 max-md:px-4 max-md:pb-12 max-md:pt-7";
 const STAT = "flex flex-col gap-1 rounded-md bg-sunken p-4 text-inherit no-underline transition-shadow hover:shadow-sm hover:no-underline";
@@ -25,8 +25,15 @@ function readDashboardData() {
   const applications = listApplications();
   const savedJobs = listSavedJobs();
   const notifications = listNotifications();
-  const completeness = computeCompleteness(profile);
-  return { profile, applications, savedJobs, notifications, completeness };
+  const compDetails = getProfileCompletenessDetails(profile);
+  return {
+    profile,
+    applications,
+    savedJobs,
+    notifications,
+    completeness: compDetails.completeness,
+    missingFields: compDetails.missingFields,
+  };
 }
 
 function useDashboardData() {
@@ -102,7 +109,7 @@ export default function DashboardClient() {
     );
   }
 
-  const { profile, applications, savedJobs, notifications, completeness } = data;
+  const { profile, applications, savedJobs, notifications, completeness, missingFields } = data;
   const interviews = applications.filter((a) => a.stage === "Interview Scheduled");
   const unreadCount = notifications.filter((n) => !n.read).length;
   const isVi = lang === "VN" || lang === "VI";
@@ -137,32 +144,56 @@ export default function DashboardClient() {
       </div>
 
       {completeness < 100 && (
-        <div className={`mb-8 flex flex-wrap items-center gap-5 rounded-lg border p-5 ${completeness < 60 ? "border-amber-300 bg-amber-50/60 dark:bg-amber-950/20" : "border-line bg-card"}`}>
-          <div className="min-w-[200px] flex-1">
-            <div className="mb-2 flex justify-between items-center">
-              <div>
-                <strong>{t(lang, "Profile Completion")}</strong>
-                {completeness < 60 ? (
-                  <span className="ml-2 inline-flex items-center text-xs font-semibold text-amber-700 dark:text-amber-400">
-                    ⚠️ {t(lang, "Need ≥60% to apply for jobs")}
-                  </span>
-                ) : (
-                  <span className="ml-2 inline-flex items-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    ✓ {t(lang, "Eligible to apply for jobs (≥60%)")}
-                  </span>
-                )}
+        <div className={`mb-8 rounded-lg border p-5 ${completeness < 60 ? "border-amber-300 bg-amber-50/60 dark:bg-amber-950/20" : "border-line bg-card"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-[200px] flex-1">
+              <div className="mb-2 flex justify-between items-center">
+                <div>
+                  <strong>{t(lang, "Profile Completion")}</strong>
+                  {completeness < 60 ? (
+                    <span className="ml-2 inline-flex items-center text-xs font-semibold text-amber-700 dark:text-amber-400">
+                      ⚠️ {t(lang, "Need ≥60% to apply for jobs")}
+                    </span>
+                  ) : (
+                    <span className="ml-2 inline-flex items-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      ✓ {t(lang, "Eligible to apply for jobs (≥60%)")}
+                    </span>
+                  )}
+                </div>
+                <span className="font-bold text-base">{completeness}%</span>
               </div>
-              <span className="font-bold">{completeness}%</span>
+              <div className="h-2.5 overflow-hidden rounded-pill bg-sunken">
+                <i className={`block h-full rounded-pill transition-all duration-300 ${completeness < 60 ? "bg-amber-500" : "bg-brand"}`} style={{ width: `${completeness}%` }} />
+              </div>
             </div>
-            <div className="h-2 overflow-hidden rounded-pill bg-sunken">
-              <i className={`block h-full rounded-pill ${completeness < 60 ? "bg-amber-500" : "bg-brand"}`} style={{ width: `${completeness}%` }} />
-            </div>
+            <Link href="/settings?tab=profile">
+              <Button variant={completeness < 60 ? "primary" : "secondary"} size="sm">
+                {t(lang, "Complete Profile")}
+              </Button>
+            </Link>
           </div>
-          <Link href="/settings?tab=profile">
-            <Button variant={completeness < 60 ? "primary" : "secondary"} size="sm">
-              {t(lang, "Complete Profile")}
-            </Button>
-          </Link>
+
+          {missingFields && missingFields.length > 0 && (
+            <div className="mt-4 pt-3.5 border-t border-line/60">
+              <span className="text-xs font-semibold text-muted block mb-2">
+                {isVi
+                  ? `Cần hoàn thiện thêm ${missingFields.length} mục để đạt 100% hồ sơ:`
+                  : `Add these ${missingFields.length} item${missingFields.length > 1 ? "s" : ""} to reach 100% profile score:`}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {missingFields.map((field) => (
+                  <Link
+                    key={field.key}
+                    href="/settings?tab=profile"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-sunken px-3 py-1 text-xs font-medium text-ink hover:bg-brand-subtle hover:text-brand transition-colors no-underline border border-line/50"
+                  >
+                    <span className="text-amber-500 font-bold">+</span>
+                    <span>{isVi ? field.labelVi : field.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

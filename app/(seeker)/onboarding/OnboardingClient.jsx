@@ -8,17 +8,18 @@ import Icon from "../../../components/ds/Icon";
 import Stepper from "../../../components/ds/Stepper";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { useLang, t } from "../../../utils/lang";
-import { getProfile, saveProfile, saveProfileLocally, saveResume, removeResume, computeCompleteness, getAuth, MAX_PROFILE_RESUMES, MAX_RESUME_ERROR, uploadAvatar, avatarPublicHref } from "../../../lib/seekerStore";
+import { getProfile, saveProfile, saveProfileLocally, saveResume, removeResume, computeCompleteness, getAuth, syncSeekerWithBackend, MAX_PROFILE_RESUMES, MAX_RESUME_ERROR, uploadAvatar, avatarPublicHref } from "../../../lib/seekerStore";
 import CitizenshipIdInput from "../../../components/seeker/CitizenshipIdInput";
 import SkillSelectorRedesigned from "../../../components/seeker/SkillSelectorRedesigned";
 import AchievementsManager from "../../../components/seeker/AchievementsManager";
+import { UPLOAD_CONFIG } from "../../../config/uploadConfig";
+import { validateAvatarFile, validateResumeFile } from "../../../utils/fileValidation";
 
 const STEP_LABELS = ["Personal", "Professional", "Education", "Experience", "Resume & Portfolio", "Completion"];
 const EXPERIENCE_RANGES = ["Less than 1 year", "1-3 years", "3-5 years", "5-10 years", "10+ years"];
 const INDUSTRIES = ["Technology", "Retail & Commerce", "Media & Creative", "Transport & Logistics", "Manufacturing", "Finance & Banking", "Other"];
 const WORK_MODES = ["Remote", "Hybrid", "On-site"];
-// BR-101-03: Resume file size must not exceed 5 MB
-const MAX_RESUME_MB = 5;
+const MAX_RESUME_MB = UPLOAD_CONFIG.RESUME.maxMb;
 
 /** Generate a random avatar as a coloured SVG initials circle, returned as robust SVG data-URL */
 function generateAvatarDataUrl(name = "?") {
@@ -73,6 +74,7 @@ export default function OnboardingClient() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState(null);
+  const [auth, setAuth] = useState(null);
   const [skillInput, setSkillInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useToast();
@@ -85,7 +87,29 @@ export default function OnboardingClient() {
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    setProfile(getProfile());
+    const prof = getProfile();
+    const au = getAuth();
+    setProfile(prof);
+    setAuth(au);
+
+    const handleStoreChange = () => {
+      setProfile(getProfile());
+      setAuth(getAuth());
+    };
+    window.addEventListener("lv360-store", handleStoreChange);
+
+    syncSeekerWithBackend()
+      .then(() => {
+        setProfile(getProfile());
+        setAuth(getAuth());
+      })
+      .catch((e) => {
+        console.warn("syncSeekerWithBackend in OnboardingClient failed:", e);
+      });
+
+    return () => {
+      window.removeEventListener("lv360-store", handleStoreChange);
+    };
   }, []);
 
   const validationSchema = Yup.object().shape({
@@ -176,8 +200,8 @@ export default function OnboardingClient() {
   const formik = useFormik({
     enableReinitialize: true,
     initialValues: {
-      fullName: profile?.personal?.fullName || "",
-      phone: profile?.personal?.phone || "",
+      fullName: profile?.personal?.fullName || auth?.name || "",
+      phone: profile?.personal?.phone || auth?.phone || "",
       location: profile?.personal?.location || "",
       city: profile?.personal?.city || "",
       citizenId: profile?.personal?.citizenId || "",
@@ -192,6 +216,20 @@ export default function OnboardingClient() {
     validationSchema,
     onSubmit: async () => { },
   });
+
+  useEffect(() => {
+    const resolvedPhone = profile?.personal?.phone || auth?.phone || "";
+    if (resolvedPhone && !formik.values.phone && !formik.touched.phone) {
+      formik.setFieldValue("phone", resolvedPhone);
+    }
+  }, [profile?.personal?.phone, auth?.phone]);
+
+  useEffect(() => {
+    const resolvedName = profile?.personal?.fullName || auth?.name || "";
+    if (resolvedName && !formik.values.fullName && !formik.touched.fullName) {
+      formik.setFieldValue("fullName", resolvedName);
+    }
+  }, [profile?.personal?.fullName, auth?.name]);
 
   if (!profile) return null;
 
@@ -343,20 +381,10 @@ export default function OnboardingClient() {
   const onPhotoChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    // Validate format: JPG, JPEG, PNG only
-    const validExtensions = [".jpg", ".jpeg", ".png"];
-    const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
-    const isImageMime = file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/jpg";
-    if (!validExtensions.includes(ext) || (!isImageMime && file.type)) {
-      const msg = t(lang, "Unsupported file format. Allowed formats: JPG, JPEG, and PNG only.");
-      setErr(msg);
-      setToast(msg);
-      return;
-    }
 
-    // Validate size: max 2MB
-    if (file.size > 2 * 1024 * 1024) {
-      const msg = t(lang, "Profile photo must not exceed 2MB.");
+    const validation = validateAvatarFile(file, lang);
+    if (!validation.valid) {
+      const msg = t(lang, validation.error);
       setErr(msg);
       setToast(msg);
       return;
@@ -393,14 +421,9 @@ export default function OnboardingClient() {
   // ── Resume handler ──
   const handleResumeFile = async (file) => {
     if (!file) return;
-    const okExts = [".pdf", ".doc", ".docx"];
-    const ext = "." + file.name.split(".").pop().toLowerCase();
-    if (!okExts.includes(ext)) {
-      setErr(t(lang, "Unsupported file format. Allowed formats: PDF, DOC, and DOCX only"));
-      return;
-    }
-    if (file.size > MAX_RESUME_MB * 1024 * 1024) {
-      setErr(t(lang, `Resume file size must not exceed ${MAX_RESUME_MB} MB`));
+    const validation = validateResumeFile(file, lang);
+    if (!validation.valid) {
+      setErr(t(lang, validation.error));
       return;
     }
     setErr("");
@@ -539,7 +562,7 @@ export default function OnboardingClient() {
                 id="phone"
                 name="phone"
                 label={t(lang, "Phone Number")}
-                value={formik.values.phone}
+                value={formik.values.phone || (!formik.touched.phone ? (profile?.personal?.phone || auth?.phone || "") : "")}
                 onChange={(phone) => {
                   formik.setFieldValue("phone", phone);
                   formik.setFieldTouched("phone", true, true);
@@ -635,7 +658,7 @@ export default function OnboardingClient() {
                     <input
                       ref={photoInputRef}
                       type="file"
-                      accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                      accept={UPLOAD_CONFIG.AVATAR.accept}
                       className="hidden"
                       onChange={onPhotoChange}
                     />
@@ -895,7 +918,7 @@ export default function OnboardingClient() {
                   <input
                     ref={resumeInputRef}
                     type="file"
-                    accept=".pdf,.doc,.docx"
+                    accept={UPLOAD_CONFIG.RESUME.accept}
                     style={{ display: "none" }}
                     onChange={onResumeChange}
                   />

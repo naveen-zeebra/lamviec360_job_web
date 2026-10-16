@@ -24,12 +24,23 @@ import {
   logout,
   resetAll,
   computeCompleteness,
+  getMissingProfileFields,
   uploadAvatar,
   avatarPublicHref,
+  getProfileAttachmentUsage,
 } from "../../../lib/seekerStore";
 import CitizenshipIdInput from "../../../components/seeker/CitizenshipIdInput";
 import SkillSelectorRedesigned from "../../../components/seeker/SkillSelectorRedesigned";
 import AchievementsManager from "../../../components/seeker/AchievementsManager";
+import { UPLOAD_CONFIG } from "../../../config/uploadConfig";
+import {
+  validateAvatarFile,
+  validateResumeFile,
+  validateCertificationFile,
+  validatePortfolioFile,
+  validateCumulativeProfileAttachmentQuota,
+} from "../../../utils/fileValidation";
+import { createProfileValidationSchema } from "../../../lib/validation/profileValidation";
 
 const TABS = ["Profile", "Preferences", "Notifications", "Privacy", "Account"];
 const TAB_SLUGS = { Profile: "profile", Preferences: "preferences", Notifications: "notifications", Privacy: "privacy", Account: "account" };
@@ -39,8 +50,7 @@ const EXPERIENCE_RANGES = ["Less than 1 year", "1-3 years", "3-5 years", "5-10 y
 const WORK_MODES = ["Remote", "Hybrid", "On-site"];
 const VISIBILITY_OPTIONS = ["Public to employers", "Private", "Hidden from current employer"];
 const RESUME_VISIBILITY_OPTIONS = ["Visible when I apply", "Always visible to employers", "Hidden"];
-// BR-101-03: Resume file size must not exceed 5 MB
-const MAX_RESUME_MB = 5;
+const MAX_RESUME_MB = UPLOAD_CONFIG.RESUME.maxMb;
 
 /** Generate a random avatar as a coloured SVG initials circle, returned as robust SVG data-URL */
 function generateAvatarDataUrl(name = "?") {
@@ -208,68 +218,7 @@ export default function SettingsClient() {
     } catch (e) { }
   }, []);
 
-  const validationSchema = Yup.object().shape({
-    fullName: Yup.string()
-      .required(t(lang, "Please enter your full name."))
-      .max(30, t(lang, "Full name must not exceed 30 characters."))
-      .min(2, t(lang, "Full name must be at least 2 characters."))
-      .test("no-leading-space", t(lang, "First character cannot be a space."), (val) => !val || !/^\s/.test(val))
-      .test("no-numbers", t(lang, "Numbers are not allowed in full name."), (val) => !val || !/\d/.test(val))
-      .matches(
-        /^[a-zA-Z\s\u00C0-\u024F\u1EA0-\u1EF9\-\'.]+$/,
-        t(lang, "Numbers and special characters are not allowed in full name.")
-      ),
-    location: Yup.string().max(30, t(lang, "Location must not exceed 30 characters.")).test("no-special-chars", t(lang, "Special characters are not allowed in location."), (val) => !val || /^[a-zA-Z0-9\s\u00C0-\u024F\u1EA0-\u1EF9\-\.,]*$/.test(val)),
-    phone: Yup.string().test("phone-valid", t(lang, "Please enter a valid phone number (at least 7 digits)."), function (val) {
-      if (!val || !val.trim()) return true;
-      const digits = val.replace(/\D/g, "");
-      if (digits.length <= 3) return true;
-      return digits.length >= 7 && digits.length <= 15;
-    }),
-    citizenId: Yup.string().test(
-      "citizen-id-valid",
-      t(lang, "Citizenship ID must be either 9 digits (Old CMND) or 12 digits (CCCD / New Citizen ID)."),
-      function (value) {
-        if (!value || !value.trim()) return true;
-        const digits = value.replace(/\D/g, "");
-        return digits.length === 9 || digits.length === 12;
-      }
-    ),
-    title: Yup.string(),
-    portfolioUrl: Yup.string().test(
-      "url-valid",
-      t(lang, "Please enter a valid URL (e.g. https://github.com/yourname)"),
-      function (value) {
-        if (!value || !value.trim()) return true;
-        try {
-          const test = value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
-          new URL(test);
-          return true;
-        } catch {
-          return false;
-        }
-      }
-    ),
-    salary: Yup.string().test("salary-valid", t(lang, "Salary expectation must be between 1M and 500M VND per month"), function (val) {
-      if (!val || !val.trim()) return true;
-      const raw = String(val).replace(/,/g, "").trim();
-      let num = null;
-      const matchM = raw.match(/(\d+(\.\d+)?)\s*M/i);
-      if (matchM) {
-        num = parseFloat(matchM[1]) * 1000000;
-      } else {
-        const matchNum = raw.match(/\d+/);
-        if (matchNum) {
-          const parsed = parseFloat(matchNum[0]);
-          num = parsed < 1000 ? parsed * 1000000 : parsed;
-        }
-      }
-      if (num !== null && (num < 1000000 || num > 500000000)) {
-        return false;
-      }
-      return true;
-    }),
-  });
+  const validationSchema = createProfileValidationSchema(t, lang);
 
   const formik = useFormik({
     enableReinitialize: true,
@@ -403,6 +352,12 @@ export default function SettingsClient() {
     } catch (err) {
       console.error("Save profile error:", err);
       const errMsg = err.message || "";
+      const isAuthErr =
+        err.status === 401 ||
+        errMsg.toLowerCase().includes("token has expired") ||
+        errMsg.toLowerCase().includes("unauthorized") ||
+        errMsg.toLowerCase().includes("credentials");
+
       const isPhoneErr =
         err.status === 400 ||
         errMsg.toLowerCase().includes("phone") ||
@@ -410,7 +365,14 @@ export default function SettingsClient() {
         errMsg.toLowerCase().includes("already exists") ||
         errMsg.toLowerCase().includes("already added");
 
-      if (isPhoneErr) {
+      if (isAuthErr) {
+        setProfile(profileToSave);
+        setToast(
+          lang === "VN" || lang === "VI"
+            ? "Phiên đăng nhập đã hết hạn. Thông tin đã được lưu cục bộ, vui lòng đăng nhập lại để đồng bộ."
+            : "Session expired. Your changes are saved locally. Please log in again to sync."
+        );
+      } else if (isPhoneErr) {
         const phoneErrorText =
           errMsg.includes("already exists") || errMsg.includes("already added") || errMsg.includes("BR-101-01")
             ? t(lang, "An active account with this phone number already exists.")
@@ -484,18 +446,19 @@ export default function SettingsClient() {
   const removeCertification = (i) => persist({ certifications: (profile.certifications || []).filter((_, idx) => idx !== i) });
   const handleCertFileUpload = async (i, file) => {
     if (!file) return;
-    if (file.size === 0) {
-      setToast(t(lang, "File is empty. Please select a valid document."));
+    const validation = validateCertificationFile(file, lang);
+    if (!validation.valid) {
+      setToast(t(lang, validation.error));
       return;
     }
-    const okExts = [".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"];
-    const ext = "." + file.name.split(".").pop().toLowerCase();
-    if (!okExts.includes(ext)) {
-      setToast(t(lang, "Unsupported file format. Allowed formats: PDF, PNG, JPG, and DOCX only."));
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setToast(t(lang, "File exceeds 5MB limit."));
+    const quotaValidation = validateCumulativeProfileAttachmentQuota(
+      file.size,
+      profile,
+      { excludeCertIndex: i },
+      lang
+    );
+    if (!quotaValidation.valid) {
+      setToast(t(lang, quotaValidation.error));
       return;
     }
     try {
@@ -532,20 +495,9 @@ export default function SettingsClient() {
   const onPhotoChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = "";
-    if (!file) return;
-
-    // Validate format: JPG, JPEG, PNG only
-    const validExtensions = [".jpg", ".jpeg", ".png"];
-    const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
-    const isImageMime = file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/jpg";
-    if (!validExtensions.includes(ext) || (!isImageMime && file.type)) {
-      setToast(t(lang, "Unsupported file format. Allowed formats: JPG, JPEG, and PNG only."));
-      return;
-    }
-
-    // Validate size: max 2MB
-    if (file.size > 2 * 1024 * 1024) {
-      setToast(t(lang, "Profile photo must not exceed 2MB."));
+    const validation = validateAvatarFile(file, lang);
+    if (!validation.valid) {
+      setToast(t(lang, validation.error));
       return;
     }
 
@@ -579,14 +531,14 @@ export default function SettingsClient() {
   // ── Resume handlers ──
   const handleResumeFile = async (file) => {
     if (!file) return;
-    const okExts = [".pdf", ".doc", ".docx"]; // BR-101-03: PDF, DOC, DOCX only
-    const ext = "." + file.name.split(".").pop().toLowerCase();
-    if (!okExts.includes(ext)) {
-      setToast(t(lang, "Unsupported file format. Allowed formats: PDF, DOC, and DOCX only"));
+    const validation = validateResumeFile(file, lang);
+    if (!validation.valid) {
+      setToast(t(lang, validation.error));
       return;
     }
-    if (file.size > MAX_RESUME_MB * 1024 * 1024) {
-      setToast(t(lang, `Resume file size must not exceed ${MAX_RESUME_MB} MB .`));
+    const quotaValidation = validateCumulativeProfileAttachmentQuota(file.size, profile, {}, lang);
+    if (!quotaValidation.valid) {
+      setToast(t(lang, quotaValidation.error));
       return;
     }
     setResumeUploading(true);
@@ -628,14 +580,19 @@ export default function SettingsClient() {
   // ── Portfolio handlers ──
   const handlePortfolioFile = async (file) => {
     if (!file) return;
-    const okExts = [".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"];
-    const ext = "." + file.name.split(".").pop().toLowerCase();
-    if (!okExts.includes(ext)) {
-      setToast(t(lang, "Unsupported portfolio format. Allowed: PDF, PNG, JPG, DOC, DOCX"));
+    const validation = validatePortfolioFile(file, lang);
+    if (!validation.valid) {
+      setToast(t(lang, validation.error));
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setToast(t(lang, "Portfolio file size must not exceed 5 MB"));
+    const quotaValidation = validateCumulativeProfileAttachmentQuota(
+      file.size,
+      profile,
+      { excludePortfolio: true },
+      lang
+    );
+    if (!quotaValidation.valid) {
+      setToast(t(lang, quotaValidation.error));
       return;
     }
     setPortfolioUploading(true);
@@ -695,6 +652,8 @@ export default function SettingsClient() {
   };
 
   const completeness = computeCompleteness(profile);
+  const isVi = lang === "VN" || lang === "VI";
+  const missingFieldsList = completeness < 100 ? getMissingProfileFields(profile, lang) : [];
 
   return (
     <div className="lv-page-container">
@@ -716,10 +675,29 @@ export default function SettingsClient() {
           <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
-                <strong style={{ fontSize: "var(--text-sm)" }}>{t(lang, "Profile Completion")}</strong>
-                <span style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>{completeness}%</span>
+                <div>
+                  <strong style={{ fontSize: "var(--text-sm)" }}>{t(lang, "Profile Completion")}</strong>
+                  {completeness < 60 ? (
+                    <span style={{ marginLeft: 8, fontSize: "11px", fontWeight: 600, color: "var(--warning-text, #b45309)" }}>
+                      ⚠️ {t(lang, "Need ≥60% to apply for jobs")}
+                    </span>
+                  ) : (
+                    <span style={{ marginLeft: 8, fontSize: "11px", fontWeight: 600, color: "var(--success-text, #15803d)" }}>
+                      ✓ {t(lang, "Eligible to apply for jobs (≥60%)")}
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>{completeness}%</span>
               </div>
-              <div className="lv-progress"><i style={{ width: `${completeness}%` }} /></div>
+              <div className="lv-progress"><i style={{ width: `${completeness}%`, background: completeness < 60 ? "#f59e0b" : "var(--brand-primary, #00875a)" }} /></div>
+              {completeness < 100 && missingFieldsList.length > 0 && (
+                <div style={{ marginTop: 10, fontSize: "12px", color: "var(--text-secondary)" }}>
+                  <span>{isVi ? `Cần hoàn thiện thêm ${missingFieldsList.length} mục để đạt 100%:` : `Missing ${missingFieldsList.length} items to reach 100%:`} </span>
+                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                    {missingFieldsList.join(" · ")}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* ── Personal Section ── */}
@@ -1165,6 +1143,35 @@ export default function SettingsClient() {
 
             {/* ── Résumé Section (Upload with Drag-Drop + Base64 Storage + Actions) ── */}
             <div>
+              {(() => {
+                const attachUsage = getProfileAttachmentUsage();
+                return (
+                  <div style={{ margin: "0 0 16px", padding: "12px 16px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, fontSize: 13 }}>
+                      <span style={{ fontWeight: 600, color: "#1e293b", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <Icon name="hard-drive" size={14} style={{ color: "#4f46e5" }} />
+                        {t(lang, "Profile Documents Quota")}
+                      </span>
+                      <span style={{ fontWeight: 600, color: attachUsage.percentUsed >= 100 ? "#ef4444" : attachUsage.percentUsed > 80 ? "#f59e0b" : "#64748b" }}>
+                        {attachUsage.usedMb} / {attachUsage.maxMb} MB ({attachUsage.percentUsed}%)
+                      </span>
+                    </div>
+                    <div style={{ width: "100%", height: 6, background: "#e2e8f0", borderRadius: 999, overflow: "hidden" }}>
+                      <div
+                        style={{
+                          width: `${Math.min(100, attachUsage.percentUsed)}%`,
+                          height: "100%",
+                          background: attachUsage.percentUsed >= 100 ? "#ef4444" : attachUsage.percentUsed > 80 ? "#f59e0b" : "#4f46e5",
+                          transition: "width 0.3s ease",
+                        }}
+                      />
+                    </div>
+                    <p style={{ margin: "6px 0 0", fontSize: 11, color: "#64748b" }}>
+                      {t(lang, "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB.")}
+                    </p>
+                  </div>
+                );
+              })()}
               <h3 style={{ marginBottom: 14 }}>{t(lang, "Résumé")} <span style={{ fontWeight: 500, color: "#64748b", fontSize: 13 }}>({(profile.resumes || []).length}/{MAX_PROFILE_RESUMES})</span></h3>
 
               <div

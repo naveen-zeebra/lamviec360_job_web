@@ -1106,6 +1106,8 @@
   "Profile photo must not exceed 2MB.": "Ảnh đại diện không được vượt quá 2MB.",
   "Unsupported file format. Allowed formats: JPG, JPEG, and PNG only.": "Định dạng tệp không được hỗ trợ. Chỉ chấp nhận JPG, JPEG và PNG.",
   "Select profile visibility": "Chọn quyền hiển thị hồ sơ",
-  "Select resume visibility": "Chọn quyền hiển thị CV"
-
+  "Select resume visibility": "Chọn quyền hiển thị CV",
+  "Total file size cannot exceed 10MB. Please reduce file sizes or remove some documents.": "Tổng dung lượng tệp không được vượt quá 10MB. Vui lòng giảm kích thước tệp hoặc xóa bớt tài liệu.",
+  "Profile Documents Quota": "Hạn mức tài liệu hồ sơ",
+  "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB.": "Tổng dung lượng đính kèm cho CV, Hồ sơ năng lực và Chứng chỉ không được vượt quá 10MB."
 }

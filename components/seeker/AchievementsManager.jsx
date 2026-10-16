@@ -2,6 +2,9 @@
 import React, { useState, useRef } from "react";
 import Icon from "../ds/Icon";
 import { t } from "../../utils/lang";
+import { UPLOAD_CONFIG } from "../../config/uploadConfig";
+import { validateCertificationFile, validateCumulativeProfileAttachmentQuota } from "../../utils/fileValidation";
+import { getProfile } from "../../lib/seekerStore";
 
 /** Wrapper: read File as base64 data-URL */
 function readFileAsDataUrl(file) {
@@ -71,8 +74,21 @@ export default function AchievementsManager({
     e.target.value = "";
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErr(t(lang, "Certificate file must be under 5MB."));
+    const validation = validateCertificationFile(file, lang);
+    if (!validation.valid) {
+      setErr(t(lang, validation.error));
+      return;
+    }
+
+    const profile = getProfile();
+    const quotaValidation = validateCumulativeProfileAttachmentQuota(
+      file.size,
+      profile,
+      { excludeAchievementId: editingId },
+      lang
+    );
+    if (!quotaValidation.valid) {
+      setErr(t(lang, quotaValidation.error));
       return;
     }
 
@@ -245,7 +261,7 @@ export default function AchievementsManager({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                  accept={UPLOAD_CONFIG.CERTIFICATION.accept}
                   onChange={handleFileUpload}
                   className="hidden"
                 />

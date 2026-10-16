@@ -6,7 +6,12 @@ import Icon from "../ds/Icon";
 import { useLang, t } from "../../utils/lang";
 import { FILTER_VI } from "../../lib/data";
 
-export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, hasApplied = false }) {
+export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, hasApplied = false, allowClosed = false }) {
+  // BR-201-09: Do not show expired, closed, or inactive jobs in public listings
+  if (!allowClosed && (job?.isNoLongerAvailable || job?.isExpired || job?.isLive === false)) {
+    return null;
+  }
+
   const router = useRouter();
   const companyName =
     typeof job.company === "string"
@@ -48,6 +53,11 @@ export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, h
           </span>
         </div>
         <div className="lv-job-tags">
+          {job.isNoLongerAvailable && (
+            <Badge tone="danger">
+              <Icon name="alert-circle" size={11} /> {lang === "VN" || lang === "VI" ? "Đã đóng" : "No Longer Available"}
+            </Badge>
+          )}
           <Badge tone="neutral">{(lang === "VN" || lang === "VI" ? FILTER_VI[job.type] || job.type : job.type)}</Badge>
           <Badge tone="neutral">{(lang === "VN" || lang === "VI" ? job.modeVi : job.mode)}</Badge>
           <Badge tone="neutral">{(lang === "VN" || lang === "VI" ? job.levelVi : job.level)}</Badge>
@@ -64,7 +74,17 @@ export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, h
             <Icon name="heart" size={18} style={{ fill: saved ? "var(--red-500)" : "none", color: saved ? "var(--red-500)" : "var(--gray-400)" }} />
           </button>
         )}
-        {hasApplied ? (
+        {job.isNoLongerAvailable ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled
+            style={{ opacity: 0.65, cursor: "not-allowed", display: "inline-flex", alignItems: "center", gap: 5 }}
+          >
+            <Icon name="slash" size={13} style={{ color: "#dc2626" }} />
+            {lang === "VN" || lang === "VI" ? "Đã đóng" : "No Longer Available"}
+          </Button>
+        ) : hasApplied ? (
           <Button
             variant="secondary"
             size="sm"

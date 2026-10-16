@@ -66,7 +66,7 @@ export default function Header({ lang, setLang, app = "seeker" }) {
   useEffect(() => {
     setMounted(true);
     refreshData();
-    const onScroll = () => {};
+    const onScroll = () => { };
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("lv360-store", refreshData);
     document.addEventListener("visibilitychange", refreshData);
@@ -185,11 +185,10 @@ export default function Header({ lang, setLang, app = "seeker" }) {
               key={l.code}
               type="button"
               onClick={() => { setLang(l.code); closeAll(); }}
-              className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold transition-colors ${
-                lang === l.code
+              className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold transition-colors ${lang === l.code
                   ? "bg-blue-50 text-blue-600"
                   : "text-gray-700 hover:bg-gray-50"
-              }`}
+                }`}
             >
               <span>{l.label}</span>
               {lang === l.code && <Icon name="check" size={12} />}
@@ -373,7 +372,7 @@ export default function Header({ lang, setLang, app = "seeker" }) {
                     {/* Menu links */}
                     <div className="flex flex-col gap-0.5">
                       <DropLink href="/settings" icon="user" >{isVi ? "Hồ sơ của tôi" : "View & Update Profile"}</DropLink>
-                      <DropLink href="/resume" icon="file-text">{isVi ? "Quản lý CV / Résumé" : "My Résumé"}</DropLink>
+                      <DropLink href="/resume" icon="file-text">{isVi ? "Quản lý CV / Résumé" : "My Resume & Documents"}</DropLink>
                       <DropLink href="/applications" icon="send">{isVi ? "Đơn đã ứng tuyển" : "My Applications"}</DropLink>
                       <DropLink href="/interviews" icon="calendar">{isVi ? "Lịch phỏng vấn" : "Interviews"}</DropLink>
                       <DropLink href="/saved-jobs" icon="heart" badge={savedCount > 0 ? savedCount : null}>
@@ -563,11 +562,10 @@ export default function Header({ lang, setLang, app = "seeker" }) {
                   key={l.code}
                   type="button"
                   onClick={() => setLang(l.code)}
-                  className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
-                    lang === l.code
+                  className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${lang === l.code
                       ? "bg-blue-600 text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
+                    }`}
                 >
                   {l.label}
                 </button>

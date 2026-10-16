@@ -84,7 +84,27 @@ export default function JobsClient() {
     setPage(1);
   };
 
-  let jobs = jobList.filter((j) => {
+  const now = Date.now();
+  const liveJobList = jobList.filter((j) => {
+    if (!j) return false;
+    // BR-201-09: Live jobs only - exclude expired, closed, or unapproved jobs
+    if (j.isLive === false || j.isExpired === true || j.isNoLongerAvailable === true) {
+      return false;
+    }
+    if (j.expires_at || j.deadline) {
+      const exp = new Date(j.expires_at || j.deadline).getTime();
+      if (!isNaN(exp) && exp < now) return false;
+    }
+    const status = String(j.status || "published").toLowerCase();
+    if (status !== "published" && status !== "active" && status !== "open") {
+      return false;
+    }
+    if (j.is_closed || j.is_deleted) return false;
+    if (j.moderation_status && j.moderation_status.toLowerCase() !== "approved") return false;
+    return true;
+  });
+
+  let jobs = liveJobList.filter((j) => {
     const skillsText = Array.isArray(j.skills) ? j.skills.join(" ") : j.skills || "";
     const hay = (
       (j.title || "") +
@@ -103,8 +123,22 @@ export default function JobsClient() {
     if (levels.length && !levels.includes(j.level || j.experience_level)) return false;
     return true;
   });
-  if (sort === "salary") jobs = [...jobs].sort((a, b) => parseInt(b.salary) - parseInt(a.salary));
-  if (sort === "title") jobs = [...jobs].sort((a, b) => a.title.localeCompare(b.title));
+
+  if (sort === "salary") {
+    jobs = [...jobs].sort((a, b) => parseInt(b.salary) - parseInt(a.salary));
+  } else if (sort === "title") {
+    jobs = [...jobs].sort((a, b) => a.title.localeCompare(b.title));
+  } else {
+    // BR-201-08: Featured jobs appear at top of results
+    jobs = [...jobs].sort((a, b) => {
+      const aFeatured = a.is_featured || a.companyObj?.is_featured ? 1 : 0;
+      const bFeatured = b.is_featured || b.companyObj?.is_featured ? 1 : 0;
+      if (bFeatured !== aFeatured) return bFeatured - aFeatured;
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bTime - aTime;
+    });
+  }
   const pages = Math.max(1, Math.ceil(jobs.length / PER));
   const currentPage = Math.min(Math.max(1, page), pages);
   const shown = jobs.slice((currentPage - 1) * PER, currentPage * PER);
@@ -229,7 +263,7 @@ export default function JobsClient() {
                     setCompany(e.target.value);
                     setPage(1);
                   }}
-                  options={Array.from(new Set(jobList.map(j => j.company))).filter(Boolean).map(c => ({ value: c, label: c }))}
+                  options={Array.from(new Set(liveJobList.map(j => j.company))).filter(Boolean).map(c => ({ value: c, label: c }))}
                 />
               </Field>
             </div>

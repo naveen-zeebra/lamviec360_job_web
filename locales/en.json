@@ -830,6 +830,8 @@
   "Profile photo must not exceed 2MB.": "Profile photo must not exceed 2MB.",
   "Unsupported file format. Allowed formats: JPG, JPEG, and PNG only.": "Unsupported file format. Allowed formats: JPG, JPEG, and PNG only.",
   "Select profile visibility": "Select profile visibility",
-  "Select resume visibility": "Select resume visibility"
-
+  "Select resume visibility": "Select resume visibility",
+  "Total file size cannot exceed 10MB. Please reduce file sizes or remove some documents.": "Total file size cannot exceed 10MB. Please reduce file sizes or remove some documents.",
+  "Profile Documents Quota": "Profile Documents Quota",
+  "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB.": "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB."
 }

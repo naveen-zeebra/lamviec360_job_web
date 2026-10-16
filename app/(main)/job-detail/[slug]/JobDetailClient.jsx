@@ -211,6 +211,34 @@ export default function JobDetailClient() {
             </div>
           </div>
         </section>
+        {job.isNoLongerAvailable && (
+          <div
+            style={{
+              maxWidth: "var(--container-max, 1200px)",
+              margin: "20px auto 0",
+              padding: "16px 20px",
+              backgroundColor: "#fef2f2",
+              border: "1px solid #fecaca",
+              borderRadius: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "14px",
+              color: "#991b1b",
+            }}
+          >
+            <Icon name="alert-triangle" size={22} style={{ flexShrink: 0, color: "#dc2626" }} />
+            <div>
+              <strong style={{ display: "block", fontSize: "14px", fontWeight: 700 }}>
+                {lang === "VN" || lang === "VI" ? "Vị trí tuyển dụng đã hết hạn hoặc đã đóng" : "Job posting has expired or is no longer active"}
+              </strong>
+              <span style={{ fontSize: "13px", color: "#b91c1c" }}>
+                {lang === "VN" || lang === "VI"
+                  ? "Vị trí này không còn nhận hồ sơ ứng tuyển mới. Vui lòng tham khảo các việc làm tương tự đang mở bên dưới."
+                  : "This role is no longer accepting new candidate applications. Please check similar active roles below."}
+              </span>
+            </div>
+          </div>
+        )}
         <div className="lv-detail-layout">
           <div>
             <div className="lv-detail-card">
@@ -304,32 +332,55 @@ export default function JobDetailClient() {
               <span>{t(lang, "Location")}</span>
               <strong>{(lang === "VN" || lang === "VI" ? job.locationVi : job.location)}</strong>
             </div>
-            <Button
-              variant="primary"
-              size="lg"
-              style={{ width: "100%", justifyContent: "center" }}
-              disabled={applied}
-              onClick={() => {
-                if (!isLoggedIn()) {
-                  router.push("/login");
-                  return;
-                }
-                const prof = getProfile();
-                const pct = computeCompleteness(prof);
-                if (pct < 60) {
-                  setToast(
-                    lang === "VN" || lang === "VI"
-                      ? `Hồ sơ của bạn mới đạt ${pct}%. Cần ít nhất 60% độ hoàn thiện để ứng tuyển.`
-                      : `Your profile completeness is ${pct}%. A minimum of 60% completeness is required to apply for jobs.`
-                  );
-                  setTimeout(() => router.push("/onboarding"), 1000);
-                  return;
-                }
-                if (!applied) router.push(`/apply/${job.id}`);
-              }}
-            >
-              {applied ? t(lang, "Applied") : t(lang, "Apply Now")}
-            </Button>
+            {job.isNoLongerAvailable ? (
+              <Button
+                variant="secondary"
+                size="lg"
+                disabled
+                style={{
+                  width: "100%",
+                  justifyContent: "center",
+                  opacity: 0.7,
+                  cursor: "not-allowed",
+                  borderColor: "#fca5a5",
+                  color: "#dc2626",
+                  backgroundColor: "#fef2f2",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Icon name="slash" size={16} style={{ color: "#dc2626" }} />
+                {lang === "VN" || lang === "VI" ? "Đã hết hạn / Đã đóng" : "No Longer Available"}
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="lg"
+                style={{ width: "100%", justifyContent: "center" }}
+                disabled={applied}
+                onClick={() => {
+                  if (!isLoggedIn()) {
+                    router.push("/login");
+                    return;
+                  }
+                  const prof = getProfile();
+                  const pct = computeCompleteness(prof);
+                  if (pct < 60) {
+                    setToast(
+                      lang === "VN" || lang === "VI"
+                        ? `Hồ sơ của bạn mới đạt ${pct}%. Cần ít nhất 60% độ hoàn thiện để ứng tuyển.`
+                        : `Your profile completeness is ${pct}%. A minimum of 60% completeness is required to apply for jobs.`
+                    );
+                    setTimeout(() => router.push("/onboarding"), 1000);
+                    return;
+                  }
+                  if (!applied) router.push(`/apply/${job.id}`);
+                }}
+              >
+                {applied ? t(lang, "Applied") : t(lang, "Apply Now")}
+              </Button>
+            )}
             <Button
               variant="secondary"
               style={{ width: "100%", justifyContent: "center" }}

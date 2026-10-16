@@ -99,6 +99,9 @@ export const API_TIMEOUT =
       (process.env.NEXT_PUBLIC_API_TIMEOUT || process.env.API_TIMEOUT)
   ) || 30000;
 
+import { UPLOAD_CONFIG, syncUploadConfig } from "./uploadConfig.js";
+export { UPLOAD_CONFIG, syncUploadConfig };
+
 export default {
   ENVIRONMENT,
   API_BASE_URL,
@@ -106,4 +109,8 @@ export default {
   S3_IMAGE_BASE_URL,
   EMPLOYER_URL,
   API_TIMEOUT,
+  UPLOAD_CONFIG,
+  syncUploadConfig,
 };
+
+

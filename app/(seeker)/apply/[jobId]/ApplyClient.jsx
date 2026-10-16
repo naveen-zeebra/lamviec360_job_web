@@ -17,15 +17,18 @@ import {
   addNotification,
   refreshResumesFromApi,
   computeCompleteness,
+  checkReapplicationEligibility,
+  getProfileCompletenessDetails,
   MAX_PROFILE_RESUMES,
   MAX_RESUME_ERROR,
 } from "../../../../lib/seekerStore";
 import { fetchPublicJobDetail } from "../../../../lib/api/publicApi";
+import { UPLOAD_CONFIG } from "../../../../config/uploadConfig";
+import { validateResumeFile, validateCertificationFile } from "../../../../utils/fileValidation";
 
 const STEP_LABELS = ["Review Profile", "Resume", "Questions", "Additional", "Review", "Consent"];
 const NOTICE_OPTIONS = ["Immediately available", "2 weeks", "1 month", "2 months", "3+ months"];
-// BR-101-03: Resume file size must not exceed 5 MB
-const MAX_RESUME_MB = 5;
+const MAX_RESUME_MB = UPLOAD_CONFIG.RESUME.maxMb;
 const STORE_BYTES = 2 * 1024 * 1024;
 
 export default function ApplyClient({ jobId }) {
@@ -34,6 +37,7 @@ export default function ApplyClient({ jobId }) {
   const [job, setJob] = useState(null);
   const draftKey = `lv360-apply-draft-${jobId}`;
   const [profile, setProfile] = useState(null);
+  const [eligibility, setEligibility] = useState({ canApply: true });
   const [alreadyApplied, setAlreadyApplied] = useState(false);
   const [existingApp, setExistingApp] = useState(null);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
@@ -60,13 +64,9 @@ export default function ApplyClient({ jobId }) {
 
   const handleCertificateFile = (file) => {
     if (!file) return;
-    const ext = (file.name.split(".").pop() || "").toLowerCase();
-    if (!["pdf", "png", "jpg", "jpeg", "doc", "docx"].includes(ext)) {
-      setErr(t(lang, "Use a PDF, DOC, DOCX, JPG or PNG file."));
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setErr(t(lang, "File is larger than 5MB."));
+    const validation = validateCertificationFile(file, lang);
+    if (!validation.valid) {
+      setErr(t(lang, validation.error));
       return;
     }
     setErr("");
@@ -102,13 +102,17 @@ export default function ApplyClient({ jobId }) {
           const remote = await fetchPublicJobDetail(jobId);
           if (remote) {
             setJob({
+              ...remote,
               id: remote.id,
               title: remote.title,
-              titleVi: remote.title,
-              company: remote.company_name || "ABC Technologies",
+              titleVi: remote.titleVi || remote.title,
+              company: remote.company || remote.company_name || "Company",
               location: remote.location,
-              locationVi: remote.location,
+              locationVi: remote.locationVi || remote.location,
               skills: remote.skills || [],
+              isNoLongerAvailable: remote.isNoLongerAvailable,
+              isExpired: remote.isExpired,
+              isLive: remote.isLive,
             });
           }
         } catch (e) {
@@ -138,7 +142,9 @@ export default function ApplyClient({ jobId }) {
     }
     const foundApp = getApplicationByJobId(job.id);
     setExistingApp(foundApp);
-    setAlreadyApplied(hasAppliedToJob(job.id));
+    const elig = checkReapplicationEligibility(job.id);
+    setEligibility(elig);
+    setAlreadyApplied(!elig.canApply && elig.reason === "already_applied");
     try {
       const raw = localStorage.getItem(draftKey);
       if (raw) {
@@ -167,8 +173,31 @@ export default function ApplyClient({ jobId }) {
   }
 
   if (!profile) return null;
+  if (!job) return null;
 
-  const titleText = lang === "VN" || lang === "VI" ? job.titleVi : job.title;
+  const titleText = lang === "VN" || lang === "VI" ? job.titleVi || job.title : job.title;
+
+  if (job.isNoLongerAvailable || job.isExpired || job.isLive === false) {
+    return (
+      <div className="lv-page-container">
+        <div className="lv-empty">
+          <Icon name="alert-circle" size={40} style={{ color: "#ef4444", margin: "0 auto 14px" }} />
+          <h3>{lang === "VN" || lang === "VI" ? "Công việc đã hết hạn hoặc đã đóng" : "Job No Longer Available"}</h3>
+          <p style={{ fontWeight: 600, color: "var(--text-primary)" }}>{titleText} · {job.company}</p>
+          <p style={{ maxWidth: 520, margin: "14px auto 24px", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: 1.6 }}>
+            {lang === "VN" || lang === "VI"
+              ? "Vị trí tuyển dụng này đã hết hạn nhận hồ sơ hoặc đã được nhà tuyển dụng đóng. Vui lòng khám phá các công việc đang mở tuyển khác trên LàmViệc360."
+              : "This job posting has reached its application deadline or has been closed by the employer. Please explore other active job opportunities on LàmViệc360."}
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+            <Link href="/jobs">
+              <Button variant="primary">{lang === "VN" || lang === "VI" ? "Xem việc làm đang tuyển" : "Browse Live Jobs"}</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const saveDraft = () => {
     try {
@@ -202,6 +231,57 @@ export default function ApplyClient({ jobId }) {
       setWithdrawing(false);
     }
   };
+
+  const isRejectedLockout = !eligibility.canApply && eligibility.reason === "rejected_lockout";
+  if (isRejectedLockout && !result) {
+    return (
+      <div className="lv-page-container">
+        <div className="lv-empty">
+          <Icon name="clock" size={36} style={{ color: "#d97706", margin: "0 auto 12px" }} />
+          <h3>{lang === "VN" || lang === "VI" ? "Thời gian chờ ứng tuyển lại (90 ngày)" : "Reapplication Cooling-off Period (90 Days)"}</h3>
+          <p style={{ fontWeight: 600, color: "var(--text-primary)" }}>{titleText} · {job.company}</p>
+
+          <div style={{
+            margin: "14px auto 18px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 18px",
+            background: "#fffbeb",
+            color: "#92400e",
+            borderRadius: "9999px",
+            fontSize: "var(--text-sm)",
+            fontWeight: 700,
+            border: "1px solid #fde68a"
+          }}>
+            <Icon name="alert-triangle" size={16} />
+            <span>
+              {lang === "VN" || lang === "VI"
+                ? `Còn lại ${eligibility.daysRemaining} ngày (Được ứng tuyển lại từ ngày ${eligibility.eligibleDate})`
+                : `${eligibility.daysRemaining} days remaining (Eligible to reapply on ${eligibility.eligibleDate})`}
+            </span>
+          </div>
+
+          <p style={{ maxWidth: 520, margin: "0 auto 24px", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: 1.6 }}>
+            {lang === "VN" || lang === "VI"
+              ? "Theo quy định nền tảng (BR-301-09 & JSP-FR-005b), ứng viên chưa phù hợp trong đợt ứng tuyển trước cần đợi 90 ngày kể từ ngày thông báo kết quả trước khi nộp lại hồ sơ cho cùng một vị trí."
+              : "Per platform rule BR-301-09 & JSP-FR-005b, candidates who were not selected must wait 90 days from the rejection notification before reapplying to the same position."}
+          </p>
+
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            {eligibility.application && (
+              <Link href={`/applications/${eligibility.application.id}`}>
+                <Button variant="secondary">{t(lang, "View Previous Application")}</Button>
+              </Link>
+            )}
+            <Link href="/jobs">
+              <Button variant="primary">{t(lang, "Find More Jobs")}</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (alreadyApplied && !result) {
     const rawStage = existingApp?.stage || existingApp?.status || "Applied";
@@ -452,14 +532,9 @@ export default function ApplyClient({ jobId }) {
   const onResumeChange = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    const ext = (file.name.split(".").pop() || "").toLowerCase();
-    // BR-101-03: PDF, DOC, and DOCX only
-    if (!["pdf", "doc", "docx"].includes(ext)) {
-      setErr(t(lang, "Unsupported file format. Allowed formats: PDF, DOC, and DOCX only"));
-      return;
-    }
-    if (file.size > MAX_RESUME_MB * 1024 * 1024) {
-      setErr(t(lang, `Resume file size must not exceed ${MAX_RESUME_MB} MB.`));
+    const validation = validateResumeFile(file, lang);
+    if (!validation.valid) {
+      setErr(t(lang, validation.error));
       return;
     }
     setErr("");
@@ -493,16 +568,23 @@ export default function ApplyClient({ jobId }) {
           ]
           : []),
       ];
+      const selectedResumeObj = resumes.find((r) => String(r.id) === String(selectedResumeId));
+      const resolvedResumeName = applyResumeFile
+        ? applyResumeFile.name
+        : (selectedResumeObj?.resumeName || resumeFileName || "Resume");
+
       const record = await addApplication({
         jobId: job.id,
         job: job,
         resumeFileName,
+        resumeName: resolvedResumeName,
         resumeId: applyResumeFile ? null : selectedResumeId,
         resumeFile: applyResumeFile,
         saveToProfile: saveApplyResumeToProfile,
         coverLetter,
         answers,
         certifications: certsToAttach,
+        consent: true,
         certification: appliedCertFile
           ? {
             name: appliedCertTitle.trim() || appliedCertFile.name,
@@ -720,7 +802,7 @@ export default function ApplyClient({ jobId }) {
                 <input
                   type="file"
                   id="resume-upload"
-                  accept=".pdf,.doc,.docx"
+                  accept={UPLOAD_CONFIG.RESUME.accept}
                   onChange={onResumeChange}
                   style={{ display: "none" }}
                 />
@@ -992,7 +1074,7 @@ export default function ApplyClient({ jobId }) {
                         <input
                           type="file"
                           id="apply-cert-replace-file"
-                          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                          accept={UPLOAD_CONFIG.CERTIFICATION.accept}
                           onChange={(e) => {
                             const f = e.target.files?.[0];
                             if (f) handleCertificateFile(f);
@@ -1057,7 +1139,7 @@ export default function ApplyClient({ jobId }) {
                     <input
                       type="file"
                       id="apply-cert-file-upload"
-                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      accept={UPLOAD_CONFIG.CERTIFICATION.accept}
                       onChange={(e) => {
                         const f = e.target.files?.[0];
                         if (f) handleCertificateFile(f);
@@ -1192,7 +1274,11 @@ export default function ApplyClient({ jobId }) {
                 onChange={(e) => setConsent(e.target.checked)}
               />
             </div>
-            <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 12 }}>{t(lang, "Required before you can submit your application.")}</p>
+            <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 12, lineHeight: 1.5 }}>
+              {lang === "VN" || lang === "VI"
+                ? "Bắt buộc trước khi nộp hồ sơ. Theo Nghị định 13/2023/NĐ-CP (BR-011) về Bảo vệ dữ liệu cá nhân, sự đồng ý và mốc thời gian của bạn sẽ được lưu trữ bảo mật cho quy trình tuyển dụng."
+                : "Required before submission. Pursuant to Vietnam Decree 13/2023/ND-CP (BR-011) on Personal Data Protection, your consent and submission timestamp are recorded securely for recruitment purposes."}
+            </p>
           </div>
         )}
 
