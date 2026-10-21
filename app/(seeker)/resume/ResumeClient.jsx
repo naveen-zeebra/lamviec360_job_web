@@ -36,6 +36,12 @@ import {
   validateArchiveDocumentFile,
   validateCumulativeProfileAttachmentQuota,
 } from "../../../utils/fileValidation";
+import { getSeekerToken } from "../../../lib/api/client";
+import {
+  downloadSeekerResume,
+  downloadSeekerDocument,
+  downloadFileFromUrl,
+} from "../../../lib/api/seekerApi";
 
 
 const PAGE = "mx-auto max-w-[1000px] px-6 pb-24 pt-10 max-md:px-4 max-md:pb-12 max-md:pt-7";
@@ -181,6 +187,71 @@ export default function ResumeClient() {
     }
   };
 
+  // --- Direct Download actions (no page redirection) ---
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const handleDownloadResume = async (resume) => {
+    if (!resume) return;
+    const targetId = resume.id;
+    const fileName = resume.fileName || resume.resumeName || "resume.pdf";
+    setDownloadingId(targetId || "preview");
+    try {
+      const isBackendResume = targetId && !String(targetId).startsWith("local-") && getSeekerToken();
+      if (isBackendResume) {
+        await downloadSeekerResume(targetId, fileName);
+      } else if (resume.dataUrl || resume.fileUrl) {
+        await downloadFileFromUrl(resume.dataUrl || resume.fileUrl, fileName);
+      } else {
+        throw new Error(tr(lang, "Không tìm thấy tệp để tải xuống", "File not found for download"));
+      }
+    } catch (err) {
+      console.error("Resume download error:", err);
+      if (resume.dataUrl && resume.dataUrl.startsWith("data:")) {
+        try {
+          const a = document.createElement("a");
+          a.href = resume.dataUrl;
+          a.download = fileName;
+          a.click();
+          return;
+        } catch (_) {}
+      }
+      setToast(err.message || tr(lang, "Không thể tải xuống CV", "Failed to download résumé"));
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleDownloadDocument = async (doc) => {
+    if (!doc) return;
+    const targetId = doc.id;
+    const fileName = doc.fileName || doc.title || "document";
+    setDownloadingId(targetId);
+    try {
+      const isBackendDoc = targetId && !String(targetId).startsWith("doc-") && getSeekerToken();
+      if (isBackendDoc) {
+        await downloadSeekerDocument(targetId, fileName);
+      } else if (doc.dataUrl || doc.fileUrl) {
+        await downloadFileFromUrl(doc.dataUrl || doc.fileUrl, fileName);
+      } else {
+        throw new Error(tr(lang, "Không tìm thấy tệp để tải xuống", "File not found for download"));
+      }
+    } catch (err) {
+      console.error("Document download error:", err);
+      if (doc.dataUrl && doc.dataUrl.startsWith("data:")) {
+        try {
+          const a = document.createElement("a");
+          a.href = doc.dataUrl;
+          a.download = fileName;
+          a.click();
+          return;
+        } catch (_) {}
+      }
+      setToast(err.message || tr(lang, "Không thể tải xuống tài liệu", "Failed to download document"));
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   // --- Document Archive actions ---
   const handleDocFileSelect = (e) => {
     const file = e.target.files && e.target.files[0];
@@ -310,11 +381,10 @@ export default function ResumeClient() {
         <button
           type="button"
           onClick={() => setActiveTab("resumes")}
-          className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-bold transition-colors ${
-            activeTab === "resumes"
+          className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-bold transition-colors ${activeTab === "resumes"
               ? "border-brand text-brand"
               : "border-transparent text-muted hover:text-ink"
-          }`}
+            }`}
         >
           <Icon name="file-text" size={18} />
           <span>{tr(lang, "Thư viện CV", "My Résumés")}</span>
@@ -326,11 +396,10 @@ export default function ResumeClient() {
         <button
           type="button"
           onClick={() => setActiveTab("archive")}
-          className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-bold transition-colors ${
-            activeTab === "archive"
+          className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-bold transition-colors ${activeTab === "archive"
               ? "border-brand text-brand"
               : "border-transparent text-muted hover:text-ink"
-          }`}
+            }`}
         >
           <Icon name="archive" size={18} />
           <span>{tr(lang, "Kho lưu trữ hồ sơ", "Document Archive")}</span>
@@ -363,24 +432,22 @@ export default function ResumeClient() {
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-24 overflow-hidden rounded-full bg-sunken">
                     <div
-                      className={`h-full transition-all ${
-                        attachUsage.percentUsed >= 100
+                      className={`h-full transition-all ${attachUsage.percentUsed >= 100
                           ? "bg-danger"
                           : attachUsage.percentUsed > 80
-                          ? "bg-amber-500"
-                          : "bg-brand"
-                      }`}
+                            ? "bg-amber-500"
+                            : "bg-brand"
+                        }`}
                       style={{ width: `${Math.min(100, attachUsage.percentUsed)}%` }}
                     />
                   </div>
                   <span
-                    className={`font-bold ${
-                      attachUsage.percentUsed >= 100
+                    className={`font-bold ${attachUsage.percentUsed >= 100
                         ? "text-danger"
                         : attachUsage.percentUsed > 80
-                        ? "text-amber-600"
-                        : "text-muted"
-                    }`}
+                          ? "text-amber-600"
+                          : "text-muted"
+                      }`}
                   >
                     {attachUsage.usedMb} / {attachUsage.maxMb} MB
                   </span>
@@ -437,9 +504,8 @@ export default function ResumeClient() {
                     return (
                       <div
                         key={resume.id}
-                        className={`rounded-lg border p-4 transition-all ${
-                          active ? "border-brand bg-brand-subtle/40 ring-1 ring-brand/30" : "border-line bg-card hover:bg-sunken/40"
-                        }`}
+                        className={`rounded-lg border p-4 transition-all ${active ? "border-brand bg-brand-subtle/40 ring-1 ring-brand/30" : "border-line bg-card hover:bg-sunken/40"
+                          }`}
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div
@@ -542,14 +608,20 @@ export default function ResumeClient() {
                                 {t(lang, "Set as default")}
                               </Button>
                             )}
-                            {resume.dataUrl && (
-                              <a
-                                href={resume.dataUrl}
-                                download={resume.fileName}
-                                className="inline-flex items-center justify-center rounded-md font-semibold font-body border-[1.5px] border-line-brand bg-card text-brand hover:bg-brand-subtle px-3.5 py-1.5 text-sm gap-1.5 transition-[background,opacity,filter] duration-150"
+                            {(resume.id || resume.dataUrl || resume.fileUrl) && (
+                              <button
+                                type="button"
+                                disabled={downloadingId === resume.id}
+                                onClick={() => handleDownloadResume(resume)}
+                                className="inline-flex items-center justify-center rounded-md font-semibold font-body border-[1.5px] border-line-brand bg-card text-brand hover:bg-brand-subtle px-3.5 py-1.5 text-sm gap-1.5 transition-[background,opacity,filter] duration-150 disabled:opacity-50"
                               >
-                                <Icon name="download" size={14} /> {t(lang, "Download")}
-                              </a>
+                                <Icon
+                                  name={downloadingId === resume.id ? "loader-2" : "download"}
+                                  size={14}
+                                  className={downloadingId === resume.id ? "animate-spin" : ""}
+                                />{" "}
+                                {downloadingId === resume.id ? tr(lang, "Đang tải...", "Downloading...") : t(lang, "Download")}
+                              </button>
                             )}
                             <Button variant="ghost" size="sm" onClick={() => setConfirmRemoveId(resume.id)}>
                               <Icon name="trash-2" size={14} /> {t(lang, "Remove")}
@@ -577,7 +649,7 @@ export default function ResumeClient() {
               </div>
 
               {/* Preview */}
-              <div className={`${CARD} mb-5`}>
+              <div className={`${CARD} mb-5 hidden`}>
                 <div className="mb-3 flex items-center justify-between">
                   <span className={LABEL} style={{ marginBottom: 0 }}>{t(lang, "Preview")}</span>
                   {selected && (
@@ -596,14 +668,20 @@ export default function ResumeClient() {
                   <div className="rounded-md border border-dashed border-line bg-sunken px-6 py-12 text-center text-sm text-muted">
                     <Icon name="file-search" size={26} />
                     <p className="mt-2">{t(lang, "Preview isn't available for this file.")}</p>
-                    {href && (
-                      <a
-                        href={href}
-                        download={selected?.fileName}
-                        className="mt-3 inline-flex items-center justify-center rounded-md font-semibold font-body border-[1.5px] border-line-brand bg-card text-brand hover:bg-brand-subtle px-3.5 py-1.5 text-sm gap-1.5 transition-[background,opacity,filter] duration-150"
+                    {(href || selected?.id) && (
+                      <button
+                        type="button"
+                        disabled={downloadingId === (selected?.id || "preview")}
+                        onClick={() => handleDownloadResume(selected)}
+                        className="mt-3 inline-flex items-center justify-center rounded-md font-semibold font-body border-[1.5px] border-line-brand bg-card text-brand hover:bg-brand-subtle px-3.5 py-1.5 text-sm gap-1.5 transition-[background,opacity,filter] duration-150 disabled:opacity-50"
                       >
-                        {t(lang, "Download to view")}
-                      </a>
+                        <Icon
+                          name={downloadingId === (selected?.id || "preview") ? "loader-2" : "download"}
+                          size={14}
+                          className={downloadingId === (selected?.id || "preview") ? "animate-spin" : ""}
+                        />{" "}
+                        {downloadingId === (selected?.id || "preview") ? tr(lang, "Đang tải...", "Downloading...") : t(lang, "Download to view")}
+                      </button>
                     )}
                   </div>
                 )}
@@ -654,13 +732,12 @@ export default function ResumeClient() {
             {/* Storage bar */}
             <div className="h-3 w-full rounded-full bg-sunken overflow-hidden">
               <div
-                className={`h-full transition-all duration-300 rounded-full ${
-                  archiveUsage.percentUsed >= 90
+                className={`h-full transition-all duration-300 rounded-full ${archiveUsage.percentUsed >= 90
                     ? "bg-danger-fg"
                     : archiveUsage.percentUsed >= 75
-                    ? "bg-amber-500"
-                    : "bg-brand"
-                }`}
+                      ? "bg-amber-500"
+                      : "bg-brand"
+                  }`}
                 style={{ width: `${Math.min(100, Math.max(3, archiveUsage.percentUsed))}%` }}
               />
             </div>
@@ -686,16 +763,14 @@ export default function ResumeClient() {
                       key={cat.id}
                       type="button"
                       onClick={() => setArchiveCategory(cat.id)}
-                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        isSelected
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${isSelected
                           ? "bg-brand text-white shadow-sm"
                           : "bg-sunken text-muted hover:text-ink hover:bg-line/60"
-                      }`}
+                        }`}
                     >
                       {lang === "VN" || lang === "VI" ? cat.labelVi : cat.label}
-                      <span className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] ${
-                        isSelected ? "bg-white/20 text-white" : "bg-card text-muted"
-                      }`}>
+                      <span className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] ${isSelected ? "bg-white/20 text-white" : "bg-card text-muted"
+                        }`}>
                         {count}
                       </span>
                     </button>
@@ -887,16 +962,20 @@ export default function ResumeClient() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {downloadHref && (
-                          <a
-                            href={downloadHref}
-                            download={doc.fileName}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center rounded-md font-semibold font-body border-[1.5px] border-line-brand bg-card text-brand hover:bg-brand-subtle px-3.5 py-1.5 text-sm gap-1.5 transition-[background,opacity,filter] duration-150"
+                        {(doc.id || downloadHref) && (
+                          <button
+                            type="button"
+                            disabled={downloadingId === doc.id}
+                            onClick={() => handleDownloadDocument(doc)}
+                            className="inline-flex items-center justify-center rounded-md font-semibold font-body border-[1.5px] border-line-brand bg-card text-brand hover:bg-brand-subtle px-3.5 py-1.5 text-sm gap-1.5 transition-[background,opacity,filter] duration-150 disabled:opacity-50"
                           >
-                            <Icon name="download" size={14} /> {t(lang, "Download")}
-                          </a>
+                            <Icon
+                              name={downloadingId === doc.id ? "loader-2" : "download"}
+                              size={14}
+                              className={downloadingId === doc.id ? "animate-spin" : ""}
+                            />{" "}
+                            {downloadingId === doc.id ? tr(lang, "Đang tải...", "Downloading...") : t(lang, "Download")}
+                          </button>
                         )}
                         <Button
                           variant="ghost"
