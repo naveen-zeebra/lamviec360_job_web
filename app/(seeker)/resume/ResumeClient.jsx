@@ -29,6 +29,11 @@ import {
   deleteArchivedDocument,
   getProfile,
   getProfileAttachmentUsage,
+  getArchiveSecurityStatus,
+  setArchiveSecurityPin,
+  verifyArchiveSecurityPin,
+  lockArchiveSecurityPin,
+  removeArchiveSecurityPin,
 } from "../../../lib/seekerStore";
 import { UPLOAD_CONFIG } from "../../../config/uploadConfig";
 import {
@@ -71,6 +76,7 @@ function useResumeData() {
           documents: docs,
           settings: getSettings(),
           certifications: getCertifications(),
+          archiveSecurity: getArchiveSecurityStatus(),
         },
       });
     } catch (e) {
@@ -117,6 +123,33 @@ export default function ResumeClient() {
   const [docUploading, setDocUploading] = useState(false);
   const [confirmRemoveDocId, setConfirmRemoveDocId] = useState(null);
   const docFileRef = useRef(null);
+
+  // Archive Security & PIN state
+  const [secStatus, setSecStatus] = useState({ hasPin: false, isLocked: false, encryptionStandard: "AES-256" });
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinModalMode, setPinModalMode] = useState("set"); // "set" | "change" | "unlock" | "remove"
+  const [pinInput, setPinInput] = useState("");
+  const [currentPinInput, setCurrentPinInput] = useState("");
+  const [pinModalErr, setPinModalErr] = useState("");
+  const [pinSubmitting, setPinSubmitting] = useState(false);
+
+  // Direct download PIN prompt modal
+  const [pinPromptDoc, setPinPromptDoc] = useState(null);
+  const [pinPromptInput, setPinPromptInput] = useState("");
+  const [pinPromptErr, setPinPromptErr] = useState("");
+  const [pinPromptLoading, setPinPromptLoading] = useState(false);
+
+  // Upload modal PIN options
+  const [docProtectWithPin, setDocProtectWithPin] = useState(false);
+  const [docUploadPin, setDocUploadPin] = useState("");
+
+  useEffect(() => {
+    if (data?.archiveSecurity) {
+      setSecStatus(data.archiveSecurity);
+    } else {
+      setSecStatus(getArchiveSecurityStatus());
+    }
+  }, [data]);
 
   const setResumes = (resumes) => setState((s) => ({ ...s, data: { ...s.data, resumes } }));
   const setDocuments = (documents) => setState((s) => ({ ...s, data: { ...s.data, documents } }));
@@ -187,7 +220,6 @@ export default function ResumeClient() {
     }
   };
 
-  // --- Direct Download actions (no page redirection) ---
   const [downloadingId, setDownloadingId] = useState(null);
 
   const handleDownloadResume = async (resume) => {
@@ -196,7 +228,7 @@ export default function ResumeClient() {
     const fileName = resume.fileName || resume.resumeName || "resume.pdf";
     setDownloadingId(targetId || "preview");
     try {
-      const isBackendResume = targetId && !String(targetId).startsWith("local-") && getSeekerToken();
+      const isBackendResume = targetId && !String(targetId).startsWith("res-") && getSeekerToken();
       if (isBackendResume) {
         await downloadSeekerResume(targetId, fileName);
       } else if (resume.dataUrl || resume.fileUrl) {
@@ -221,22 +253,52 @@ export default function ResumeClient() {
     }
   };
 
-  const handleDownloadDocument = async (doc) => {
+  const handleDownloadDocument = async (doc, inputPin = null) => {
     if (!doc) return;
     const targetId = doc.id;
     const fileName = doc.fileName || doc.title || "document";
+    const sec = getArchiveSecurityStatus();
+    const isProtected = !!(doc.isPasswordProtected || doc.is_password_protected);
+    const requiresPin = sec.hasPin && (sec.isLocked || isProtected);
+
+    if (requiresPin && !inputPin && sec.isLocked) {
+      setPinPromptDoc(doc);
+      setPinPromptInput("");
+      setPinPromptErr("");
+      return;
+    }
     setDownloadingId(targetId);
     try {
       const isBackendDoc = targetId && !String(targetId).startsWith("doc-") && getSeekerToken();
       if (isBackendDoc) {
-        await downloadSeekerDocument(targetId, fileName);
+        await downloadSeekerDocument(targetId, fileName, inputPin);
       } else if (doc.dataUrl || doc.fileUrl) {
         await downloadFileFromUrl(doc.dataUrl || doc.fileUrl, fileName);
       } else {
         throw new Error(tr(lang, "Không tìm thấy tệp để tải xuống", "File not found for download"));
       }
+      setPinPromptDoc(null);
+      setPinPromptInput("");
+      setPinPromptErr("");
+      setToast(tr(lang, "Đã tải xuống tài liệu thành công", "Document downloaded successfully"));
     } catch (err) {
       console.error("Document download error:", err);
+      const msg = err.message || "";
+      if (
+        msg.toLowerCase().includes("pin") ||
+        msg.toLowerCase().includes("password") ||
+        msg.toLowerCase().includes("locked") ||
+        msg.includes("401") ||
+        msg.includes("403")
+      ) {
+        setPinPromptDoc(doc);
+        setPinPromptErr(
+          inputPin
+            ? tr(lang, "Mã PIN bảo mật không chính xác. Vui lòng thử lại.", "Incorrect Security PIN. Please try again.")
+            : tr(lang, "Kho lưu trữ đang bị khóa. Vui lòng nhập mã PIN bảo mật.", "Archive is locked. Please enter your Security PIN.")
+        );
+        return;
+      }
       if (doc.dataUrl && doc.dataUrl.startsWith("data:")) {
         try {
           const a = document.createElement("a");
@@ -249,6 +311,76 @@ export default function ResumeClient() {
       setToast(err.message || tr(lang, "Không thể tải xuống tài liệu", "Failed to download document"));
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const handlePinAction = async () => {
+    setPinModalErr("");
+    setPinSubmitting(true);
+    try {
+      if (pinModalMode === "set") {
+        if (!pinInput || pinInput.length < 4 || pinInput.length > 8) {
+          throw new Error(tr(lang, "Mã PIN phải từ 4 đến 8 chữ số", "PIN must be between 4 and 8 digits"));
+        }
+        await setArchiveSecurityPin(pinInput);
+        setToast(tr(lang, "Thiết lập mã PIN bảo mật thành công", "Security PIN created successfully"));
+      } else if (pinModalMode === "change") {
+        if (!currentPinInput) {
+          throw new Error(tr(lang, "Vui lòng nhập mã PIN hiện tại", "Please enter current PIN"));
+        }
+        if (!pinInput || pinInput.length < 4 || pinInput.length > 8) {
+          throw new Error(tr(lang, "Mã PIN mới phải từ 4 đến 8 chữ số", "New PIN must be between 4 and 8 digits"));
+        }
+        await setArchiveSecurityPin(pinInput, currentPinInput);
+        setToast(tr(lang, "Đổi mã PIN bảo mật thành công", "Security PIN changed successfully"));
+      } else if (pinModalMode === "unlock") {
+        if (!pinInput) {
+          throw new Error(tr(lang, "Vui lòng nhập mã PIN", "Please enter PIN"));
+        }
+        await verifyArchiveSecurityPin(pinInput);
+        setToast(tr(lang, "Đã mở khóa kho lưu trữ", "Archive unlocked"));
+      } else if (pinModalMode === "remove") {
+        if (!currentPinInput) {
+          throw new Error(tr(lang, "Vui lòng nhập mã PIN hiện tại để gỡ bỏ", "Please enter current PIN to remove"));
+        }
+        await removeArchiveSecurityPin(currentPinInput);
+        setToast(tr(lang, "Đã gỡ bỏ mã PIN bảo mật", "Security PIN removed"));
+      }
+      setSecStatus(getArchiveSecurityStatus());
+      setShowPinModal(false);
+      setPinInput("");
+      setCurrentPinInput("");
+    } catch (e) {
+      setPinModalErr(e.message || "Action failed");
+    } finally {
+      setPinSubmitting(false);
+    }
+  };
+
+  const handleLockArchive = async () => {
+    try {
+      await lockArchiveSecurityPin();
+      setSecStatus(getArchiveSecurityStatus());
+      setToast(tr(lang, "Đã khóa kho lưu trữ", "Archive locked"));
+    } catch (e) {
+      setToast(e.message || "Failed to lock archive");
+    }
+  };
+
+  const handlePinPromptSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!pinPromptInput) {
+      setPinPromptErr(tr(lang, "Vui lòng nhập mã PIN", "Please enter PIN"));
+      return;
+    }
+    setPinPromptLoading(true);
+    setPinPromptErr("");
+    try {
+      await handleDownloadDocument(pinPromptDoc, pinPromptInput);
+    } catch (e) {
+      setPinPromptErr(e.message || "Download failed");
+    } finally {
+      setPinPromptLoading(false);
     }
   };
 
@@ -283,12 +415,17 @@ export default function ResumeClient() {
         file: docFile,
         category: selectedCategory,
         title: docTitle.trim() || docFile.name,
+        protectWithPin: docProtectWithPin,
+        pin: docUploadPin.trim(),
       });
+      setSecStatus(getArchiveSecurityStatus());
       setDocuments(updatedDocs || getArchivedDocuments());
       setArchiveCategory(selectedCategory);
       setShowUploadDocModal(false);
       setDocFile(null);
       setDocTitle("");
+      setDocProtectWithPin(false);
+      setDocUploadPin("");
       setToast(tr(lang, "Tải lên tài liệu thành công", "Document uploaded successfully"));
     } catch (e) {
       setDocUploadErr(e.message || tr(lang, "Tải lên thất bại", "Upload failed"));
@@ -704,6 +841,101 @@ export default function ResumeClient() {
       {/* ──────────────── TAB 2: CANDIDATE DOCUMENT ARCHIVE (JSP-FR-012) ──────────────── */}
       {activeTab === "archive" && (
         <>
+          {/* Security & Encryption Banner */}
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+            <div className="flex items-start gap-3.5 max-w-xl">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <Icon name="shield" size={22} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-ink">
+                    {tr(lang, "Kho hồ sơ mã hóa chuẩn AES-256", "AES-256 Encrypted Document Storage")}
+                  </h4>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                    <Icon name="check" size={11} /> {tr(lang, "Bảo mật cấp cao", "High Security")}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted leading-relaxed">
+                  {tr(
+                    lang,
+                    "Hợp đồng cũ, quyết định thôi việc, bảng lương và chứng chỉ được mã hóa lưu trữ. Nhà tuyển dụng chỉ có quyền xem khi bạn được đưa vào vòng Tuyển chọn (Shortlisted) trở đi.",
+                    "Contracts, relieving letters, payslips, and certificates are encrypted at rest. Employers can only access them when you advance to the Shortlisted stage or beyond."
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {secStatus.hasPin ? (
+                secStatus.isLocked ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setPinModalMode("unlock");
+                      setPinModalErr("");
+                      setPinInput("");
+                      setShowPinModal(true);
+                    }}
+                    className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-300"
+                  >
+                    <Icon name="lock" size={14} className="text-amber-600 dark:text-amber-400" />
+                    <span>{tr(lang, "Mở khóa kho hồ sơ", "Unlock Archive")}</span>
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      <Icon name="unlock" size={13} />
+                      {tr(lang, "Đã mở khóa", "Unlocked")}
+                    </span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleLockArchive}
+                      className="border-line text-ink hover:bg-sunken"
+                    >
+                      <Icon name="lock" size={14} />
+                      <span>{tr(lang, "Khóa lại", "Lock")}</span>
+                    </Button>
+                  </div>
+                )
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setPinModalMode("set");
+                    setPinModalErr("");
+                    setPinInput("");
+                    setShowPinModal(true);
+                  }}
+                  className="border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-card dark:text-emerald-300"
+                >
+                  <Icon name="key" size={14} />
+                  <span>{tr(lang, "Cài mã PIN bảo vệ", "Set Security PIN")}</span>
+                </Button>
+              )}
+
+              {secStatus.hasPin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setPinModalMode("change");
+                    setPinModalErr("");
+                    setPinInput("");
+                    setCurrentPinInput("");
+                    setShowPinModal(true);
+                  }}
+                  title={tr(lang, "Quản lý mã PIN", "Manage PIN")}
+                >
+                  <Icon name="settings" size={15} />
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* Storage Meter Card */}
           <div className={`${CARD} mb-5`}>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
@@ -714,8 +946,8 @@ export default function ResumeClient() {
                 <p className="text-xs text-muted">
                   {tr(
                     lang,
-                    "Giới hạn tối đa 10 MB/tệp và 100 MB tổng kho lưu trữ theo chuẩn FSD JSP-FR-012.",
-                    "Max 10 MB per file, 100 MB total archive limit per JSP-FR-012."
+                    "Giới hạn tối đa 10 MB/tệp và 100 MB tổng kho lưu trữ hồ sơ xác thực.",
+                    "Max 10 MB per file, 100 MB total archive limit for verification documents."
                   )}
                 </p>
               </div>
@@ -867,6 +1099,54 @@ export default function ResumeClient() {
                   </div>
                 </div>
 
+                {/* PIN Protection Option */}
+                <div className="mt-4 rounded-lg border border-line bg-card p-3.5">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={docProtectWithPin}
+                      onChange={(e) => setDocProtectWithPin(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-line text-brand focus:ring-brand"
+                    />
+                    <div className="flex-1 text-xs">
+                      <span className="font-bold text-ink flex items-center gap-1.5">
+                        <Icon name="lock" size={13} className="text-amber-500" />
+                        {tr(lang, "Bảo vệ tài liệu này bằng mã PIN bảo mật", "Protect this document with Security PIN")}
+                      </span>
+                      <p className="mt-0.5 text-muted leading-relaxed">
+                        {tr(
+                          lang,
+                          "Tài liệu sẽ yêu cầu mã PIN khi bạn tải xuống trên tài khoản này.",
+                          "Requires your Security PIN whenever downloading from your account."
+                        )}
+                      </p>
+                    </div>
+                  </label>
+
+                  {docProtectWithPin && !secStatus.hasPin && (
+                    <div className="mt-3 pt-3 border-t border-line/60">
+                      <label className={LABEL}>
+                        {tr(lang, "Nhập mã PIN bảo mật mới (4-8 chữ số)", "Enter new Security PIN (4-8 digits)")} *
+                      </label>
+                      <input
+                        type="password"
+                        maxLength={8}
+                        value={docUploadPin}
+                        onChange={(e) => setDocUploadPin(e.target.value.replace(/\D/g, ""))}
+                        placeholder="••••"
+                        className="w-full max-w-xs rounded-md border border-line bg-card px-3 py-2 text-sm tracking-widest text-ink focus:border-brand focus:outline-none"
+                      />
+                      <p className="mt-1 text-[11px] text-muted">
+                        {tr(
+                          lang,
+                          "Mã PIN này sẽ trở thành mã PIN bảo mật kho hồ sơ của bạn.",
+                          "This PIN will also serve as your general archive security PIN."
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 {docUploadErr && (
                   <p className="mt-3 text-sm text-danger-fg font-medium">{docUploadErr}</p>
                 )}
@@ -953,6 +1233,16 @@ export default function ResumeClient() {
                             <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${getCategoryBadgeClass(doc.category)}`}>
                               {lang === "VN" || lang === "VI" ? catMeta.labelVi : catMeta.label}
                             </span>
+                            {doc.isEncrypted && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-bold">
+                                <Icon name="shield" size={10} /> {tr(lang, "Mã hóa AES", "AES Encrypted")}
+                              </span>
+                            )}
+                            {doc.isPasswordProtected && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                                <Icon name="lock" size={10} /> {tr(lang, "Khóa PIN", "PIN Protected")}
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs text-muted mt-0.5 break-all">
                             {doc.fileName} · {formatBytes(doc.sizeBytes || doc.size || 0)}
@@ -970,11 +1260,15 @@ export default function ResumeClient() {
                             className="inline-flex items-center justify-center rounded-md font-semibold font-body border-[1.5px] border-line-brand bg-card text-brand hover:bg-brand-subtle px-3.5 py-1.5 text-sm gap-1.5 transition-[background,opacity,filter] duration-150 disabled:opacity-50"
                           >
                             <Icon
-                              name={downloadingId === doc.id ? "loader-2" : "download"}
+                              name={downloadingId === doc.id ? "loader-2" : (secStatus.hasPin && secStatus.isLocked ? "lock" : "download")}
                               size={14}
                               className={downloadingId === doc.id ? "animate-spin" : ""}
                             />{" "}
-                            {downloadingId === doc.id ? tr(lang, "Đang tải...", "Downloading...") : t(lang, "Download")}
+                            {downloadingId === doc.id
+                              ? tr(lang, "Đang tải...", "Downloading...")
+                              : (secStatus.hasPin && secStatus.isLocked
+                                ? tr(lang, "Mở khóa tải", "Unlock & Download")
+                                : t(lang, "Download"))}
                           </button>
                         )}
                         <Button
@@ -1006,6 +1300,224 @@ export default function ResumeClient() {
             )}
           </div>
         </>
+      )}
+
+      {/* ── Modal: Manage Archive Security PIN ── */}
+      {showPinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-xl border border-line bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-ink flex items-center gap-2">
+                <Icon name="shield" size={18} className="text-brand" />
+                {pinModalMode === "set" && tr(lang, "Thiết lập mã PIN bảo mật kho hồ sơ", "Set Archive Security PIN")}
+                {pinModalMode === "change" && tr(lang, "Đổi mã PIN bảo mật", "Change Security PIN")}
+                {pinModalMode === "unlock" && tr(lang, "Mở khóa kho hồ sơ bảo mật", "Unlock Encrypted Archive")}
+                {pinModalMode === "remove" && tr(lang, "Gỡ bỏ mã PIN bảo vệ", "Remove Security PIN")}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPinModal(false);
+                  setPinInput("");
+                  setCurrentPinInput("");
+                  setPinModalErr("");
+                }}
+                className="rounded-lg p-1 text-muted hover:bg-sunken hover:text-ink"
+              >
+                <Icon name="x" size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted mb-4 leading-relaxed">
+              {pinModalMode === "set" && tr(
+                lang,
+                "Tạo mã PIN (4-8 số) để bảo vệ tài liệu quan trọng của bạn. Chỉ người có mã PIN mới có thể tải xuống các tài liệu này.",
+                "Create a 4-8 digit PIN to protect sensitive documents. Only you with this PIN can download them."
+              )}
+              {pinModalMode === "unlock" && tr(
+                lang,
+                "Nhập mã PIN để mở khóa kho lưu trữ tài liệu bảo mật trên phiên làm việc hiện tại.",
+                "Enter your PIN to unlock encrypted documents during this session."
+              )}
+              {pinModalMode === "change" && tr(
+                lang,
+                "Nhập mã PIN hiện tại và mã PIN mới để cập nhật bảo mật.",
+                "Enter your current PIN and a new PIN to update security."
+              )}
+              {pinModalMode === "remove" && tr(
+                lang,
+                "Xác nhận mã PIN hiện tại để gỡ bỏ bảo vệ mã PIN cho kho lưu trữ.",
+                "Enter your current PIN to remove PIN protection from your archive."
+              )}
+            </p>
+
+            <div className="space-y-3">
+              {(pinModalMode === "change" || pinModalMode === "remove") && (
+                <div>
+                  <label className={LABEL}>
+                    {tr(lang, "Mã PIN hiện tại", "Current PIN")} *
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={8}
+                    value={currentPinInput}
+                    onChange={(e) => setCurrentPinInput(e.target.value.replace(/\D/g, ""))}
+                    placeholder="••••"
+                    className="w-full rounded-md border border-line bg-card px-3 py-2 text-sm tracking-widest text-ink focus:border-brand focus:outline-none"
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {pinModalMode !== "remove" && (
+                <div>
+                  <label className={LABEL}>
+                    {pinModalMode === "change"
+                      ? tr(lang, "Mã PIN mới (4-8 số)", "New PIN (4-8 digits)")
+                      : tr(lang, "Mã PIN (4-8 số)", "PIN (4-8 digits)")} *
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={8}
+                    value={pinInput}
+                    onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
+                    placeholder="••••"
+                    className="w-full rounded-md border border-line bg-card px-3 py-2 text-sm tracking-widest text-ink focus:border-brand focus:outline-none"
+                    autoFocus={pinModalMode === "set" || pinModalMode === "unlock"}
+                  />
+                </div>
+              )}
+
+              {pinModalErr && (
+                <p className="text-xs text-danger font-semibold">{pinModalErr}</p>
+              )}
+
+              <div className="flex justify-between items-center pt-2">
+                {pinModalMode === "change" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPinModalMode("remove");
+                      setPinModalErr("");
+                    }}
+                    className="text-xs text-danger hover:underline font-semibold"
+                  >
+                    {tr(lang, "Gỡ bỏ mã PIN", "Remove PIN")}
+                  </button>
+                ) : <span />}
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowPinModal(false);
+                      setPinInput("");
+                      setCurrentPinInput("");
+                      setPinModalErr("");
+                    }}
+                  >
+                    {tr(lang, "Hủy", "Cancel")}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={pinSubmitting}
+                    onClick={handlePinAction}
+                  >
+                    {pinSubmitting
+                      ? tr(lang, "Đang xử lý...", "Processing...")
+                      : pinModalMode === "unlock"
+                        ? tr(lang, "Mở khóa", "Unlock")
+                        : pinModalMode === "remove"
+                          ? tr(lang, "Xác nhận gỡ", "Confirm Remove")
+                          : tr(lang, "Lưu mã PIN", "Save PIN")}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Enter PIN to Download Document ── */}
+      {pinPromptDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-sm rounded-xl border border-line bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-ink flex items-center gap-2">
+                <Icon name="lock" size={16} className="text-amber-500" />
+                {tr(lang, "Nhập mã PIN để tải tài liệu", "Enter Security PIN to Download")}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setPinPromptDoc(null);
+                  setPinPromptInput("");
+                  setPinPromptErr("");
+                }}
+                className="text-muted hover:text-ink"
+              >
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted mb-4">
+              <span className="font-semibold text-ink">{pinPromptDoc.fileName || pinPromptDoc.title}</span>{" "}
+              {tr(
+                lang,
+                "được bảo vệ bằng mã PIN bảo mật. Vui lòng nhập mã PIN để giải mã và tải xuống.",
+                "is protected with a Security PIN. Please enter your PIN to decrypt and download."
+              )}
+            </p>
+
+            <form onSubmit={handlePinPromptSubmit} className="space-y-3">
+              <input
+                type="password"
+                maxLength={8}
+                value={pinPromptInput}
+                onChange={(e) => setPinPromptInput(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+                className="w-full rounded-md border border-line bg-card px-3 py-2 text-center text-lg tracking-[0.5em] font-mono text-ink focus:border-brand focus:outline-none"
+                autoFocus
+              />
+
+              {pinPromptErr && (
+                <p className="text-xs text-danger font-semibold text-center">{pinPromptErr}</p>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => {
+                    setPinPromptDoc(null);
+                    setPinPromptInput("");
+                    setPinPromptErr("");
+                  }}
+                >
+                  {tr(lang, "Hủy", "Cancel")}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  type="submit"
+                  disabled={pinPromptLoading || !pinPromptInput}
+                >
+                  {pinPromptLoading ? (
+                    tr(lang, "Đang giải mã...", "Decrypting...")
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      <Icon name="download" size={14} />
+                      {tr(lang, "Giải mã & Tải", "Decrypt & Download")}
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       <Toast msg={toast} />

@@ -1110,5 +1110,18 @@
   "Select resume visibility": "Chọn quyền hiển thị CV",
   "Total file size cannot exceed 10MB. Please reduce file sizes or remove some documents.": "Tổng dung lượng tệp không được vượt quá 10MB. Vui lòng giảm kích thước tệp hoặc xóa bớt tài liệu.",
   "Profile Documents Quota": "Hạn mức tài liệu hồ sơ",
-  "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB.": "Tổng dung lượng đính kèm cho CV, Hồ sơ năng lực và Chứng chỉ không được vượt quá 10MB."
+  "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB.": "Tổng dung lượng đính kèm cho CV, Hồ sơ năng lực và Chứng chỉ không được vượt quá 10MB.",
+  "AES-256 Encrypted Document Storage": "Kho hồ sơ mã hóa chuẩn AES-256",
+  "High Security": "Bảo mật cấp cao",
+  "Set Security PIN": "Cài mã PIN bảo vệ",
+  "Change Security PIN": "Đổi mã PIN bảo mật",
+  "Unlock Archive": "Mở khóa kho hồ sơ",
+  "Lock Archive": "Khóa lại",
+  "Enter Security PIN to Download": "Nhập mã PIN để tải tài liệu",
+  "Protect this document with Security PIN": "Bảo vệ tài liệu này bằng mã PIN bảo mật",
+  "AES Encrypted": "Mã hóa AES",
+  "PIN Protected": "Khóa PIN",
+  "Incorrect Security PIN": "Mã PIN bảo mật không chính xác",
+  "Unlock & Download": "Mở khóa tải",
+  "Decrypt & Download": "Giải mã & Tải"
 }

@@ -833,5 +833,18 @@
   "Select resume visibility": "Select resume visibility",
   "Total file size cannot exceed 10MB. Please reduce file sizes or remove some documents.": "Total file size cannot exceed 10MB. Please reduce file sizes or remove some documents.",
   "Profile Documents Quota": "Profile Documents Quota",
-  "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB.": "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB."
+  "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB.": "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB.",
+  "AES-256 Encrypted Document Storage": "AES-256 Encrypted Document Storage",
+  "High Security": "High Security",
+  "Set Security PIN": "Set Security PIN",
+  "Change Security PIN": "Change Security PIN",
+  "Unlock Archive": "Unlock Archive",
+  "Lock Archive": "Lock Archive",
+  "Enter Security PIN to Download": "Enter Security PIN to Download",
+  "Protect this document with Security PIN": "Protect this document with Security PIN",
+  "AES Encrypted": "AES Encrypted",
+  "PIN Protected": "PIN Protected",
+  "Incorrect Security PIN": "Incorrect Security PIN",
+  "Unlock & Download": "Unlock & Download",
+  "Decrypt & Download": "Decrypt & Download"
 }
