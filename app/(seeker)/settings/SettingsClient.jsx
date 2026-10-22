@@ -28,6 +28,8 @@ import {
   uploadAvatar,
   avatarPublicHref,
   getProfileAttachmentUsage,
+  updateJobAvailability,
+  updateProfileVisibility,
 } from "../../../lib/seekerStore";
 import CitizenshipIdInput from "../../../components/seeker/CitizenshipIdInput";
 import SkillSelectorRedesigned from "../../../components/seeker/SkillSelectorRedesigned";
@@ -192,6 +194,8 @@ export default function SettingsClient() {
   const [accountPhone, setAccountPhone] = useState("");
   const [accountPhoneErr, setAccountPhoneErr] = useState("");
   const [isSavingAccountPhone, setIsSavingAccountPhone] = useState(false);
+  const [isUpdatingAvailability, setIsUpdatingAvailability] = useState(false);
+  const [liveSuccessMessage, setLiveSuccessMessage] = useState("");
 
   useEffect(() => {
     const prof = getProfile();
@@ -258,7 +262,7 @@ export default function SettingsClient() {
     const next = { ...settings, ...patch };
     setSettings(next);
     saveSettings(patch);
-    // BR-101-07: Profile visibility changes must take effect immediately across all views
+    // Profile visibility changes must take effect immediately across all views
     if (patch.privacy?.profileVisibility) {
       const isPublic = !patch.privacy.profileVisibility.toLowerCase().includes("private");
       try {
@@ -272,6 +276,48 @@ export default function SettingsClient() {
       }
     }
     setToast(t(lang, "Saved"));
+  };
+
+  const handleJobAvailabilityChange = async (newVal) => {
+    try {
+      setIsUpdatingAvailability(true);
+      await updateJobAvailability(newVal);
+      setProfile((prev) => ({ ...prev, jobAvailability: newVal }));
+      setSettings((prev) => ({
+        ...prev,
+        privacy: { ...prev.privacy, jobAvailability: newVal },
+      }));
+      setLiveSuccessMessage(t(lang, "Job availability updated & live immediately"));
+      setToast(t(lang, "Availability status updated immediately!"));
+      setTimeout(() => setLiveSuccessMessage(""), 5000);
+    } catch (e) {
+      console.error("Failed to update availability:", e);
+      setToast(t(lang, "Failed to update availability status."));
+    } finally {
+      setIsUpdatingAvailability(false);
+    }
+  };
+
+  const handleProfileVisibilityChange = async (newVal) => {
+    try {
+      await updateProfileVisibility(newVal);
+      const isPublic = !newVal.toLowerCase().includes("private");
+      setSettings((prev) => ({
+        ...prev,
+        privacy: { ...prev.privacy, profileVisibility: newVal },
+      }));
+      setProfile((prev) => ({
+        ...prev,
+        visibility: isPublic ? "public" : "private",
+        is_visible: isPublic,
+      }));
+      setLiveSuccessMessage(t(lang, "Profile visibility updated & live immediately"));
+      setToast(t(lang, "Visibility changes take effect immediately!"));
+      setTimeout(() => setLiveSuccessMessage(""), 5000);
+    } catch (e) {
+      console.error("Failed to update visibility:", e);
+      setToast(t(lang, "Failed to update profile visibility."));
+    }
   };
 
   const handleFullNameInput = (e) => {
@@ -1317,9 +1363,9 @@ export default function SettingsClient() {
               </div>
 
               {(profile.portfolio?.fileName || profile.portfolioFile?.fileName) && (
-                <div className="lv-resume-chip" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <Icon name="file-text" size={16} style={{ color: "#0891b2", flexShrink: 0 }} />
+                <div className="lv-resume-chip mt-3.5 flex items-center justify-between border border-line bg-sunken">
+                  <div className="flex items-center gap-2.5">
+                    <Icon name="file-text" size={16} className="text-cyan-600 shrink-0" />
                     <div>
                       <p className="lv-resume-chip-name">{profile.portfolio?.fileName || profile.portfolioFile?.fileName}</p>
                       <p className="lv-resume-chip-meta">
@@ -1328,13 +1374,12 @@ export default function SettingsClient() {
                       </p>
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div className="flex items-center gap-2">
                     {(profile.portfolio?.dataUrl || profile.portfolioFile?.dataUrl) && (
                       <a
                         href={profile.portfolio?.dataUrl || profile.portfolioFile?.dataUrl}
                         download={profile.portfolio?.fileName || profile.portfolioFile?.fileName}
-                        className="lv-photo-btn"
-                        style={{ padding: "4px 10px", fontSize: 12 }}
+                        className="lv-photo-btn px-2.5 py-1 text-xs"
                       >
                         <Icon name="download" size={12} /> {t(lang, "Download")}
                       </a>
@@ -1342,8 +1387,7 @@ export default function SettingsClient() {
                     <button
                       type="button"
                       onClick={handleRemovePortfolioFile}
-                      className="lv-photo-btn"
-                      style={{ padding: "4px 10px", fontSize: 12, color: "#dc2626", borderColor: "#fecaca" }}
+                      className="lv-photo-btn border-rose-200 px-2.5 py-1 text-xs text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-950/40"
                     >
                       <Icon name="trash-2" size={12} /> {t(lang, "Remove")}
                     </button>
@@ -1354,17 +1398,8 @@ export default function SettingsClient() {
             </div>
 
             {/* ── Save Profile Action Bar ── */}
-            <div style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              borderTop: "1px solid var(--border-default)",
-              paddingTop: 20,
-              marginTop: 12,
-              flexWrap: "wrap",
-              gap: 12
-            }}>
-              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)" }}>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
+              <span className="text-xs text-faint">
                 {t(lang, "All changes will be updated across your profile and job applications.")}
               </span>
               <Button
@@ -1381,7 +1416,7 @@ export default function SettingsClient() {
         )}
 
         {tab === "Preferences" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="flex flex-col gap-5">
             <ChipInput
               label={t(lang, "Preferred Roles")}
               values={profile.preferences.roles}
@@ -1401,12 +1436,12 @@ export default function SettingsClient() {
               <Select label={t(lang, "Work Mode")} value={profile.preferences.workMode} onChange={(e) => persist({ preferences: { ...profile.preferences, workMode: e.target.value } })} options={WORK_MODES.map((v) => ({ value: v, label: t(lang, v) }))} placeholder={t(lang, "Select preferred work mode")} />
               <Input label={t(lang, "Desired Salary")} value={profile.preferences.salary} onChange={(e) => persist({ preferences: { ...profile.preferences, salary: e.target.value } })} placeholder={t(lang, "e.g. 35,000,000 VND")} />
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border-default)", paddingTop: 20, marginTop: 12 }}>
+            <div className="mt-3 flex justify-end border-t border-line pt-5">
               <Button
                 type="button"
                 variant="primary"
                 onClick={async () => {
-                  // BR-101-05: Salary expectation must be within 1M-500M VND per month
+                  // Salary expectation must be within 1M-500M VND per month
                   if (profile.preferences?.salary) {
                     const raw = String(profile.preferences.salary).replace(/,/g, "").trim();
                     let num = null;
@@ -1446,21 +1481,168 @@ export default function SettingsClient() {
         )}
 
         {tab === "Privacy" && (
-          <div className="lv-form-grid">
-            <Select
-              label={t(lang, "Profile visibility")}
-              value={settings.privacy.profileVisibility}
-              onChange={(e) => persistSettings({ privacy: { ...settings.privacy, profileVisibility: e.target.value } })}
-              options={VISIBILITY_OPTIONS.map((v) => ({ value: v, label: t(lang, v) }))}
-              placeholder={t(lang, "Select profile visibility")}
-            />
-            <Select
-              label={t(lang, "Resume visibility")}
-              value={settings.privacy.resumeVisibility}
-              onChange={(e) => persistSettings({ privacy: { ...settings.privacy, resumeVisibility: e.target.value } })}
-              options={RESUME_VISIBILITY_OPTIONS.map((v) => ({ value: v, label: t(lang, v) }))}
-              placeholder={t(lang, "Select resume visibility")}
-            />
+          <div className="flex flex-col gap-5">
+            {liveSuccessMessage && (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 animate-in fade-in duration-200">
+                <Icon name="check-circle" size={16} className="text-emerald-600 shrink-0" />
+                <span>{liveSuccessMessage}</span>
+              </div>
+            )}
+
+            {/* ── Job Availability ── */}
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="m-0 text-base font-bold text-ink">
+                    {t(lang, "Job Availability Status")}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {t(lang, "Signal your hiring availability to employers and automated matching systems.")}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  {t(lang, "Live Status")}
+                </span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {/* 🟢 Open to Work */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleJobAvailabilityChange("open_to_work")}
+                  onKeyDown={(e) => e.key === "Enter" && handleJobAvailabilityChange("open_to_work")}
+                  className={`cursor-pointer rounded-xl border p-4 transition-all duration-200 ${(profile.jobAvailability || settings.privacy?.jobAvailability || "open_to_work") === "open_to_work"
+                    ? "border-emerald-500 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-500/30 dark:bg-emerald-950/40"
+                    : "border-line bg-card hover:border-slate-300 hover:bg-sunken dark:hover:border-slate-700"
+                    }`}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.2)]" />
+                      <strong className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
+                        {t(lang, "Open to Work")}
+                      </strong>
+                    </div>
+                    {(profile.jobAvailability || settings.privacy?.jobAvailability || "open_to_work") === "open_to_work" && (
+                      <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                        {t(lang, "Active")}
+                      </span>
+                    )}
+                  </div>
+                  <p className="m-0 text-xs leading-relaxed text-emerald-800 dark:text-emerald-300">
+                    {t(lang, "Actively looking for work. You are immediately available for interviews and prioritised in employer searches.")}
+                  </p>
+                </div>
+
+                {/* 🟡 Open to Relevant Opportunities */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleJobAvailabilityChange("open_to_opportunities")}
+                  onKeyDown={(e) => e.key === "Enter" && handleJobAvailabilityChange("open_to_opportunities")}
+                  className={`cursor-pointer rounded-xl border p-4 transition-all duration-200 ${(profile.jobAvailability || settings.privacy?.jobAvailability) === "open_to_opportunities"
+                    ? "border-amber-500 bg-amber-50/70 shadow-sm ring-1 ring-amber-500/30 dark:bg-amber-950/40"
+                    : "border-line bg-card hover:border-slate-300 hover:bg-sunken dark:hover:border-slate-700"
+                    }`}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-amber-500 shadow-[0_0_0_3px_rgba(245,158,11,0.2)]" />
+                      <strong className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                        {t(lang, "Open to Relevant Opportunities")}
+                      </strong>
+                    </div>
+                    {(profile.jobAvailability || settings.privacy?.jobAvailability) === "open_to_opportunities" && (
+                      <span className="rounded bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                        {t(lang, "Active")}
+                      </span>
+                    )}
+                  </div>
+                  <p className="m-0 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+                    {t(lang, "Passive matching. Open to hearing from recruiters about compelling positions matching your target salary and role.")}
+                  </p>
+                </div>
+
+                {/* 🔴 Not Looking */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleJobAvailabilityChange("not_looking")}
+                  onKeyDown={(e) => e.key === "Enter" && handleJobAvailabilityChange("not_looking")}
+                  className={`cursor-pointer rounded-xl border p-4 transition-all duration-200 ${(profile.jobAvailability || settings.privacy?.jobAvailability) === "not_looking"
+                    ? "border-rose-500 bg-rose-50/70 shadow-sm ring-1 ring-rose-500/30 dark:bg-rose-950/40"
+                    : "border-line bg-card hover:border-slate-300 hover:bg-sunken dark:hover:border-slate-700"
+                    }`}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-rose-500 shadow-[0_0_0_3px_rgba(239,68,68,0.2)]" />
+                      <strong className="text-sm font-bold text-rose-900 dark:text-rose-200">
+                        {t(lang, "Not Looking")}
+                      </strong>
+                    </div>
+                    {(profile.jobAvailability || settings.privacy?.jobAvailability) === "not_looking" && (
+                      <span className="rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                        {t(lang, "Active")}
+                      </span>
+                    )}
+                  </div>
+                  <p className="m-0 text-xs leading-relaxed text-rose-800 dark:text-rose-300">
+                    {t(lang, "Not interested in job offers right now. Your profile is hidden from general talent discovery and recruiter search.")}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Profile Visibility Controls ── */}
+            <div className="border-t border-line pt-5 hidden">
+              <div className="mb-3.5">
+                <h3 className="m-0 text-base font-bold text-ink">
+                  {t(lang, "Profile Visibility")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted">
+                  {t(lang, "Profile visibility changes take effect immediately across all employer discovery channels.")}
+                </p>
+              </div>
+
+              <div className="lv-form-grid">
+                <Select
+                  label={t(lang, "Profile visibility")}
+                  value={settings.privacy.profileVisibility}
+                  onChange={(e) => handleProfileVisibilityChange(e.target.value)}
+                  options={VISIBILITY_OPTIONS.map((v) => ({ value: v, label: t(lang, v) }))}
+                  placeholder={t(lang, "Select profile visibility")}
+                />
+                <Select
+                  label={t(lang, "Resume visibility")}
+                  value={settings.privacy.resumeVisibility}
+                  onChange={(e) => persistSettings({ privacy: { ...settings.privacy, resumeVisibility: e.target.value } })}
+                  options={RESUME_VISIBILITY_OPTIONS.map((v) => ({ value: v, label: t(lang, v) }))}
+                  placeholder={t(lang, "Select resume visibility")}
+                />
+              </div>
+            </div>
+
+            {/* ── Inactive Profile Lifecycle Policy ── */}
+            <div className="mt-1 rounded-xl border border-line bg-sunken p-4">
+              <div className="flex items-start gap-3">
+                <Icon name="archive" size={20} className="mt-0.5 shrink-0 text-indigo-500" />
+                <div>
+                  <h4 className="m-0 text-sm font-bold text-ink">
+                    {t(lang, "Inactive Profile Archiving Policy")}
+                  </h4>
+                  <p className="my-1 text-xs leading-relaxed text-muted">
+                    {t(lang, "Profiles with no login activity for 12 months are automatically archived to protect privacy and maintain recruiter talent freshness. Archived profiles are hidden from employer discovery. Logging into your account at any time automatically unarchives and restores your profile.")}
+                  </p>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />
+                    {t(lang, "Account Status: Active (Logged in today)")}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1516,7 +1698,7 @@ export default function SettingsClient() {
                 </Button>
               </div>
             </div>
-            <div style={{ borderTop: "1px solid var(--border-default)", paddingTop: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div className="flex flex-wrap gap-3 border-t border-line pt-6">
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -1527,15 +1709,15 @@ export default function SettingsClient() {
                 <Icon name="log-out" size={16} /> {t(lang, "Logout")}
               </Button>
             </div>
-            <div style={{ borderTop: "1px solid var(--border-default)", paddingTop: 24 }}>
+            <div className="border-t border-line pt-6">
               {!confirmDelete ? (
                 <Button variant="danger" onClick={() => setConfirmDelete(true)}>
                   <Icon name="trash-2" size={16} /> {t(lang, "Delete Account")}
                 </Button>
               ) : (
-                <div className="lv-error" role="alert" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+                <div className="lv-error flex flex-col items-start gap-3" role="alert">
                   <span>{t(lang, "This will permanently delete your profile, applications and saved jobs. This cannot be undone.")}</span>
-                  <div style={{ display: "flex", gap: 10 }}>
+                  <div className="flex gap-2.5">
                     <Button variant="danger" size="sm" onClick={() => { resetAll(); router.push("/"); }}>
                       {t(lang, "Confirm Delete")}
                     </Button>

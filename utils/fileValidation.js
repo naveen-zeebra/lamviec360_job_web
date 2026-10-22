@@ -85,7 +85,7 @@ export function validateResumeFile(file, lang = "EN") {
   if (!file) {
     return {
       valid: false,
-      error: isVietnamese(lang) ? "Vui lòng chọn tệp CV." : "Please select a résumé file.",
+      error: isVietnamese(lang) ? "Vui lòng chọn tệp CV." : "Please select a resume file.",
     };
   }
 

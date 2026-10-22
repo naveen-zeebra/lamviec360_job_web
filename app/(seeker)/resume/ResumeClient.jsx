@@ -45,7 +45,7 @@ import {
 
 
 const PAGE = "mx-auto max-w-[1000px] px-6 pb-24 pt-10 max-md:px-4 max-md:pb-12 max-md:pt-7";
-const CARD = "rounded-lg border border-line bg-card p-6 shadow-sm max-md:p-5";
+const CARD = "rounded-lg border border-line bg-card p-6 shadow-sm max-md:p-5 ";
 const EMPTY = "rounded-lg border border-dashed border-line bg-card px-6 py-14 text-center text-muted [&_h3]:mb-2 [&_h3]:text-lg";
 const LABEL = "mb-1.5 block text-sm font-semibold text-ink";
 
@@ -213,7 +213,7 @@ export default function ResumeClient() {
           a.download = fileName;
           a.click();
           return;
-        } catch (_) {}
+        } catch (_) { }
       }
       setToast(err.message || tr(lang, "Không thể tải xuống CV", "Failed to download résumé"));
     } finally {
@@ -244,7 +244,7 @@ export default function ResumeClient() {
           a.download = fileName;
           a.click();
           return;
-        } catch (_) {}
+        } catch (_) { }
       }
       setToast(err.message || tr(lang, "Không thể tải xuống tài liệu", "Failed to download document"));
     } finally {
@@ -382,8 +382,8 @@ export default function ResumeClient() {
           type="button"
           onClick={() => setActiveTab("resumes")}
           className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-bold transition-colors ${activeTab === "resumes"
-              ? "border-brand text-brand"
-              : "border-transparent text-muted hover:text-ink"
+            ? "border-brand text-brand"
+            : "border-transparent text-muted hover:text-ink"
             }`}
         >
           <Icon name="file-text" size={18} />
@@ -397,8 +397,8 @@ export default function ResumeClient() {
           type="button"
           onClick={() => setActiveTab("archive")}
           className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-bold transition-colors ${activeTab === "archive"
-              ? "border-brand text-brand"
-              : "border-transparent text-muted hover:text-ink"
+            ? "border-brand text-brand"
+            : "border-transparent text-muted hover:text-ink"
             }`}
         >
           <Icon name="archive" size={18} />
@@ -425,7 +425,7 @@ export default function ResumeClient() {
                     {tr(
                       lang,
                       "Tổng dung lượng CV, Hồ sơ năng lực & Chứng chỉ tối đa 10MB.",
-                      "Total attachment size across Résumé, Portfolio, and Certificates must not exceed 10MB."
+                      "Total attachment size across Resume, Portfolio, and Certificates must not exceed 10MB."
                     )}
                   </span>
                 </div>
@@ -433,20 +433,20 @@ export default function ResumeClient() {
                   <div className="h-2 w-24 overflow-hidden rounded-full bg-sunken">
                     <div
                       className={`h-full transition-all ${attachUsage.percentUsed >= 100
-                          ? "bg-danger"
-                          : attachUsage.percentUsed > 80
-                            ? "bg-amber-500"
-                            : "bg-brand"
+                        ? "bg-danger"
+                        : attachUsage.percentUsed > 80
+                          ? "bg-amber-500"
+                          : "bg-brand"
                         }`}
                       style={{ width: `${Math.min(100, attachUsage.percentUsed)}%` }}
                     />
                   </div>
                   <span
                     className={`font-bold ${attachUsage.percentUsed >= 100
-                        ? "text-danger"
-                        : attachUsage.percentUsed > 80
-                          ? "text-amber-600"
-                          : "text-muted"
+                      ? "text-danger"
+                      : attachUsage.percentUsed > 80
+                        ? "text-amber-600"
+                        : "text-muted"
                       }`}
                   >
                     {attachUsage.usedMb} / {attachUsage.maxMb} MB
@@ -689,7 +689,7 @@ export default function ResumeClient() {
             </>
           )}
 
-          <div className={CARD}>
+          <div className={`${CARD} hidden`}>
             <span className={LABEL}>{t(lang, "Résumé visibility")}</span>
             <p className="text-sm text-muted">
               {t(lang, "Current setting")}: <strong className="text-ink">{t(lang, settings?.privacy?.resumeVisibility || "Visible when I apply")}</strong>
@@ -733,10 +733,10 @@ export default function ResumeClient() {
             <div className="h-3 w-full rounded-full bg-sunken overflow-hidden">
               <div
                 className={`h-full transition-all duration-300 rounded-full ${archiveUsage.percentUsed >= 90
-                    ? "bg-danger-fg"
-                    : archiveUsage.percentUsed >= 75
-                      ? "bg-amber-500"
-                      : "bg-brand"
+                  ? "bg-danger-fg"
+                  : archiveUsage.percentUsed >= 75
+                    ? "bg-amber-500"
+                    : "bg-brand"
                   }`}
                 style={{ width: `${Math.min(100, Math.max(3, archiveUsage.percentUsed))}%` }}
               />
@@ -764,8 +764,8 @@ export default function ResumeClient() {
                       type="button"
                       onClick={() => setArchiveCategory(cat.id)}
                       className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${isSelected
-                          ? "bg-brand text-white shadow-sm"
-                          : "bg-sunken text-muted hover:text-ink hover:bg-line/60"
+                        ? "bg-brand text-white shadow-sm"
+                        : "bg-sunken text-muted hover:text-ink hover:bg-line/60"
                         }`}
                     >
                       {lang === "VN" || lang === "VI" ? cat.labelVi : cat.label}

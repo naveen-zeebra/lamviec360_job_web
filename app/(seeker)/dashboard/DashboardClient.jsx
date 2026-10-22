@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { Button } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
@@ -10,7 +10,16 @@ import { useLang, t } from "../../../utils/lang";
 import { formatDateTime } from "../../../utils/format";
 import { FILTER_VI } from "../../../lib/data";
 import { fetchPublicJobs } from "../../../lib/api/publicApi";
-import { getProfile, listApplications, listSavedJobs, listNotifications, computeCompleteness, getProfileCompletenessDetails } from "../../../lib/seekerStore";
+import {
+  getProfile,
+  listApplications,
+  listSavedJobs,
+  listNotifications,
+  computeCompleteness,
+  getProfileCompletenessDetails,
+  updateJobAvailability,
+  syncSeekerWithBackend,
+} from "../../../lib/seekerStore";
 
 const PAGE = "mx-auto max-w-[1200px] px-6 pb-24 pt-10 max-md:px-4 max-md:pb-12 max-md:pt-7";
 const STAT = "flex flex-col gap-1 rounded-md bg-sunken p-4 text-inherit no-underline transition-shadow hover:shadow-sm hover:no-underline";
@@ -56,6 +65,9 @@ function useDashboardData() {
 
   useEffect(() => {
     load();
+    // Synchronize latest profile data from backend on dashboard mount
+    syncSeekerWithBackend().then(() => load()).catch(() => { });
+
     if (typeof window !== "undefined") {
       window.addEventListener("lv360-store", load);
       return () => window.removeEventListener("lv360-store", load);
@@ -63,6 +75,195 @@ function useDashboardData() {
   }, []);
 
   return [state, load];
+}
+
+/**
+ * Interactive Live Job Availability Badge with quick-switch popover
+ */
+function LiveAvailabilityBadge({ availability = "open_to_work", lang, onUpdated }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const popoverRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [open]);
+
+  const currentKey = availability || "open_to_work";
+
+  const statusConfigs = {
+    open_to_work: {
+      key: "open_to_work",
+      label: t(lang, "Open to Work"),
+      subLabel: t(lang, "Actively looking & interviewing for new roles"),
+      emoji: "🟢",
+      dotClass: "bg-emerald-500",
+      pingClass: "bg-emerald-400",
+      badgeStyle: {
+        background: "#ecfdf5",
+        borderColor: "#a7f3d0",
+        color: "#065f46",
+      },
+      activeCardClass: "border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200",
+    },
+    open_to_opportunities: {
+      key: "open_to_opportunities",
+      label: t(lang, "Open to Relevant Opportunities"),
+      subLabel: t(lang, "Open to hearing about tailored career matches"),
+      emoji: "🟡",
+      dotClass: "bg-amber-500",
+      pingClass: "bg-amber-400",
+      badgeStyle: {
+        background: "#fffbeb",
+        borderColor: "#fde68a",
+        color: "#92400e",
+      },
+      activeCardClass: "border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200",
+    },
+    not_looking: {
+      key: "not_looking",
+      label: t(lang, "Not Looking"),
+      subLabel: t(lang, "Satisfied in current role; hides profile from recruiter searches"),
+      emoji: "🔴",
+      dotClass: "bg-rose-500",
+      pingClass: "bg-rose-400",
+      badgeStyle: {
+        background: "#fef2f2",
+        borderColor: "#fecaca",
+        color: "#991b1b",
+      },
+      activeCardClass: "border-rose-500 bg-rose-50/70 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200",
+    },
+  };
+
+  const currentConfig = statusConfigs[currentKey] || statusConfigs.open_to_work;
+
+  const handleSelect = async (optKey) => {
+    if (optKey === currentKey || saving) return;
+    try {
+      setSaving(true);
+      await updateJobAvailability(optKey);
+      setJustSaved(true);
+      if (onUpdated) onUpdated();
+      setTimeout(() => {
+        setJustSaved(false);
+        setOpen(false);
+      }, 550);
+    } catch (err) {
+      console.warn("Failed to update availability status:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="relative inline-block" ref={popoverRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="group inline-flex items-center gap-2.5 rounded-full border px-4 py-2 text-xs font-semibold shadow-sm transition-all duration-200 hover:shadow-md cursor-pointer select-none"
+        style={currentConfig.badgeStyle}
+        aria-expanded={open}
+        aria-haspopup="true"
+        title={t(lang, "Click to change your job availability (takes effect immediately)")}
+      >
+        <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+          <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${currentConfig.pingClass}`} />
+          <span className={`relative inline-flex h-2 w-2 rounded-full ${currentConfig.dotClass}`} />
+        </span>
+
+        <span className="font-bold tracking-tight text-inherit">
+          {currentConfig.label}
+        </span>
+
+        <span className="rounded-full bg-white/80 dark:bg-black/30 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider opacity-85 shadow-[inset_0_1px_1px_rgba(0,0,0,0.06)]">
+          Live
+        </span>
+
+        <Icon
+          name="chevron-down"
+          size={13}
+          className={`transition-transform duration-200 ${open ? "rotate-180" : "group-hover:translate-y-0.5"}`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-2.5 w-84 sm:w-96 rounded-2xl border border-line bg-card p-3.5 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="mb-2.5 flex items-center justify-between border-b border-line px-1 pb-2.5">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted">
+                {t(lang, "Job Availability")}
+              </p>
+              <p className="text-[11px] text-faint">
+                {t(lang, "Changes take effect immediately")}
+              </p>
+            </div>
+            {justSaved ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                <Icon name="check" size={11} /> {t(lang, "Saved")}
+              </span>
+            ) : saving ? (
+              <span className="text-[10px] font-semibold text-muted animate-pulse">
+                {t(lang, "Saving...")}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="space-y-1.5">
+            {Object.values(statusConfigs).map((opt) => {
+              const isSelected = opt.key === currentKey;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => handleSelect(opt.key)}
+                  disabled={saving}
+                  className={`flex w-full items-start gap-3 rounded-xl border p-2.5 text-left transition-all cursor-pointer ${isSelected
+                      ? `${opt.activeCardClass} shadow-sm font-semibold`
+                      : "border-transparent hover:border-line hover:bg-sunken text-ink"
+                    }`}
+                >
+                  <span className="mt-0.5 text-base leading-none select-none">{opt.emoji}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-inherit">{opt.label}</span>
+                      {isSelected && (
+                        <span className="text-emerald-600 dark:text-emerald-400">
+                          <Icon name="check" size={14} />
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-muted leading-tight">{opt.subLabel}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 border-t border-line pt-2.5 px-1 flex items-center justify-between">
+            <span className="text-[10px] text-faint">{t(lang, "Inactive Policy (12 Months)")}</span>
+            <Link
+              href="/settings?tab=privacy"
+              onClick={() => setOpen(false)}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand transition hover:underline no-underline"
+            >
+              <span>{t(lang, "All Privacy Settings")}</span>
+              <Icon name="chevron-right" size={12} />
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function DashboardClient() {
@@ -116,12 +317,21 @@ export default function DashboardClient() {
 
   return (
     <div className={PAGE}>
-      <div className="mb-7">
-        <h1 className="mb-1.5 text-2xl font-extrabold">
-          {t(lang, "Welcome back")}
-          {profile.personal.fullName ? `, ${profile.personal.fullName.split(" ")[0]}` : ""}
-        </h1>
-        <p className="text-base text-muted">{t(lang, "Here's what's happening with your job search.")}</p>
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="mb-1.5 text-2xl font-extrabold">
+            {t(lang, "Welcome back")}
+            {profile.personal.fullName ? `, ${profile.personal.fullName.split(" ")[0]}` : ""}
+          </h1>
+          <p className="text-base text-muted">{t(lang, "Here's what's happening with your job search.")}</p>
+        </div>
+
+        {/* Interactive Live Job Availability Badge */}
+        <LiveAvailabilityBadge
+          availability={profile.jobAvailability}
+          lang={lang}
+          onUpdated={reload}
+        />
       </div>
 
       <div className="mb-6 grid grid-cols-4 gap-3 max-lg:grid-cols-2">
@@ -276,7 +486,7 @@ export default function DashboardClient() {
           )}
         </section>
 
-        <section className="mb-8">
+        <section className="mb-8 hidden">
           <div className={SECTION_HEAD}>
             <h2 className={SECTION_H2}>{t(lang, "Upcoming Interviews")}</h2>
           </div>

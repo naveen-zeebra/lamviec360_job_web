@@ -1102,6 +1102,7 @@
   "Phone number updated successfully!": "Đã cập nhật số điện thoại thành công!",
   "Failed to update phone number.": "Không thể cập nhật số điện thoại.",
   "Please enter a valid phone number (at least 7 digits).": "Vui lòng nhập số điện thoại hợp lệ (tối thiểu 7 chữ số).",
+  "An active account with this phone number already exists.": "Số điện thoại này đã được sử dụng bởi một tài khoản đang hoạt động.",
   "JPG, JPEG, PNG · Max 2MB": "JPG, JPEG, PNG · Tối đa 2MB",
   "Profile photo must not exceed 2MB.": "Ảnh đại diện không được vượt quá 2MB.",
   "Unsupported file format. Allowed formats: JPG, JPEG, and PNG only.": "Định dạng tệp không được hỗ trợ. Chỉ chấp nhận JPG, JPEG và PNG.",

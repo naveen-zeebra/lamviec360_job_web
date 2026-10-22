@@ -196,7 +196,7 @@ export default function ApplicationDetailClient({ id }) {
       )}
 
       {app.interview && (
-        <div className="lv-detail-card" style={{ marginBottom: 20 }}>
+        <div className="lv-detail-card hidden" style={{ marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div>
               <h2 style={{ fontSize: "var(--text-md)", margin: "0 0 4px" }}>{t(lang, "Interview")}</h2>
