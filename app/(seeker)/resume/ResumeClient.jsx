@@ -507,7 +507,7 @@ export default function ResumeClient() {
             {tr(
               lang,
               "Quản lý thư viện CV ứng tuyển và lưu trữ hồ sơ bằng cấp, hợp đồng bảo mật.",
-              "Manage your application résumés and archive employment documents securely."
+              "Manage your application resumes and archive employment documents securely."
             )}
           </p>
         </div>
@@ -524,7 +524,7 @@ export default function ResumeClient() {
             }`}
         >
           <Icon name="file-text" size={18} />
-          <span>{tr(lang, "Thư viện CV", "My Résumés")}</span>
+          <span>{tr(lang, "Thư viện CV", "My Resumes")}</span>
           <span className="ml-1 rounded-full bg-sunken px-2 py-0.5 text-xs text-ink font-semibold">
             {resumes.length} / {MAX_PROFILE_RESUMES}
           </span>
@@ -609,13 +609,13 @@ export default function ResumeClient() {
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <span className={LABEL} style={{ marginBottom: 0 }}>
-                      {tr(lang, "Danh sách CV đã lưu", "Saved Résumés")}
+                      {tr(lang, "Danh sách CV đã lưu", "Saved Resumes")}
                     </span>
                     <p className="text-xs text-muted mt-0.5">
                       {tr(
                         lang,
                         "Đặt tên cho từng CV để lựa chọn phù hợp khi ứng tuyển một chạm.",
-                        "Name your résumés to easily select the best fit during one-click apply."
+                        "Name your resumes to easily select the best fit during one-click apply."
                       )}
                     </p>
                   </div>
@@ -625,7 +625,7 @@ export default function ResumeClient() {
                     disabled={atCap}
                     onClick={() => fileRef.current && fileRef.current.click()}
                   >
-                    <Icon name="plus" size={14} /> {t(lang, "Add résumé")}
+                    <Icon name="plus" size={14} /> {t(lang, "Add resume")}
                   </Button>
                 </div>
                 {atCap && (

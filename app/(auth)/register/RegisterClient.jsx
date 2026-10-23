@@ -208,7 +208,24 @@ export default function RegisterClient() {
             </div>
 
             {/* Form */}
-            <form onSubmit={formik.handleSubmit} noValidate>
+            <form onSubmit={formik.handleSubmit} noValidate autoComplete="off">
+              {/* Trap decoy inputs: absorbs aggressive browser credential autofill */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  opacity: 0,
+                  height: 0,
+                  width: 0,
+                  zIndex: -1,
+                  overflow: "hidden",
+                  pointerEvents: "none",
+                }}
+              >
+                <input type="text" name="fake_username_trap" tabIndex={-1} autoComplete="off" />
+                <input type="password" name="fake_password_trap" tabIndex={-1} autoComplete="new-password" />
+              </div>
+
               {/* Full Name */}
               <div className="mb-0.5">
                 <Input
@@ -217,6 +234,7 @@ export default function RegisterClient() {
                   label={t(lang, "Full name")}
                   type="text"
                   size="sm"
+                  autoComplete="off"
                   value={formik.values.name}
                   onChange={handleNameChange}
                   onKeyDown={handleKeyDownNoLeadingSpace}
@@ -236,6 +254,7 @@ export default function RegisterClient() {
                   label={t(lang, "Email address")}
                   type="email"
                   size="sm"
+                  autoComplete="off"
                   value={formik.values.email}
                   onChange={handleChangeNoLeadingSpace("email")}
                   onKeyDown={handleKeyDownNoLeadingSpace}
@@ -253,6 +272,7 @@ export default function RegisterClient() {
                   name="phone"
                   label={t(lang, "Phone number")}
                   size="sm"
+                  autoComplete="off"
                   value={formik.values.phone}
                   onChange={(phone) => formik.setFieldValue("phone", phone)}
                   onBlur={formik.handleBlur}
@@ -272,6 +292,7 @@ export default function RegisterClient() {
                     label={t(lang, "Password")}
                     type={showPw ? "text" : "password"}
                     size="sm"
+                    autoComplete="new-password"
                     value={formik.values.password}
                     onChange={handleChangeNoLeadingSpace("password")}
                     onKeyDown={handleKeyDownNoLeadingSpace}
@@ -297,6 +318,7 @@ export default function RegisterClient() {
                     label={t(lang, "Confirm password")}
                     type={showConfirmPw ? "text" : "password"}
                     size="sm"
+                    autoComplete="new-password"
                     value={formik.values.confirmPassword}
                     onChange={handleChangeNoLeadingSpace("confirmPassword")}
                     onKeyDown={handleKeyDownNoLeadingSpace}
