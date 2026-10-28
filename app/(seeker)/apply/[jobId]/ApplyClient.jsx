@@ -264,8 +264,8 @@ export default function ApplyClient({ jobId }) {
 
           <p style={{ maxWidth: 520, margin: "0 auto 24px", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: 1.6 }}>
             {lang === "VN" || lang === "VI"
-              ? "Theo quy định nền tảng (BR-301-09 & JSP-FR-005b), ứng viên chưa phù hợp trong đợt ứng tuyển trước cần đợi 90 ngày kể từ ngày thông báo kết quả trước khi nộp lại hồ sơ cho cùng một vị trí."
-              : "Per platform rule BR-301-09 & JSP-FR-005b, candidates who were not selected must wait 90 days from the rejection notification before reapplying to the same position."}
+              ? "Theo quy định nền tảng, ứng viên chưa phù hợp trong đợt ứng tuyển trước cần đợi 90 ngày kể từ ngày thông báo kết quả trước khi nộp lại hồ sơ cho cùng một vị trí."
+              : "Candidates candidates who were not selected must wait 90 days from the rejection notification before reapplying to the same position."}
           </p>
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
@@ -315,11 +315,11 @@ export default function ApplyClient({ jobId }) {
           <p style={{ maxWidth: 460, margin: "0 auto 24px", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: 1.6 }}>
             {canWithdraw
               ? (lang === "VN" || lang === "VI"
-                ? "Hồ sơ của bạn đã được gửi tới nhà tuyển dụng và đang chờ xét duyệt. Bạn có thể rút hồ sơ trước khi nhà tuyển dụng bắt đầu xét duyệt (BR-301-04)."
-                : "Your application is waiting for employer screening. You may withdraw your application before employer screening begins per BR-301-04.")
+                ? "Hồ sơ của bạn đã được gửi tới nhà tuyển dụng và đang chờ xét duyệt. Bạn có thể rút hồ sơ trước khi nhà tuyển dụng bắt đầu xét duyệt."
+                : "Your application is waiting for employer screening. You may withdraw your application before employer screening begins .")
               : (lang === "VN" || lang === "VI"
-                ? "Hồ sơ đang trong quy trình xét duyệt của nhà tuyển dụng. Chỉ có thể rút hồ sơ khi ở trạng thái 'Đã nộp' (BR-301-04)."
-                : "Employer screening is underway for this position; applications cannot be withdrawn after screening begins (BR-301-04).")}
+                ? "Hồ sơ đang trong quy trình xét duyệt của nhà tuyển dụng. Chỉ có thể rút hồ sơ khi ở trạng thái 'Đã nộp'."
+                : "Employer screening is underway for this position; applications cannot be withdrawn after screening begins.")}
           </p>
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
@@ -1276,8 +1276,8 @@ export default function ApplyClient({ jobId }) {
             </div>
             <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 12, lineHeight: 1.5 }}>
               {lang === "VN" || lang === "VI"
-                ? "Bắt buộc trước khi nộp hồ sơ. Theo Nghị định 13/2023/NĐ-CP (BR-011) về Bảo vệ dữ liệu cá nhân, sự đồng ý và mốc thời gian của bạn sẽ được lưu trữ bảo mật cho quy trình tuyển dụng."
-                : "Required before submission. Pursuant to Vietnam Decree 13/2023/ND-CP (BR-011) on Personal Data Protection, your consent and submission timestamp are recorded securely for recruitment purposes."}
+                ? "Bắt buộc trước khi nộp hồ sơ. Theo Nghị định 13/2023/NĐ-CP về Bảo vệ dữ liệu cá nhân, sự đồng ý và mốc thời gian của bạn sẽ được lưu trữ bảo mật cho quy trình tuyển dụng."
+                : "Required before submission. Pursuant to Vietnam Decree 13/2023/ND-CP on Personal Data Protection, your consent and submission timestamp are recorded securely for recruitment purposes."}
             </p>
           </div>
         )}

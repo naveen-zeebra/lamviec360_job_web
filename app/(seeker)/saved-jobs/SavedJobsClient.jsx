@@ -152,8 +152,8 @@ export default function SavedJobsClient() {
           fontWeight: 600,
         }}>
           {lang === "VN" || lang === "VI"
-            ? "Bạn đã đạt giới hạn tối đa 100 việc làm đã lưu (BR-201-05). Vui lòng bỏ lưu bớt các vị trí không còn quan tâm để lưu thêm."
-            : "You have reached the maximum 100 saved jobs limit (BR-201-05). Please remove some jobs before saving new ones."}
+            ? "Bạn đã đạt giới hạn tối đa 100 việc làm đã lưu. Vui lòng bỏ lưu bớt các vị trí không còn quan tâm để lưu thêm."
+            : "You have reached the maximum 100 saved jobs limit. Please remove some jobs before saving new ones."}
         </div>
       )}
 

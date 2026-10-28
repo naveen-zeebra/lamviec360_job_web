@@ -5,22 +5,50 @@ import { useLang, t } from "../../utils/lang";
 
 export default function CompanyCard({ c, lang }) {
   const compName = c.name || c.company_name || "Company";
-  const logoText = (c.logo || compName).slice(0, 2).toUpperCase();
-  const openCount = c.openJobs ?? c.jobs ?? 1;
+  const logoText = (compName || "CO").slice(0, 2).toUpperCase();
+  const logoUrl = c.logo_url || c.logo;
+  const openCount = c.open_jobs_count ?? c.openJobs ?? c.jobs ?? 0;
+  const companyTarget = `/companies/${c.id || encodeURIComponent(compName)}`;
 
   return (
     <div className="lv-company-card">
-      <div className="lv-company-logo" aria-hidden="true">
-        {logoText}
-      </div>
-      <div className="lv-company-name">{compName}</div>
-      {c.verified && (
-        <div>
-          <Badge tone="brand">
-            <Icon name="shield-check" size={11} /> {t(lang, "Verified Company")}
-          </Badge>
+      <div className="lv-company-card-top">
+        <Link href={companyTarget} className="lv-company-logo-wrap">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={compName}
+              className="lv-company-logo-img"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <div className="lv-company-logo" aria-hidden="true">
+              {logoText}
+            </div>
+          )}
+        </Link>
+        <div className="lv-company-card-title-group">
+          <Link href={companyTarget} className="lv-company-name hover:text-blue-600">
+            {compName}
+          </Link>
+          {c.verified && (
+            <div className="mt-1">
+              <Badge tone="brand">
+                <Icon name="shield-check" size={11} /> {t(lang, "Verified")}
+              </Badge>
+            </div>
+          )}
         </div>
+      </div>
+
+      {c.tagline && (
+        <p className="lv-company-tagline">
+          {c.tagline}
+        </p>
       )}
+
       <div className="lv-company-meta">
         <span>
           <Icon name="building-2" size={14} />
@@ -30,13 +58,20 @@ export default function CompanyCard({ c, lang }) {
           <Icon name="map-pin" size={14} />
           {(lang === "VN" || lang === "VI" ? c.locationVi || c.location || c.city : c.location || c.city) || "Vietnam"}
         </span>
+        {(c.company_size || c.size) && (
+          <span>
+            <Icon name="users" size={14} />
+            {c.company_size || c.size}
+          </span>
+        )}
       </div>
+
       <div className="lv-company-foot">
-        <strong style={{ fontSize: "var(--text-sm)" }}>
+        <strong style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>
           {openCount} {t(lang, "Open Jobs")}
         </strong>
-        <Link href={`/jobs?company=${encodeURIComponent(compName)}`} className="lv-job-view">
-          {t(lang, "View Company")} <Icon name="arrow-right" size={14} />
+        <Link href={companyTarget} className="lv-job-view">
+          {t(lang, "Explore Showcase")} <Icon name="arrow-right" size={14} />
         </Link>
       </div>
     </div>

@@ -1,10 +1,26 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge, Button } from "../ds";
 import Icon from "../ds/Icon";
 import { useLang, t } from "../../utils/lang";
 import { FILTER_VI } from "../../lib/data";
+
+
+function formatJobRowExperience(job, lang) {
+  const exp = job.experience || job.experience_level;
+  if (exp === undefined || exp === null || exp === "") return job.level ? (lang === "VN" || lang === "VI" ? job.levelVi || job.level : job.level) : null;
+  const s = String(exp).trim().toLowerCase();
+  if (s === "0" || s === "fresher") return "Fresher";
+  if (s === "0-1") return lang === "VN" || lang === "VI" ? "0 - 1 năm" : "0 - 1 yr";
+  if (s === "1-3") return lang === "VN" || lang === "VI" ? "1 - 3 năm" : "1 - 3 yrs";
+  if (s === "3-5") return lang === "VN" || lang === "VI" ? "3 - 5 năm" : "3 - 5 yrs";
+  if (s === "5-10") return lang === "VN" || lang === "VI" ? "5 - 10 năm" : "5 - 10 yrs";
+  if (s === "10+") return lang === "VN" || lang === "VI" ? "10+ năm" : "10+ yrs";
+  if (/^\d+$/.test(s)) return s + " " + (lang === "VN" || lang === "VI" ? "năm" : "yrs");
+  return lang === "VN" || lang === "VI" ? job.levelVi || job.level : job.level;
+}
 
 export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, hasApplied = false, allowClosed = false }) {
   // BR-201-09: Do not show expired, closed, or inactive jobs in public listings
@@ -13,67 +29,115 @@ export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, h
   }
 
   const router = useRouter();
+  const [imgFailed, setImgFailed] = useState(false);
+
   const companyName =
     typeof job.company === "string"
       ? job.company
       : job.company_name || job.company?.company_name || "Company";
   const logoText = companyName.slice(0, 2).toUpperCase();
 
+  const logoUrl =
+    !imgFailed && (job.company_logo || job.company?.logo_url || (job.companyObj && job.companyObj.logo_url))
+      ? job.company_logo || job.company?.logo_url || job.companyObj.logo_url
+      : null;
+
+  const jobDetailHref = `/job-detail/${encodeURIComponent((job.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + job.id)}`;
+
   return (
-    <article className="lv-jobrow">
-      <div className="lv-job-logo" style={{ width: 52, height: 52 }} aria-hidden="true">
-        {logoText}
+    <article className="lv-jobrow transition-all hover:shadow-sm">
+      <div className="lv-job-logo flex items-center justify-center overflow-hidden bg-white border border-line rounded-xl" style={{ width: 56, height: 56 }} aria-hidden="true">
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt={companyName}
+            className="h-full w-full object-contain p-1 rounded-xl"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <span className="font-extrabold text-brand text-sm">{logoText}</span>
+        )}
       </div>
-      <div className="lv-jobrow-body">
-        <h3 className="lv-job-title" style={{ marginBottom: "var(--space-2)" }}>
-          <Link href={`/job-detail/${encodeURIComponent((job.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + job.id)}`} style={{ color: "inherit" }}>
+
+      <div className="lv-jobrow-body flex-1 min-w-0">
+        <h3 className="lv-job-title" style={{ marginBottom: "var(--space-1)" }}>
+          <Link href={jobDetailHref} style={{ color: "inherit" }} className="hover:text-brand transition-colors">
             {(lang === "VN" || lang === "VI" ? job.titleVi || job.title : job.title)}
           </Link>
         </h3>
-        <div className="lv-job-company">
-          {companyName}
+
+        <div className="lv-job-company flex items-center gap-2">
+          <span className="truncate">{companyName}</span>
           {job.verified && (
             <Badge tone="brand">
               <Icon name="check" size={11} /> {t(lang, "Verified")}
             </Badge>
           )}
+          {job.ai_generated && (
+            <span className="inline-flex items-center gap-1 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold text-brand">
+              <Icon name="sparkles" size={9} /> {t(lang, "AI")}
+            </span>
+          )}
         </div>
-        <div className="lv-job-meta">
-          <span>
-            <Icon name="map-pin" size={14} />
-            {(lang === "VN" || lang === "VI" ? job.locationVi : job.location)}
+
+        <div className="lv-job-meta mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+          <span className="flex items-center gap-1">
+            <Icon name="map-pin" size={13} />
+            {(lang === "VN" || lang === "VI" ? job.locationVi || job.location : job.location)}
           </span>
-          <span>
-            <Icon name="wallet" size={14} />
+          <span className="flex items-center gap-1 font-semibold text-ink">
+            <Icon name="wallet" size={13} className="text-emerald-600" />
             {job.salary}
           </span>
-          <span>
-            <Icon name="clock" size={14} />
-            {(lang === "VN" || lang === "VI" ? job.postedVi : job.posted)}
+          <span className="flex items-center gap-1">
+            <Icon name="clock" size={13} />
+            {(lang === "VN" || lang === "VI" ? job.postedVi || job.posted : job.posted)}
           </span>
         </div>
-        <div className="lv-job-tags">
+
+        {/* Tags & Skills */}
+        <div className="lv-job-tags mt-2 flex flex-wrap items-center gap-1.5">
           {job.isNoLongerAvailable && (
             <Badge tone="danger">
               <Icon name="alert-circle" size={11} /> {lang === "VN" || lang === "VI" ? "Đã đóng" : "No Longer Available"}
             </Badge>
           )}
           <Badge tone="neutral">{(lang === "VN" || lang === "VI" ? FILTER_VI[job.type] || job.type : job.type)}</Badge>
-          <Badge tone="neutral">{(lang === "VN" || lang === "VI" ? job.modeVi : job.mode)}</Badge>
-          <Badge tone="neutral">{(lang === "VN" || lang === "VI" ? job.levelVi : job.level)}</Badge>
+          <Badge tone="neutral">{(lang === "VN" || lang === "VI" ? job.modeVi || job.mode : job.mode)}</Badge>
+          {formatJobRowExperience(job, lang) && <Badge tone="neutral">{formatJobRowExperience(job, lang)}</Badge>}
+
+          {/* Top Required Skills Tags */}
+          {Array.isArray(job.skills) &&
+            job.skills.slice(0, 3).map((s) => (
+              <span
+                key={s}
+                className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 hover:bg-slate-200 transition-colors"
+              >
+                {s}
+              </span>
+            ))}
         </div>
       </div>
-      <div className="lv-jobrow-actions">
+
+      <div className="lv-jobrow-actions flex items-center gap-2">
         {isLoggedIn && (
           <button
-            className="lv-job-save"
+            className="lv-job-save flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-card hover:bg-sunken cursor-pointer transition-colors"
             aria-label={saved ? t(lang, "Unsave job") : t(lang, "Save job")}
             aria-pressed={!!saved}
             onClick={onSave}
           >
-            <Icon name="heart" size={18} style={{ fill: saved ? "var(--red-500)" : "none", color: saved ? "var(--red-500)" : "var(--gray-400)" }} />
+            <Icon
+              name="heart"
+              size={18}
+              style={{
+                fill: saved ? "var(--red-500, #ef4444)" : "none",
+                color: saved ? "var(--red-500, #ef4444)" : "var(--gray-400, #94a3b8)",
+              }}
+            />
           </button>
         )}
+
         {job.isNoLongerAvailable ? (
           <Button
             variant="secondary"
@@ -89,7 +153,7 @@ export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, h
             variant="secondary"
             size="sm"
             disabled
-            style={{ opacity: 0.8, cursor: "not-allowed", display: "inline-flex", alignItems: "center", gap: 5 }}
+            style={{ opacity: 0.85, cursor: "not-allowed", display: "inline-flex", alignItems: "center", gap: 5 }}
           >
             <Icon name="check-circle" size={14} style={{ color: "#16a34a" }} />
             {t(lang, "Applied")}
@@ -98,7 +162,7 @@ export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, h
           <Button
             variant="primary"
             size="sm"
-            onClick={() => router.push(`/job-detail/${encodeURIComponent((job.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + job.id)}`)}
+            onClick={() => router.push(jobDetailHref)}
           >
             {t(lang, "Apply")}
           </Button>

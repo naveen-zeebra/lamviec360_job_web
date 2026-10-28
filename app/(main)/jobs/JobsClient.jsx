@@ -28,6 +28,43 @@ const LEVELS = [
 ];
 const PER = 6;
 
+
+const EXP_PRESETS = [
+  { id: "all", label: "All (0-30y)", labelVi: "Tất cả", min: 0, max: 30 },
+  { id: "fresher", label: "Fresher (0y)", labelVi: "Fresher (0n)", min: 0, max: 0 },
+  { id: "0-1", label: "0 - 1 yr", labelVi: "0 - 1 năm", min: 0, max: 1 },
+  { id: "1-3", label: "1 - 3 yrs", labelVi: "1 - 3 năm", min: 1, max: 3 },
+  { id: "3-5", label: "3 - 5 yrs", labelVi: "3 - 5 năm", min: 3, max: 5 },
+  { id: "5-10", label: "5 - 10 yrs", labelVi: "5 - 10 năm", min: 5, max: 10 },
+  { id: "10-30", label: "10+ yrs", labelVi: "10+ năm", min: 10, max: 30 },
+];
+
+function parseJobExperience(j) {
+  const expRaw = j.experience || j.experience_level || "";
+  const s = String(expRaw).trim().toLowerCase();
+  if (!s) return { min: 0, max: 30, text: "" };
+  if (s === "0" || s === "fresher" || s.includes("thực tập") || s.includes("intern")) return { min: 0, max: 0, text: "Fresher" };
+  if (s === "0-1" || s.includes("entry")) return { min: 0, max: 1, text: "0 - 1 yr" };
+  if (s === "1-3" || s === "junior") return { min: 1, max: 3, text: "1 - 3 yrs" };
+  if (s === "3-5" || s.includes("mid")) return { min: 3, max: 5, text: "3 - 5 yrs" };
+  if (s === "5-10" || s === "senior") return { min: 5, max: 10, text: "5 - 10 yrs" };
+  if (s === "10+" || s.includes("lead") || s.includes("director") || s.includes("expert")) return { min: 10, max: 30, text: "10+ yrs" };
+  
+  const rangeMatch = s.match(/(\d+)\s*[-–to]\s*(\d+)/);
+  if (rangeMatch) {
+    return { min: parseInt(rangeMatch[1], 10), max: parseInt(rangeMatch[2], 10), text: rangeMatch[1] + " - " + rangeMatch[2] + " yrs" };
+  }
+  
+  const numMatch = s.match(/\d+/);
+  if (numMatch) {
+    const val = parseInt(numMatch[0], 10);
+    return s.includes("+")
+      ? { min: val, max: 30, text: val + "+ yrs" }
+      : { min: Math.max(0, val - 1), max: val, text: val + " yrs" };
+  }
+  return { min: 0, max: 30, text: "" };
+}
+
 export default function JobsClient() {
   const [lang, setLang] = useLang();
   const params = useSearchParams();
@@ -36,6 +73,8 @@ export default function JobsClient() {
   const [types, setTypes] = useState(params.get("type") ? [params.get("type")] : []);
   const [modes, setModes] = useState([]);
   const [levels, setLevels] = useState([]);
+  const [expMin, setExpMin] = useState(0);
+  const [expMax, setExpMax] = useState(30);
   const [company, setCompany] = useState(params.get("company") || "");
   const [sort, setSort] = useState("recent");
   const [page, setPage] = useState(1);
@@ -121,6 +160,10 @@ export default function JobsClient() {
     if (types.length && !types.includes(j.type || j.job_type)) return false;
     if (modes.length && !modes.includes(j.mode || j.workplace_type)) return false;
     if (levels.length && !levels.includes(j.level || j.experience_level)) return false;
+    if (expMin > 0 || expMax < 30) {
+      const jExp = parseJobExperience(j);
+      if (jExp.max < expMin || jExp.min > expMax) return false;
+    }
     return true;
   });
 
@@ -167,6 +210,8 @@ export default function JobsClient() {
     setTypes([]);
     setModes([]);
     setLevels([]);
+    setExpMin(0);
+    setExpMax(30);
     setCompany("");
     setQ("");
     setLoc("");
@@ -245,12 +290,120 @@ export default function JobsClient() {
                 ))}
               </div>
             </div>
+            {/* Experience Slider Group (0 - 30 Years) */}
             <div className="lv-filter-group">
-              <h4>{t(lang, "Experience level")}</h4>
-              <div className="lv-filter-opts">
-                {LEVELS.map((l) => (
-                  <Check key={l[0]} label={(lang === "VN" || lang === "VI" ? l[1] : l[0])} checked={levels.includes(l[0])} onChange={() => toggle(levels, setLevels, l[0])} />
-                ))}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <h4 style={{ margin: 0 }}>{t(lang, "Experience level")}</h4>
+                {(expMin > 0 || expMax < 30) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpMin(0);
+                      setExpMax(30);
+                      setPage(1);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "var(--brand-600, #2563eb)",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    {lang === "VN" || lang === "VI" ? "Đặt lại" : "Reset"}
+                  </button>
+                )}
+              </div>
+
+              {/* Dynamic Range Value Badge */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "7px 10px",
+                  borderRadius: 8,
+                  backgroundColor: (expMin > 0 || expMax < 30) ? "#eff6ff" : "#f8fafc",
+                  border: (expMin > 0 || expMax < 30) ? "1px solid #bfdbfe" : "1px solid #e2e8f0",
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Icon name="award" size={14} style={{ color: (expMin > 0 || expMax < 30) ? "#2563eb" : "#64748b" }} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: (expMin > 0 || expMax < 30) ? "#1d4ed8" : "#334155" }}>
+                    {expMin === 0 && expMax >= 30
+                      ? (lang === "VN" || lang === "VI" ? "Tất cả (0 – 30+ năm)" : "Any (0 – 30+ yrs)")
+                      : expMin === 0 && expMax === 0
+                      ? (lang === "VN" || lang === "VI" ? "Fresher (0 năm)" : "Fresher (0 yrs)")
+                      : expMin === 0 && expMax === 1
+                      ? (lang === "VN" || lang === "VI" ? "Dưới 1 năm" : "Up to 1 yr")
+                      : expMin === expMax
+                      ? expMin + " " + (lang === "VN" || lang === "VI" ? "năm" : "years")
+                      : expMin + " – " + expMax + " " + (lang === "VN" || lang === "VI" ? "năm" : "years")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Range Slider 0 to 30 years */}
+              <div style={{ padding: "4px 2px 8px 2px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748b", marginBottom: 4 }}>
+                  <span>0 yr (Fresher)</span>
+                  <span style={{ fontWeight: 600, color: "#2563eb" }}>Max: {expMax >= 30 ? "30+ yrs" : expMax + " yrs"}</span>
+                  <span>30 yrs</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="30"
+                  step="1"
+                  value={expMax}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setExpMax(val);
+                    if (expMin > val) setExpMin(val);
+                    setPage(1);
+                  }}
+                  style={{
+                    width: "100%",
+                    accentColor: "#2563eb",
+                    cursor: "pointer",
+                    height: 6,
+                    borderRadius: 4,
+                  }}
+                />
+              </div>
+
+              {/* Quick Preset Filter Pills */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                {EXP_PRESETS.map((p) => {
+                  const isActive = expMin === p.min && expMax === p.max;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setExpMin(p.min);
+                        setExpMax(p.max);
+                        setPage(1);
+                      }}
+                      style={{
+                        padding: "3px 8px",
+                        fontSize: 11,
+                        borderRadius: 6,
+                        border: isActive ? "1.5px solid #2563eb" : "1px solid #cbd5e1",
+                        backgroundColor: isActive ? "#eff6ff" : "#ffffff",
+                        color: isActive ? "#1d4ed8" : "#475569",
+                        fontWeight: isActive ? 700 : 500,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {lang === "VN" || lang === "VI" ? p.labelVi : p.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="lv-filter-group">
