@@ -14,8 +14,9 @@ import Toast, { useToast } from "../../../components/ds/Toast";
 import { FILTER_VI } from "../../../lib/data";
 import { isSaved, toggleSavedJob, isLoggedIn, hasAppliedToJob } from "../../../lib/seekerStore";
 import { fetchPublicJobs } from "../../../lib/api/publicApi";
+import { useMasterData, DEFAULT_MASTER_DATA } from "../../../lib/masterData";
 
-const TYPES = ["Full-time", "Part-time", "Contract", "Internship"];
+const TYPES = DEFAULT_MASTER_DATA.jobTypes;
 const MODES = [
   ["Remote", "Từ xa"],
   ["Hybrid", "Kết hợp"],
@@ -67,6 +68,8 @@ function parseJobExperience(j) {
 
 export default function JobsClient() {
   const [lang, setLang] = useLang();
+  const { jobTypes } = useMasterData();
+  const employmentTypes = jobTypes && jobTypes.length > 0 ? jobTypes : TYPES;
   const params = useSearchParams();
   const [q, setQ] = useState(params.get("q") || "");
   const [loc, setLoc] = useState(params.get("loc") || "");
@@ -277,7 +280,7 @@ export default function JobsClient() {
             <div className="lv-filter-group">
               <h4>{t(lang, "Employment type")}</h4>
               <div className="lv-filter-opts">
-                {TYPES.map((t) => (
+                {employmentTypes.map((t) => (
                   <Check key={t} label={(lang === "VN" || lang === "VI" ? FILTER_VI[t] : t)} checked={types.includes(t)} onChange={() => toggle(types, setTypes, t)} />
                 ))}
               </div>

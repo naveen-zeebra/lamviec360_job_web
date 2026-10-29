@@ -174,7 +174,7 @@ function LiveAvailabilityBadge({ availability = "open_to_work", lang, onUpdated 
         style={currentConfig.badgeStyle}
         aria-expanded={open}
         aria-haspopup="true"
-        title={t(lang, "Click to change your job availability (takes effect immediately)")}
+        title={t(lang, "Click to change your availability status (takes effect immediately)")}
       >
         <span className="relative flex h-2.5 w-2.5 items-center justify-center">
           <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${currentConfig.pingClass}`} />
@@ -201,7 +201,7 @@ function LiveAvailabilityBadge({ availability = "open_to_work", lang, onUpdated 
           <div className="mb-2.5 flex items-center justify-between border-b border-line px-1 pb-2.5">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-muted">
-                {t(lang, "Job Availability")}
+                {t(lang, "Availability Status")}
               </p>
               <p className="text-[11px] text-faint">
                 {t(lang, "Changes take effect immediately")}
@@ -228,8 +228,8 @@ function LiveAvailabilityBadge({ availability = "open_to_work", lang, onUpdated 
                   onClick={() => handleSelect(opt.key)}
                   disabled={saving}
                   className={`flex w-full items-start gap-3 rounded-xl border p-2.5 text-left transition-all cursor-pointer ${isSelected
-                      ? `${opt.activeCardClass} shadow-sm font-semibold`
-                      : "border-transparent hover:border-line hover:bg-sunken text-ink"
+                    ? `${opt.activeCardClass} shadow-sm font-semibold`
+                    : "border-transparent hover:border-line hover:bg-sunken text-ink"
                     }`}
                 >
                   <span className="mt-0.5 text-base leading-none select-none">{opt.emoji}</span>

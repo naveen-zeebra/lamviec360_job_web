@@ -43,11 +43,12 @@ import {
   validateCumulativeProfileAttachmentQuota,
 } from "../../../utils/fileValidation";
 import { createProfileValidationSchema } from "../../../lib/validation/profileValidation";
+import { useMasterData, DEFAULT_MASTER_DATA } from "../../../lib/masterData";
 
 const TABS = ["Profile", "Preferences", "Notifications", "Privacy", "Account"];
 const TAB_SLUGS = { Profile: "profile", Preferences: "preferences", Notifications: "notifications", Privacy: "privacy", Account: "account" };
 const SLUG_TABS = Object.fromEntries(Object.entries(TAB_SLUGS).map(([k, v]) => [v, k]));
-const INDUSTRIES = ["Technology", "Retail & Commerce", "Media & Creative", "Transport & Logistics", "Manufacturing", "Finance & Banking", "Other"];
+const INDUSTRIES = DEFAULT_MASTER_DATA.industries;
 const EXPERIENCE_RANGES = ["Less than 1 year", "1-3 years", "3-5 years", "5-10 years", "10+ years"];
 const WORK_MODES = ["Remote", "Hybrid", "On-site"];
 const VISIBILITY_OPTIONS = ["Public to employers", "Private", "Hidden from current employer"];
@@ -175,6 +176,8 @@ function Switch({ on, onChange, label }) {
 
 export default function SettingsClient() {
   const [lang] = useLang();
+  const { industries } = useMasterData();
+  const industryList = industries && industries.length > 0 ? industries : INDUSTRIES;
   const router = useRouter();
   const [tab, setTabState] = useState("Profile");
   const [profile, setProfile] = useState(null);
@@ -334,8 +337,6 @@ export default function SettingsClient() {
     val = val.replace(/[^a-zA-Z\s\u00C0-\u024F\u1EA0-\u1EF9\-\'.]/g, "");
 
     formik.setFieldValue("fullName", val);
-    formik.setFieldTouched("fullName", true, true);
-    persist({ personal: { ...profile.personal, fullName: val } });
   };
 
   const handleLocationInput = (e) => {
@@ -343,8 +344,6 @@ export default function SettingsClient() {
     // Disallow special characters
     val = val.replace(/[^a-zA-Z0-9\s\u00C0-\u024F\u1EA0-\u1EF9\-\.,]/g, "");
     formik.setFieldValue("location", val);
-    formik.setFieldTouched("location", true, true);
-    persist({ personal: { ...profile.personal, location: val } });
   };
 
   const handleSaveProfile = async () => {
@@ -755,7 +754,12 @@ export default function SettingsClient() {
                   name="fullName"
                   value={formik.values.fullName}
                   onChange={handleFullNameInput}
-                  onBlur={formik.handleBlur}
+                  onBlur={(e) => {
+                    formik.handleBlur(e);
+                    if (formik.values.fullName !== profile?.personal?.fullName) {
+                      persist({ personal: { ...(profile?.personal || {}), fullName: formik.values.fullName } });
+                    }
+                  }}
                   placeholder={t(lang, "e.g. Alex Mitchell")}
                   maxLength={30}
                   error={formik.touched.fullName && formik.errors.fullName ? formik.errors.fullName : undefined}
@@ -767,10 +771,13 @@ export default function SettingsClient() {
                   value={formik.values.phone}
                   onChange={(phone) => {
                     formik.setFieldValue("phone", phone);
-                    formik.setFieldTouched("phone", true, true);
-                    persist({ personal: { ...(profile?.personal || {}), phone } });
                   }}
-                  onBlur={() => formik.setFieldTouched("phone", true, true)}
+                  onBlur={() => {
+                    formik.setFieldTouched("phone", true, true);
+                    if (formik.values.phone !== profile?.personal?.phone) {
+                      persist({ personal: { ...(profile?.personal || {}), phone: formik.values.phone } });
+                    }
+                  }}
                   placeholder="912 345 678"
                   defaultCountry="vn"
                   error={formik.touched.phone && formik.errors.phone ? formik.errors.phone : undefined}
@@ -780,7 +787,12 @@ export default function SettingsClient() {
                   name="location"
                   value={formik.values.location}
                   onChange={handleLocationInput}
-                  onBlur={formik.handleBlur}
+                  onBlur={(e) => {
+                    formik.handleBlur(e);
+                    if (formik.values.location !== profile?.personal?.location) {
+                      persist({ personal: { ...(profile?.personal || {}), location: formik.values.location } });
+                    }
+                  }}
                   placeholder={t(lang, "e.g. Ho Chi Minh City, Vietnam")}
                   error={formik.touched.location && formik.errors.location ? formik.errors.location : undefined}
                 />
@@ -890,7 +902,7 @@ export default function SettingsClient() {
                     formik.setFieldValue("industry", e.target.value);
                     persist({ professional: { ...profile.professional, industry: e.target.value } });
                   }}
-                  options={INDUSTRIES.map((v) => ({ value: v, label: t(lang, v) }))}
+                  options={industryList.map((v) => ({ value: v, label: t(lang, v) }))}
                   placeholder={t(lang, "Select industry domain")}
                 />
               </div>
@@ -1494,7 +1506,7 @@ export default function SettingsClient() {
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="m-0 text-base font-bold text-ink">
-                    {t(lang, "Job Availability Status")}
+                    {t(lang, "Availability Status")}
                   </h3>
                   <p className="mt-0.5 text-xs text-muted">
                     {t(lang, "Signal your hiring availability to employers and automated matching systems.")}

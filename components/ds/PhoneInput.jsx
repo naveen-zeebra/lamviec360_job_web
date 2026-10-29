@@ -58,7 +58,8 @@ export default function PhoneInput({
           preferredCountries={preferredCountries}
           value={value ?? ""}
           onChange={(phone, meta) => {
-            if (typeof onChange === "function") {
+            // Guard against redundant events and infinite re-render loops
+            if (typeof onChange === "function" && phone !== (value ?? "")) {
               onChange(phone, meta);
             }
           }}

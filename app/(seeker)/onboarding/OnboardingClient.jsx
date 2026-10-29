@@ -14,10 +14,11 @@ import SkillSelectorRedesigned from "../../../components/seeker/SkillSelectorRed
 import AchievementsManager from "../../../components/seeker/AchievementsManager";
 import { UPLOAD_CONFIG } from "../../../config/uploadConfig";
 import { validateAvatarFile, validateResumeFile } from "../../../utils/fileValidation";
+import { useMasterData, DEFAULT_MASTER_DATA } from "../../../lib/masterData";
 
 const STEP_LABELS = ["Personal", "Professional", "Education", "Experience", "Resume & Portfolio", "Completion"];
 const EXPERIENCE_RANGES = ["Less than 1 year", "1-3 years", "3-5 years", "5-10 years", "10+ years"];
-const INDUSTRIES = ["Technology", "Retail & Commerce", "Media & Creative", "Transport & Logistics", "Manufacturing", "Finance & Banking", "Other"];
+const INDUSTRIES = DEFAULT_MASTER_DATA.industries;
 const WORK_MODES = ["Remote", "Hybrid", "On-site"];
 const MAX_RESUME_MB = UPLOAD_CONFIG.RESUME.maxMb;
 
@@ -71,6 +72,8 @@ function fmtMonth(val) {
 
 export default function OnboardingClient() {
   const [lang, setLang] = useLang();
+  const { industries } = useMasterData();
+  const industryList = industries && industries.length > 0 ? industries : INDUSTRIES;
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState(null);
@@ -703,7 +706,7 @@ export default function OnboardingClient() {
                   onChange={(e) => {
                     handleProfessionalChange("industry", e.target.value);
                   }}
-                  options={INDUSTRIES.map((v) => ({ value: v, label: t(lang, v) }))}
+                  options={industryList.map((v) => ({ value: v, label: t(lang, v) }))}
                   placeholder={t(lang, "Select industry domain")}
                 />
               </div>
