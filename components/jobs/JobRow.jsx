@@ -73,11 +73,7 @@ export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, h
               <Icon name="check" size={11} /> {t(lang, "Verified")}
             </Badge>
           )}
-          {job.ai_generated && (
-            <span className="inline-flex items-center gap-1 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold text-brand">
-              <Icon name="sparkles" size={9} /> {t(lang, "AI")}
-            </span>
-          )}
+
         </div>
 
         <div className="lv-job-meta mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
@@ -93,6 +89,45 @@ export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, h
             <Icon name="clock" size={13} />
             {(lang === "VN" || lang === "VI" ? job.postedVi || job.posted : job.posted)}
           </span>
+          {/* Application End Date / Deadline */}
+          {(() => {
+            const rawDeadline = job.deadline || job.expires_at;
+            if (!rawDeadline) {
+              return (
+                <span className="flex items-center gap-1 text-slate-500">
+                  <Icon name="calendar" size={13} />
+                  <span>{lang === "VN" || lang === "VI" ? "Hạn nộp: Tuyển liên tục" : "Apply by: Open until filled"}</span>
+                </span>
+              );
+            }
+            try {
+              const d = new Date(rawDeadline);
+              if (isNaN(d.getTime())) return null;
+              const now = new Date();
+              const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              const dateStr = d.toLocaleDateString(lang === "VN" || lang === "VI" ? "vi-VN" : "en-US", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              });
+              const isUrgent = diffDays > 0 && diffDays <= 3;
+              return (
+                <span className={`flex items-center gap-1 font-medium ${isUrgent ? "text-amber-600 font-semibold" : ""}`}>
+                  <Icon name="calendar" size={13} className={isUrgent ? "text-amber-600" : "text-muted"} />
+                  <span>
+                    {lang === "VN" || lang === "VI" ? `Hạn nộp: ${dateStr}` : `Apply by: ${dateStr}`}
+                    {isUrgent && (
+                      <span className="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                        {lang === "VN" || lang === "VI" ? `Còn ${diffDays} ngày` : `${diffDays}d left`}
+                      </span>
+                    )}
+                  </span>
+                </span>
+              );
+            } catch {
+              return null;
+            }
+          })()}
         </div>
 
         {/* Tags & Skills */}

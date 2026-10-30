@@ -20,6 +20,34 @@ export const ENVIRONMENT = rawEnv.toLowerCase();
 // ================================
 
 const ENV_URLS = {
+  uat: {
+    apiTarget:
+      (typeof process !== "undefined" && (process.env.NEXT_PUBLIC_UAT_API_TARGET || process.env.NEXT_PUBLIC_API_TARGET)) ||
+      "https://api-uat.lamviec360.com",
+    baseUrl:
+      (typeof process !== "undefined" && (process.env.NEXT_PUBLIC_UAT_BASE_URL || process.env.NEXT_PUBLIC_API_URL)) ||
+      "https://api-uat.lamviec360.com/api/v1/jobseeker",
+    s3ImageBaseUrl:
+      (typeof process !== "undefined" && process.env.NEXT_PUBLIC_UAT_S3_IMAGE_BASE_URL) ||
+      "https://api-uat.lamviec360.com/uploads",
+    employerUrl:
+      (typeof process !== "undefined" && process.env.NEXT_PUBLIC_UAT_EMPLOYER_URL) ||
+      "https://company-uat.lamviec360.com",
+  },
+  staging: {
+    apiTarget:
+      (typeof process !== "undefined" && (process.env.NEXT_PUBLIC_UAT_API_TARGET || process.env.NEXT_PUBLIC_API_TARGET)) ||
+      "https://api-uat.lamviec360.com",
+    baseUrl:
+      (typeof process !== "undefined" && (process.env.NEXT_PUBLIC_UAT_BASE_URL || process.env.NEXT_PUBLIC_API_URL)) ||
+      "https://api-uat.lamviec360.com/api/v1/jobseeker",
+    s3ImageBaseUrl:
+      (typeof process !== "undefined" && process.env.NEXT_PUBLIC_UAT_S3_IMAGE_BASE_URL) ||
+      "https://api-uat.lamviec360.com/uploads",
+    employerUrl:
+      (typeof process !== "undefined" && process.env.NEXT_PUBLIC_UAT_EMPLOYER_URL) ||
+      "https://company-uat.lamviec360.com",
+  },
   production: {
     apiTarget:
       (typeof process !== "undefined" && process.env.NEXT_PUBLIC_PRODUCTION_API_TARGET) ||

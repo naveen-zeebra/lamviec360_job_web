@@ -187,7 +187,7 @@ export default function ApplyClient({ jobId }) {
           <p style={{ maxWidth: 520, margin: "14px auto 24px", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: 1.6 }}>
             {lang === "VN" || lang === "VI"
               ? "Vị trí tuyển dụng này đã hết hạn nhận hồ sơ hoặc đã được nhà tuyển dụng đóng. Vui lòng khám phá các công việc đang mở tuyển khác trên LàmViệc360."
-              : "This job posting has reached its application deadline or has been closed by the employer. Please explore other active job opportunities on LàmViệc360."}
+              : "This job posting has reached its application deadline or has been closed by the employer. Please explore other active job opportunities on LamViec360."}
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
             <Link href="/jobs">
@@ -1269,7 +1269,7 @@ export default function ApplyClient({ jobId }) {
             <h2 style={{ fontSize: "var(--text-lg)", marginBottom: 16 }}>{t(lang, "Consent & submit")}</h2>
             <div className="lv-consent-box">
               <Check
-                label={<>{t(lang, "I consent to LàmViệc360 sharing my profile and application data with this employer for recruitment purposes.")} <span style={{ color: "var(--red-500)" }}>*</span></>}
+                label={<>{t(lang, "I consent to LamViec360 sharing my profile and application data with this employer for recruitment purposes.")} <span style={{ color: "var(--red-500)" }}>*</span></>}
                 checked={consent}
                 onChange={(e) => setConsent(e.target.checked)}
               />

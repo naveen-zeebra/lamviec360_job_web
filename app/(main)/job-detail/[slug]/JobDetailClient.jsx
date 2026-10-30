@@ -181,47 +181,47 @@ export default function JobDetailClient() {
   const resp =
     lang === "VI" || lang === "VN"
       ? [
-          "Tham gia thiết kế, xây dựng và bảo trì các tính năng của sản phẩm.",
-          "Hợp tác với thiết kế, sản phẩm và các kỹ sư khác trong nhóm.",
-          "Xem xét mã nguồn và góp phần nâng cao chất lượng kỹ thuật.",
-          "Theo dõi và cải thiện hiệu năng, độ tin cậy của hệ thống.",
-        ]
+        "Tham gia thiết kế, xây dựng và bảo trì các tính năng của sản phẩm.",
+        "Hợp tác với thiết kế, sản phẩm và các kỹ sư khác trong nhóm.",
+        "Xem xét mã nguồn và góp phần nâng cao chất lượng kỹ thuật.",
+        "Theo dõi và cải thiện hiệu năng, độ tin cậy của hệ thống.",
+      ]
       : [
-          "Help design, build and maintain product features.",
-          "Work closely with design, product and other engineers on the team.",
-          "Review code and contribute to overall technical quality.",
-          "Monitor and improve system performance and reliability.",
-        ];
+        "Help design, build and maintain product features.",
+        "Work closely with design, product and other engineers on the team.",
+        "Review code and contribute to overall technical quality.",
+        "Monitor and improve system performance and reliability.",
+      ];
 
   const reqs =
     lang === "VI" || lang === "VN"
       ? [
-          "Kinh nghiệm thực tế phù hợp với cấp bậc của vị trí.",
-          "Thành thạo các kỹ năng chính được liệt kê cho vai trò này.",
-          "Khả năng giao tiếp rõ ràng bằng tiếng Việt; tiếng Anh là một lợi thế.",
-          "Tinh thần hợp tác và chủ động trong công việc nhóm.",
-        ]
+        "Kinh nghiệm thực tế phù hợp với cấp bậc của vị trí.",
+        "Thành thạo các kỹ năng chính được liệt kê cho vai trò này.",
+        "Khả năng giao tiếp rõ ràng bằng tiếng Việt; tiếng Anh là một lợi thế.",
+        "Tinh thần hợp tác và chủ động trong công việc nhóm.",
+      ]
       : [
-          "Relevant hands-on experience for the level of the role.",
-          "Working proficiency in the core skills listed for this role.",
-          "Clear communication in Vietnamese; English is an advantage.",
-          "A collaborative, self-directed approach to teamwork.",
-        ];
+        "Relevant hands-on experience for the level of the role.",
+        "Working proficiency in the core skills listed for this role.",
+        "Clear communication in Vietnamese; English is an advantage.",
+        "A collaborative, self-directed approach to teamwork.",
+      ];
 
   const bens =
     lang === "VI" || lang === "VN"
       ? [
-          "Bảo hiểm theo quy định pháp luật",
-          "Thưởng theo hiệu quả công việc",
-          "Ngân sách học tập và phát triển",
-          "Chính sách làm việc linh hoạt",
-        ]
+        "Bảo hiểm theo quy định pháp luật",
+        "Thưởng theo hiệu quả công việc",
+        "Ngân sách học tập và phát triển",
+        "Chính sách làm việc linh hoạt",
+      ]
       : [
-          "Statutory insurance coverage",
-          "Performance-based bonus",
-          "Learning and development budget",
-          "Flexible working arrangements",
-        ];
+        "Statutory insurance coverage",
+        "Performance-based bonus",
+        "Learning and development budget",
+        "Flexible working arrangements",
+      ];
 
   if (!job) {
     return (
@@ -296,24 +296,7 @@ export default function JobDetailClient() {
                   <h1 style={{ fontSize: "var(--text-3xl)", margin: 0 }}>
                     {lang === "VN" || lang === "VI" ? job.titleVi || job.title : job.title}
                   </h1>
-                  {job.ai_generated && (
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "3px 8px",
-                        borderRadius: 6,
-                        backgroundColor: "rgba(37, 99, 235, 0.1)",
-                        color: "#2563eb",
-                        fontSize: 11,
-                        fontWeight: 700,
-                      }}
-                    >
-                      <Icon name="sparkles" size={12} />
-                      {t(lang, "AI Generated")}
-                    </span>
-                  )}
+
                 </div>
 
                 <div className="lv-job-company" style={{ fontSize: "var(--text-base)", marginBottom: "var(--space-3)" }}>
@@ -542,13 +525,13 @@ export default function JobDetailClient() {
               <strong style={{ color: job.isExpired ? "#dc2626" : undefined }}>
                 {job.deadline
                   ? new Date(job.deadline).toLocaleDateString(lang === "VN" || lang === "VI" ? "vi-VN" : "en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })
                   : lang === "VN" || lang === "VI"
-                  ? "Mở đến khi đủ"
-                  : "Until filled"}
+                    ? "Mở đến khi đủ"
+                    : "Until filled"}
               </strong>
             </div>
 
@@ -723,15 +706,15 @@ export default function JobDetailClient() {
                         ? "Đã chép"
                         : "Copied"
                       : lang === "VN" || lang === "VI"
-                      ? "Sao chép"
-                      : "Copy"}
+                        ? "Sao chép"
+                        : "Copy"}
                   </span>
                 </button>
               </div>
             </div>
 
             <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: "var(--leading-relaxed)", margin: "4px 0 0" }}>
-              {t(lang, "You need a LàmViệc360 profile to apply. Your details are shared only with your consent.")}
+              {t(lang, "You need a LamViec360 profile to apply. Your details are shared only with your consent.")}
             </p>
 
             <Link href={`/jobs?company=${encodeURIComponent(companyName)}`} className="lv-job-view">
@@ -831,7 +814,7 @@ export default function JobDetailClient() {
                 <p style={{ fontSize: 14, color: "#64748b", margin: 0, lineHeight: 1.5 }}>
                   {lang === "VN" || lang === "VI"
                     ? "Cảm ơn bạn đã phản hồi. Đội ngũ kiểm duyệt LàmViệc360 sẽ kiểm tra và xử lý theo quy định."
-                    : "Thank you for your report. The LàmViệc360 moderation team has queued this post for review."}
+                    : "Thank you for your report. The LamViec360 moderation team has queued this post for review."}
                 </p>
               </div>
             ) : (
@@ -1005,8 +988,8 @@ export default function JobDetailClient() {
                         ? "Đang gửi..."
                         : "Submitting..."
                       : lang === "VN" || lang === "VI"
-                      ? "Gửi báo cáo"
-                      : "Submit Report"}
+                        ? "Gửi báo cáo"
+                        : "Submit Report"}
                   </Button>
                 </div>
               </form>

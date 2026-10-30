@@ -30,6 +30,43 @@ const LEVELS = [
 const PER = 6;
 
 
+const SALARY_PRESETS = [
+  { id: "all", label: "All Salaries", labelVi: "Tất cả mức lương", min: 0, max: Infinity },
+  { id: "under-15m", label: "Under 15M VND", labelVi: "Dưới 15 triệu", min: 0, max: 15000000 },
+  { id: "15m-30m", label: "15M – 30M VND", labelVi: "15 – 30 triệu", min: 15000000, max: 30000000 },
+  { id: "30m-50m", label: "30M – 50M VND", labelVi: "30 – 50 triệu", min: 30000000, max: 50000000 },
+  { id: "over-50m", label: "50M+ VND", labelVi: "Trên 50 triệu", min: 50000000, max: Infinity },
+  { id: "negotiable", label: "Negotiable", labelVi: "Thỏa thuận", isNegotiable: true },
+];
+
+function parseJobSalary(j) {
+  let min = j.salary_min !== undefined && j.salary_min !== null ? Number(j.salary_min) : null;
+  let max = j.salary_max !== undefined && j.salary_max !== null ? Number(j.salary_max) : null;
+  const s = String(j.salary || "").toLowerCase();
+  const isNeg = Boolean(j.is_negotiable || s.includes("negotiable") || s.includes("thỏa thuận"));
+
+  if (min === null && max === null && s) {
+    const mMatch = s.match(/(\d+(?:\.\d+)?)\s*m/gi);
+    if (mMatch && mMatch.length >= 2) {
+      const nums = mMatch.map((v) => parseFloat(v) * 1000000);
+      min = nums[0];
+      max = nums[1];
+    } else if (mMatch && mMatch.length === 1) {
+      min = parseFloat(mMatch[0]) * 1000000;
+      max = min;
+    } else {
+      const digits = s.replace(/,/g, "").match(/\d{7,10}/g);
+      if (digits && digits.length >= 2) {
+        min = Number(digits[0]);
+        max = Number(digits[1]);
+      } else if (digits && digits.length === 1) {
+        min = Number(digits[0]);
+      }
+    }
+  }
+  return { min, max, isNegotiable: isNeg };
+}
+
 const EXP_PRESETS = [
   { id: "all", label: "All (0-30y)", labelVi: "Tất cả", min: 0, max: 30 },
   { id: "fresher", label: "Fresher (0y)", labelVi: "Fresher (0n)", min: 0, max: 0 },
@@ -68,8 +105,9 @@ function parseJobExperience(j) {
 
 export default function JobsClient() {
   const [lang, setLang] = useLang();
-  const { jobTypes } = useMasterData();
+  const { jobTypes, industries } = useMasterData();
   const employmentTypes = jobTypes && jobTypes.length > 0 ? jobTypes : TYPES;
+  const availableIndustries = industries && industries.length > 0 ? industries : DEFAULT_MASTER_DATA.industries;
   const params = useSearchParams();
   const [q, setQ] = useState(params.get("q") || "");
   const [loc, setLoc] = useState(params.get("loc") || "");
@@ -78,6 +116,8 @@ export default function JobsClient() {
   const [levels, setLevels] = useState([]);
   const [expMin, setExpMin] = useState(0);
   const [expMax, setExpMax] = useState(30);
+  const [salaryPreset, setSalaryPreset] = useState("all");
+  const [selectedIndustries, setSelectedIndustries] = useState([]);
   const [company, setCompany] = useState(params.get("company") || "");
   const [sort, setSort] = useState("recent");
   const [page, setPage] = useState(1);
@@ -167,6 +207,30 @@ export default function JobsClient() {
       const jExp = parseJobExperience(j);
       if (jExp.max < expMin || jExp.min > expMax) return false;
     }
+    // Salary Range Filter
+    if (salaryPreset !== "all") {
+      const jSal = parseJobSalary(j);
+      if (salaryPreset === "negotiable") {
+        if (!jSal.isNegotiable && (jSal.min !== null || jSal.max !== null)) return false;
+      } else {
+        const preset = SALARY_PRESETS.find((p) => p.id === salaryPreset);
+        if (preset) {
+          if (jSal.isNegotiable && jSal.min === null && jSal.max === null) return false;
+          const jMin = jSal.min !== null ? jSal.min : 0;
+          const jMax = jSal.max !== null ? jSal.max : (jSal.min !== null ? jSal.min : Infinity);
+          if (jMax < preset.min || jMin > preset.max) return false;
+        }
+      }
+    }
+    // Industry Filter
+    if (selectedIndustries.length > 0) {
+      const jInd = (j.industry || j.department || "").toLowerCase();
+      const matchesIndustry = selectedIndustries.some((ind) => {
+        const target = ind.toLowerCase();
+        return jInd.includes(target) || target.includes(jInd);
+      });
+      if (!matchesIndustry) return false;
+    }
     return true;
   });
 
@@ -215,6 +279,8 @@ export default function JobsClient() {
     setLevels([]);
     setExpMin(0);
     setExpMax(30);
+    setSalaryPreset("all");
+    setSelectedIndustries([]);
     setCompany("");
     setQ("");
     setLoc("");
@@ -290,6 +356,43 @@ export default function JobsClient() {
               <div className="lv-filter-opts">
                 {MODES.map((m) => (
                   <Check key={m[0]} label={(lang === "VN" || lang === "VI" ? m[1] : m[0])} checked={modes.includes(m[0])} onChange={() => toggle(modes, setModes, m[0])} />
+                ))}
+              </div>
+            </div>
+
+            {/* Industry Filter (Super Admin Master Data) */}
+            <div className="lv-filter-group">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <h4 style={{ margin: 0 }}>{t(lang, "Industry")}</h4>
+                {selectedIndustries.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedIndustries([]);
+                      setPage(1);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "var(--brand-600, #2563eb)",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    {lang === "VN" || lang === "VI" ? "Đặt lại" : "Reset"}
+                  </button>
+                )}
+              </div>
+              <div className="lv-filter-opts" style={{ maxHeight: 180, overflowY: "auto", paddingRight: 4 }}>
+                {availableIndustries.map((ind) => (
+                  <Check
+                    key={ind}
+                    label={ind}
+                    checked={selectedIndustries.includes(ind)}
+                    onChange={() => toggle(selectedIndustries, setSelectedIndustries, ind)}
+                  />
                 ))}
               </div>
             </div>
@@ -409,6 +512,61 @@ export default function JobsClient() {
                 })}
               </div>
             </div>
+            {/* Salary Range Filter (VND) */}
+            <div className="lv-filter-group">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <h4 style={{ margin: 0 }}>{t(lang, "Salary Range (VND)")}</h4>
+                {salaryPreset !== "all" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSalaryPreset("all");
+                      setPage(1);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "var(--brand-600, #2563eb)",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    {lang === "VN" || lang === "VI" ? "Đặt lại" : "Reset"}
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {SALARY_PRESETS.map((p) => {
+                  const isActive = salaryPreset === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setSalaryPreset(p.id);
+                        setPage(1);
+                      }}
+                      style={{
+                        padding: "5px 10px",
+                        fontSize: 12,
+                        borderRadius: 6,
+                        border: isActive ? "1.5px solid #2563eb" : "1px solid #cbd5e1",
+                        backgroundColor: isActive ? "#eff6ff" : "#ffffff",
+                        color: isActive ? "#1d4ed8" : "#475569",
+                        fontWeight: isActive ? 700 : 500,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {lang === "VN" || lang === "VI" ? p.labelVi : p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="lv-filter-group">
               <Field>
                 <Select
