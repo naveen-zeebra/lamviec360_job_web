@@ -68,7 +68,7 @@ export default function VerifyEmailClient() {
         setTimeout(() => router.push("/onboarding"), 600);
       } catch (error) {
         const msg = error?.message || t(lang, "Invalid verification code.");
-        setStatus(`${msg} (${t(lang, "Hint: in development mode, you can use 123456")})`);
+        setStatus(msg);
       } finally {
         setSubmitting(false);
       }
@@ -87,7 +87,7 @@ export default function VerifyEmailClient() {
       await sendVerificationCode(targetEmail);
       setToast(t(lang, "A new verification code has been sent to your email."));
     } catch (err) {
-      setToast(err.message || t(lang, "Failed to send code. You can use 123456 in dev mode."));
+      setToast(err.message || t(lang, "Failed to send code. Please try again."));
     }
   };
 
@@ -105,7 +105,7 @@ export default function VerifyEmailClient() {
       await sendVerificationCode(clean);
       setToast(t(lang, "Verification code sent to your updated email!"));
     } catch (e) {
-      setToast(e.message || t(lang, "Could not send code. Dev code is 123456."));
+      setToast(e.message || t(lang, "Could not send code. Please try again."));
     }
   };
 

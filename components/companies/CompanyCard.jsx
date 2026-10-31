@@ -1,12 +1,18 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "../ds";
 import Icon from "../ds/Icon";
 import { useLang, t } from "../../utils/lang";
+import { resolveMediaUrl } from "../../lib/api/publicApi";
 
 export default function CompanyCard({ c, lang }) {
+  const [logoError, setLogoError] = useState(false);
   const compName = c.name || c.company_name || "Company";
   const logoText = (compName || "CO").slice(0, 2).toUpperCase();
-  const logoUrl = c.logo_url || c.logo;
+  const rawLogo = c.logo_url || c.logo;
+  const logoUrl = resolveMediaUrl(rawLogo);
   const openCount = c.open_jobs_count ?? c.openJobs ?? c.jobs ?? 0;
   const companyTarget = `/companies/${c.id || encodeURIComponent(compName)}`;
 
@@ -14,14 +20,12 @@ export default function CompanyCard({ c, lang }) {
     <div className="lv-company-card">
       <div className="lv-company-card-top">
         <Link href={companyTarget} className="lv-company-logo-wrap">
-          {logoUrl ? (
+          {logoUrl && !logoError ? (
             <img
               src={logoUrl}
               alt={compName}
               className="lv-company-logo-img"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
+              onError={() => setLogoError(true)}
             />
           ) : (
             <div className="lv-company-logo" aria-hidden="true">

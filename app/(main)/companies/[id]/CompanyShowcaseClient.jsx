@@ -34,6 +34,7 @@ export default function CompanyShowcaseClient() {
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [logoError, setLogoError] = useState(false);
   const [activeTab, setActiveTab] = useState("about"); // "about" | "jobs" | "contact"
   const [jobSearch, setJobSearch] = useState("");
 
@@ -55,6 +56,7 @@ export default function CompanyShowcaseClient() {
   };
 
   useEffect(() => {
+    setLogoError(false);
     loadShowcase();
   }, [idOrSlug]);
 
@@ -203,7 +205,7 @@ export default function CompanyShowcaseClient() {
 
               <div className="lv-showcase-logo-box" style={{ width: 96, height: 96, borderRadius: 16 }}>
 
-                {company.logo_url || company.logo ? (
+                {(company.logo_url || company.logo) && !logoError ? (
 
                   <img
 
@@ -213,11 +215,7 @@ export default function CompanyShowcaseClient() {
 
                     className="lv-showcase-logo-img"
 
-                    onError={(e) => {
-
-                      e.currentTarget.style.display = "none";
-
-                    }}
+                    onError={() => setLogoError(true)}
 
                   />
 
