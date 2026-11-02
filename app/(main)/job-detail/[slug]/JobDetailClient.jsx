@@ -400,19 +400,7 @@ export default function JobDetailClient() {
                 </p>
               )}
 
-              <h2>{t(lang, "Responsibilities")}</h2>
-              <ul>
-                {resp.map((r) => (
-                  <li key={r}>{r}</li>
-                ))}
-              </ul>
 
-              <h2>{t(lang, "Requirements")}</h2>
-              <ul>
-                {reqs.map((r) => (
-                  <li key={r}>{r}</li>
-                ))}
-              </ul>
 
               <h2>{t(lang, "Required Skills")}</h2>
               <div className="lv-job-tags" style={{ marginBottom: 0, display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -422,13 +410,6 @@ export default function JobDetailClient() {
                   </Badge>
                 ))}
               </div>
-
-              <h2>{t(lang, "Benefits")}</h2>
-              <ul>
-                {bens.map((b) => (
-                  <li key={b}>{b}</li>
-                ))}
-              </ul>
 
               <h2>{t(lang, "Hiring process")}</h2>
               <div className="lv-journey" style={{ marginTop: "var(--space-5)", maxWidth: "100%" }}>
@@ -564,7 +545,8 @@ export default function JobDetailClient() {
                 disabled={applied}
                 onClick={() => {
                   if (!isLoggedIn()) {
-                    router.push("/login");
+                    const targetApply = `/apply/${job.id}`;
+                    router.push(`/login?redirect=${encodeURIComponent(targetApply)}`);
                     return;
                   }
                   const prof = getProfile();
@@ -590,7 +572,8 @@ export default function JobDetailClient() {
               style={{ width: "100%", justifyContent: "center" }}
               onClick={() => {
                 if (!isLoggedIn()) {
-                  router.push("/login");
+                  const currentPath = typeof window !== "undefined" ? window.location.pathname : `/job-detail/${encodeURIComponent(slug)}`;
+                  router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
                   return;
                 }
                 toggleSavedJob(job.id, job);

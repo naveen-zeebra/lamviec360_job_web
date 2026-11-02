@@ -9,6 +9,7 @@ import Check from "../../../../components/ds/Check";
 import { useLang, t } from "../../../../utils/lang";
 
 import {
+  isLoggedIn,
   getProfile,
   hasAppliedToJob,
   getApplicationByJobId,
@@ -94,6 +95,13 @@ export default function ApplyClient({ jobId }) {
       setAppliedCertTitle(clean);
     }
   };
+
+  useEffect(() => {
+    if (!isLoggedIn()) {
+      router.push(`/login?redirect=${encodeURIComponent(`/apply/${jobId}`)}`);
+      return;
+    }
+  }, [jobId]);
 
   useEffect(() => {
     async function resolveJob() {

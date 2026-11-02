@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Input } from "../../../components/ds";
@@ -14,8 +14,15 @@ import { login } from "../../../lib/seekerStore";
 export default function LoginClient() {
   const [lang, setLang] = useLang();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPw, setShowPw] = useState(false);
   const [toast, setToast] = useToast();
+
+  const rawRedirect = searchParams.get("redirect") || searchParams.get("returnUrl") || "";
+  const targetRedirect =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "/dashboard";
 
   const bullets = [
     t(lang, "One click apply using your profile."),
@@ -41,7 +48,7 @@ export default function LoginClient() {
       setStatus(null);
       try {
         await login(values.email.trim(), values.password);
-        router.push("/dashboard");
+        router.push(targetRedirect);
       } catch (error) {
         setStatus(error.message || t(lang, "Incorrect email or password."));
       } finally {
@@ -59,7 +66,7 @@ export default function LoginClient() {
         title={t(lang, "New to LàmViệc360?")}
         bullets={bullets}
         ctaText={t(lang, "Register for Free")}
-        ctaHref="/register"
+        ctaHref={rawRedirect ? `/register?redirect=${encodeURIComponent(targetRedirect)}` : "/register"}
       >
         <form onSubmit={formik.handleSubmit}>
           <div style={{ marginBottom: 16 }}>
@@ -172,7 +179,7 @@ export default function LoginClient() {
           <SocialAuthButtons
             layout="grid"
             actionText="Sign in with"
-            onSuccess={() => router.push("/dashboard")}
+            onSuccess={() => router.push(targetRedirect)}
             onError={(msg) => setToast(msg)}
           />
         </form>
