@@ -516,6 +516,21 @@ export default function JobDetailClient() {
               </strong>
             </div>
 
+            {/* One-Click Apply Callout */}
+            {!job.isNoLongerAvailable && (
+              <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs text-blue-950">
+                <div className="flex items-center gap-1.5 font-bold text-blue-800 mb-1">
+                  <Icon name="zap" size={14} className="text-amber-500 fill-amber-500" />
+                  <span>{lang === "VN" || lang === "VI" ? "Ứng tuyển 1-Chạm" : "One-Click Apply"}</span>
+                </div>
+                <p className="text-blue-700/90 leading-relaxed text-[11.5px] m-0">
+                  {lang === "VN" || lang === "VI"
+                    ? "Hồ sơ và CV mặc định đã sẵn sàng. Xem lại và gửi ngay chỉ trong vài giây."
+                    : "Profile & default resume attached automatically. Review snapshot and submit in seconds."}
+                </p>
+              </div>
+            )}
+
             {job.isNoLongerAvailable ? (
               <Button
                 variant="secondary"
@@ -541,7 +556,7 @@ export default function JobDetailClient() {
               <Button
                 variant="primary"
                 size="lg"
-                style={{ width: "100%", justifyContent: "center" }}
+                style={{ width: "100%", justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 6 }}
                 disabled={applied}
                 onClick={() => {
                   if (!isLoggedIn()) {
@@ -563,7 +578,14 @@ export default function JobDetailClient() {
                   if (!applied) router.push(`/apply/${job.id}`);
                 }}
               >
-                {applied ? t(lang, "Applied") : t(lang, "Apply Now")}
+                {applied ? (
+                  t(lang, "Applied")
+                ) : (
+                  <>
+                    <Icon name="zap" size={16} style={{ color: "#fef08a" }} />
+                    {lang === "VN" || lang === "VI" ? "Ứng tuyển 1-Chạm" : "One-Click Apply"}
+                  </>
+                )}
               </Button>
             )}
 
