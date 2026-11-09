@@ -137,10 +137,7 @@ export default function JobRow({ job, lang, saved, onSave, isLoggedIn = false, h
               <Icon name="alert-circle" size={11} /> {lang === "VN" || lang === "VI" ? "Đã đóng" : "No Longer Available"}
             </Badge>
           )}
-          <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200/60">
-            <Icon name="zap" size={11} className="text-amber-500 fill-amber-500" />
-            {lang === "VN" || lang === "VI" ? "Ứng tuyển 1-chạm" : "One-Click Apply"}
-          </span>
+
           <Badge tone="neutral">{(lang === "VN" || lang === "VI" ? FILTER_VI[job.type] || job.type : job.type)}</Badge>
           <Badge tone="neutral">{(lang === "VN" || lang === "VI" ? job.modeVi || job.mode : job.mode)}</Badge>
           {formatJobRowExperience(job, lang) && <Badge tone="neutral">{formatJobRowExperience(job, lang)}</Badge>}

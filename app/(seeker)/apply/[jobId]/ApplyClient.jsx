@@ -568,21 +568,7 @@ export default function ApplyClient({ jobId }) {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
             <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: 800 }}>{t(lang, "Apply for")} {titleText}</h1>
-            <span style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "4px 10px",
-              borderRadius: 9999,
-              background: "#eff6ff",
-              border: "1px solid #bfdbfe",
-              color: "#1d4ed8",
-              fontSize: 12,
-              fontWeight: 700
-            }}>
-              <Icon name="zap" size={13} style={{ color: "#f59e0b" }} />
-              {lang === "VN" || lang === "VI" ? "Ứng tuyển 1-Chạm" : "One-Click Apply"}
-            </span>
+
           </div>
           <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "var(--text-sm)" }}>
             <strong>{job.company}</strong> · {lang === "VN" || lang === "VI" ? job.locationVi || job.location : job.location}

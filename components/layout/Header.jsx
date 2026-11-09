@@ -378,6 +378,7 @@ export default function Header({ lang, setLang, app = "seeker" }) {
                       <DropLink href="/saved-jobs" icon="heart" badge={savedCount > 0 ? savedCount : null}>
                         {isVi ? "Việc làm đã lưu" : "Saved Jobs"}
                       </DropLink>
+                      <DropLink href="/support" icon="life-buoy">{isVi ? "Hỗ trợ & Trợ giúp" : "Help & Support"}</DropLink>
                       <DropLink href="/settings" icon="settings">{isVi ? "Cài đặt tài khoản" : "Account Settings"}</DropLink>
                     </div>
 
@@ -493,6 +494,10 @@ export default function Header({ lang, setLang, app = "seeker" }) {
                   )}
                 </Link>
               ))}
+              <Link href="/support" onClick={closeAll} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-blue-600">
+                <Icon name="life-buoy" size={16} className="text-gray-400" />
+                {isVi ? "Hỗ trợ & Trợ giúp" : "Help & Support"}
+              </Link>
               <Link href="/settings" onClick={closeAll} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-blue-600">
                 <Icon name="settings" size={16} className="text-gray-400" />
                 {isVi ? "Cài đặt tài khoản" : "Account Settings"}

@@ -10,6 +10,7 @@ import Header from "../layout/Header";
 import Footer from "../layout/Footer";
 import CompanyCard from "../companies/CompanyCard";
 import Testimonials from "../marketing/Testimonials";
+import PromotionalBannerSection from "./PromotionalBannerSection";
 import { FILTER_VI } from "../../lib/data";
 import { fetchPublicJobs } from "../../lib/api/publicApi";
 import { isSaved, toggleSavedJob } from "../../lib/seekerStore";
@@ -533,6 +534,7 @@ export default function HomeClient() {
       <Header lang={lang} setLang={setLang} app="seeker" />
       <main>
         <Hero lang={lang} />
+        <PromotionalBannerSection lang={lang} />
         <WhyUs lang={lang} />
         <HowItWorks lang={lang} />
         <FeaturedJobs lang={lang} jobsData={jobs} />
