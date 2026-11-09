@@ -9,7 +9,7 @@ import StageBadge from "../../../components/seeker/StageBadge";
 import { useLang, t } from "../../../utils/lang";
 import { formatDate } from "../../../utils/format";
 
-import { listApplications, syncSeekerWithBackend } from "../../../lib/seekerStore";
+import { listApplications, syncSeekerWithBackend, getCanonicalStage } from "../../../lib/seekerStore";
 import { getSeekerToken } from "../../../lib/api/client";
 
 const FILTERS = [
@@ -62,7 +62,7 @@ export default function ApplicationsClient() {
 
   const dataWithDefaults = (data || []).map(a => {
     const rawStage = a.stage || a.status || "Applied";
-    const stage = rawStage.toLowerCase() === "withdrawn" ? "Withdrawn" : (rawStage.toLowerCase() === "applied" ? "Applied" : rawStage);
+    const stage = getCanonicalStage(rawStage);
     const isClosed = a.closed !== undefined
       ? a.closed
       : (
@@ -70,9 +70,11 @@ export default function ApplicationsClient() {
           a.status === 'hired' ||
           a.status === 'closed' ||
           a.status === 'withdrawn' ||
+          a.status === 'post_hire_tracking' ||
           stage === 'Withdrawn' ||
           stage === 'Rejected' ||
-          stage === 'Hired'
+          stage === 'Hired' ||
+          stage === 'Post-Hire Tracking'
         );
     const appliedAt = a.appliedDate || a.applied_at || a.created_at;
     return { ...a, _isClosed: isClosed, _stage: stage, _appliedAt: appliedAt };

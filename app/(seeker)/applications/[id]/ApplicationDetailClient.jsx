@@ -9,10 +9,8 @@ import Toast, { useToast } from "../../../../components/ds/Toast";
 import { useLang, t } from "../../../../utils/lang";
 import { formatDate, formatDateTime } from "../../../../utils/format";
 
-import { getApplication, STAGE_TYPICAL, withdrawApplication } from "../../../../lib/seekerStore";
+import { getApplication, STAGE_TYPICAL, withdrawApplication, getCanonicalStage } from "../../../../lib/seekerStore";
 import { fetchApplicationDetail } from "../../../../lib/api/seekerApi";
-
-const HAPPY_PATH = ["Applied", "Under Review", "Shortlisted", "Interview Scheduled", "Offer Sent", "Hired"];
 
 export default function ApplicationDetailClient({ id }) {
   const [lang] = useLang();
@@ -35,7 +33,7 @@ export default function ApplicationDetailClient({ id }) {
               ...(prev || {}),
               ...remote,
               id: remote.id,
-              stage: remote.status === "applied" ? "Applied" : (remote.status === "withdrawn" ? "Withdrawn" : (remote.status || "Applied")),
+              stage: getCanonicalStage(remote.status || remote.stage),
               status: remote.status,
               appliedDate: remote.applied_at || remote.created_at,
               timeline: (prev && prev.timeline && prev.timeline.length) ? prev.timeline : [
@@ -87,16 +85,33 @@ export default function ApplicationDetailClient({ id }) {
   const isVi = lang === "VN" || lang === "VI";
   const title = job ? (isVi ? job.titleVi || job.title : job.title) : "";
   const rawStage = app.stage || app.status || "Applied";
-  const currentStage = HAPPY_PATH.find(s => s.toLowerCase() === rawStage.toLowerCase()) || rawStage;
-  const isRejected = currentStage.toLowerCase() === "rejected";
-  const isWithdrawn = currentStage.toLowerCase() === "withdrawn";
+  const currentStage = getCanonicalStage(rawStage);
+  const HAPPY_PATH = currentStage === "Post-Hire Tracking"
+    ? ["Applied", "Screening", "Phone Screening", "Shortlisted", "Interview Scheduled", "Offer Sent", "Hired", "Post-Hire Tracking"]
+    : ["Applied", "Screening", "Phone Screening", "Shortlisted", "Interview Scheduled", "Offer Sent", "Hired"];
+  const isRejected = currentStage === "Rejected";
+  const isWithdrawn = currentStage === "Withdrawn";
   const currentIndex = HAPPY_PATH.indexOf(currentStage);
-  const reachedDate = (stage) => ((app.timeline || []).find((tl) => tl.stage === stage) || {}).date;
+  const reachedDate = (stage) => {
+    const entry = (app.timeline || []).find((tl) => getCanonicalStage(tl.stage) === stage || tl.stage === stage);
+    if (entry && entry.date) return entry.date;
+    if (stage === "Applied") return app.appliedDate || app.applied_at || app.created_at;
+    if (stage === currentStage) return app.updated_at || app.status_updated_at;
+    return undefined;
+  };
   const answers = app.answers && Object.keys(app.answers).length ? app.answers : null;
-  const isClosed = app.closed !== undefined ? app.closed : (currentStage.toLowerCase() === 'rejected' || currentStage.toLowerCase() === 'hired' || currentStage.toLowerCase() === 'closed' || isWithdrawn);
+  const isClosed = app.closed !== undefined
+    ? app.closed
+    : (
+        currentStage === "Rejected" ||
+        currentStage === "Hired" ||
+        currentStage === "Post-Hire Tracking" ||
+        currentStage === "Withdrawn" ||
+        app.status === "closed"
+      );
 
   // BR-301-04: Talent can withdraw application before screening stage only (status == "applied")
-  const canWithdraw = currentStage.toLowerCase() === "applied";
+  const canWithdraw = currentStage === "Applied";
 
   const handleConfirmWithdraw = async () => {
     setWithdrawing(true);
@@ -141,7 +156,7 @@ export default function ApplicationDetailClient({ id }) {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <StageBadge stage={currentStage} lang={lang} />
-          {isClosed && !isRejected && !isWithdrawn && currentStage !== "Hired" && <Badge tone="neutral">{t(lang, "Position Closed")}</Badge>}
+          {isClosed && !isRejected && !isWithdrawn && currentStage !== "Hired" && currentStage !== "Post-Hire Tracking" && <Badge tone="neutral">{t(lang, "Position Closed")}</Badge>}
           {canWithdraw && (
             <Button
               variant="secondary"

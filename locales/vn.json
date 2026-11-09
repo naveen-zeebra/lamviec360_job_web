@@ -1123,5 +1123,12 @@
   "PIN Protected": "Khóa PIN",
   "Incorrect Security PIN": "Mã PIN bảo mật không chính xác",
   "Unlock & Download": "Mở khóa tải",
-  "Decrypt & Download": "Giải mã & Tải"
+  "Decrypt & Download": "Giải mã & Tải",
+  "Phone Screening": "Phỏng vấn qua điện thoại",
+  "Post-Hire Tracking": "Theo dõi sau tuyển dụng",
+  "Typical: 1-2 days": "Thường mất: 1-2 ngày",
+  "Typical: 2-3 days": "Thường mất: 2-3 ngày",
+  "Typical: 2-4 days": "Thường mất: 2-4 ngày",
+  "Typical: 3-5 days": "Thường mất: 3-5 ngày",
+  "Typical: 5-7 days": "Thường mất: 5-7 ngày"
 }

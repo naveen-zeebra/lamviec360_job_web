@@ -846,5 +846,12 @@
   "PIN Protected": "PIN Protected",
   "Incorrect Security PIN": "Incorrect Security PIN",
   "Unlock & Download": "Unlock & Download",
-  "Decrypt & Download": "Decrypt & Download"
+  "Decrypt & Download": "Decrypt & Download",
+  "Phone Screening": "Phone Screening",
+  "Post-Hire Tracking": "Post-Hire Tracking",
+  "Typical: 1-2 days": "Typical: 1-2 days",
+  "Typical: 2-3 days": "Typical: 2-3 days",
+  "Typical: 2-4 days": "Typical: 2-4 days",
+  "Typical: 3-5 days": "Typical: 3-5 days",
+  "Typical: 5-7 days": "Typical: 5-7 days"
 }
