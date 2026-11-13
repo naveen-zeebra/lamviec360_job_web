@@ -12,9 +12,15 @@ export default function PreferencesTab({
   lang,
   t,
   setToast,
+  locations = [],
 }) {
   return (
     <div className="flex flex-col gap-5">
+      <datalist id="pref-locations-datalist">
+        {locations.map((loc) => (
+          <option key={loc} value={loc} />
+        ))}
+      </datalist>
       <ChipInput
         label={t(lang, "Preferred Roles")}
         values={profile.preferences.roles}
@@ -41,6 +47,7 @@ export default function PreferencesTab({
         values={profile.preferences.locations}
         placeholder={t(lang, "e.g. Ho Chi Minh City")}
         allowSpecial={false}
+        list="pref-locations-datalist"
         onAdd={(v) =>
           persist({
             preferences: {

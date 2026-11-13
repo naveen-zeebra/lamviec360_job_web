@@ -99,8 +99,9 @@ function readFileAsDataUrl(file) {
 
 export default function SettingsClient() {
   const [lang] = useLang();
-  const { industries } = useMasterData();
+  const { industries, locations } = useMasterData();
   const industryList = industries && industries.length > 0 ? industries : INDUSTRIES;
+  const locationList = locations && locations.length > 0 ? locations : (DEFAULT_MASTER_DATA.locations || []);
   const router = useRouter();
   const [tab, setTabState] = useState("Profile");
   const [profile, setProfile] = useState(null);
@@ -701,6 +702,7 @@ export default function SettingsClient() {
             lang={lang}
             t={t}
             setToast={setToast}
+            locations={locationList}
           />
         )}
 

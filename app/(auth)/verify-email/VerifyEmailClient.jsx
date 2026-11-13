@@ -13,6 +13,7 @@ import { useLang, t } from "../../../utils/lang";
 import { getAuth, verifyEmail, sendVerificationCode } from "../../../lib/seekerStore";
 
 const RESEND_SECONDS = 45;
+const OTP_EXPIRY_SECONDS = 15 * 60; // 15 minutes (900 seconds)
 
 export default function VerifyEmailClient() {
   const [lang, setLang] = useLang();
@@ -24,6 +25,7 @@ export default function VerifyEmailClient() {
   const [editingEmail, setEditingEmail] = useState(false);
   const [tempEmail, setTempEmail] = useState("");
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
+  const [expirySeconds, setExpirySeconds] = useState(OTP_EXPIRY_SECONDS);
   const [toast, setToast] = useToast();
 
   useEffect(() => {
@@ -42,6 +44,18 @@ export default function VerifyEmailClient() {
     return () => clearTimeout(id);
   }, [seconds]);
 
+  useEffect(() => {
+    if (expirySeconds <= 0) return;
+    const id = setTimeout(() => setExpirySeconds((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [expirySeconds]);
+
+  const formatExpiryTime = (sec) => {
+    const mins = Math.floor(sec / 60);
+    const remainingSecs = sec % 60;
+    return `${String(mins).padStart(2, "0")}:${String(remainingSecs).padStart(2, "0")}`;
+  };
+
   const otpSchema = Yup.object().shape({
     code: Yup.string()
       .length(6, t(lang, "Enter the 6-digit code sent to your email."))
@@ -55,6 +69,11 @@ export default function VerifyEmailClient() {
     validationSchema: otpSchema,
     onSubmit: async (values, { setSubmitting, setStatus }) => {
       setStatus(null);
+      if (expirySeconds <= 0) {
+        setStatus(t(lang, "This verification code has expired. Please request a new one."));
+        setSubmitting(false);
+        return;
+      }
       const targetEmail = (email || tempEmail || "").trim().toLowerCase();
       if (!targetEmail) {
         setStatus(t(lang, "Please enter your email address to verify."));
@@ -83,6 +102,7 @@ export default function VerifyEmailClient() {
       return;
     }
     setSeconds(RESEND_SECONDS);
+    setExpirySeconds(OTP_EXPIRY_SECONDS);
     try {
       await sendVerificationCode(targetEmail);
       setToast(t(lang, "A new verification code has been sent to your email."));
@@ -101,6 +121,7 @@ export default function VerifyEmailClient() {
     setEditingEmail(false);
     formik.setStatus(null);
     setSeconds(RESEND_SECONDS);
+    setExpirySeconds(OTP_EXPIRY_SECONDS);
     try {
       await sendVerificationCode(clean);
       setToast(t(lang, "Verification code sent to your updated email!"));
@@ -165,6 +186,32 @@ export default function VerifyEmailClient() {
           </div>
 
           <form onSubmit={formik.handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "6px 14px",
+                borderRadius: "var(--radius-pill, 9999px)",
+                background: expirySeconds > 0 ? "rgba(37, 99, 235, 0.08)" : "rgba(220, 38, 38, 0.08)",
+                border: expirySeconds > 0 ? "1px solid rgba(37, 99, 235, 0.2)" : "1px solid rgba(220, 38, 38, 0.2)",
+                color: expirySeconds > 0 ? "var(--text-brand, #2563eb)" : "#dc2626",
+                fontSize: "var(--text-xs, 12px)",
+                fontWeight: 600,
+                margin: "0 auto",
+                width: "fit-content",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <Icon name={expirySeconds > 0 ? "clock" : "alert-circle"} size={14} />
+              <span>
+                {expirySeconds > 0
+                  ? `${t(lang, "Code expires in")}: ${formatExpiryTime(expirySeconds)}`
+                  : t(lang, "Code expired. Please request a new code.")}
+              </span>
+            </div>
+
             <OtpInput
               value={formik.values.code}
               onChange={(v) => {
@@ -212,6 +259,9 @@ export default function VerifyEmailClient() {
                 {t(lang, "Resend code")}
               </button>
             )}
+            <p style={{ marginTop: 8, fontSize: "var(--text-xs)", color: "var(--text-muted, #94a3b8)" }}>
+              {t(lang, "Verification codes are valid for 15 minutes.")}
+            </p>
           </div>
         </div>
       </main>

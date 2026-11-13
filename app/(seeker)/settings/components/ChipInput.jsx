@@ -10,6 +10,7 @@ export default function ChipInput({
   placeholder,
   allowSpecial = true,
   error,
+  list,
 }) {
   const [v, setV] = useState("");
   const [chipErr, setChipErr] = useState("");
@@ -43,6 +44,7 @@ export default function ChipInput({
       <div style={{ display: "flex", gap: 8 }}>
         <Input
           value={v}
+          list={list}
           onChange={(e) => {
             let val = e.target.value;
             if (!allowSpecial) {

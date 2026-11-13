@@ -105,9 +105,10 @@ function parseJobExperience(j) {
 
 export default function JobsClient() {
   const [lang, setLang] = useLang();
-  const { jobTypes, industries } = useMasterData();
+  const { jobTypes, industries, locations } = useMasterData();
   const employmentTypes = jobTypes && jobTypes.length > 0 ? jobTypes : TYPES;
   const availableIndustries = industries && industries.length > 0 ? industries : DEFAULT_MASTER_DATA.industries;
+  const availableLocations = locations && locations.length > 0 ? locations : DEFAULT_MASTER_DATA.locations;
   const params = useSearchParams();
   const [q, setQ] = useState(params.get("q") || "");
   const [loc, setLoc] = useState(params.get("loc") || "");
@@ -328,7 +329,13 @@ export default function JobsClient() {
                 }}
                 placeholder={t(lang, "Location")}
                 aria-label={t(lang, "Location")}
+                list="jobs-locations-list"
               />
+              <datalist id="jobs-locations-list">
+                {availableLocations.map((item) => (
+                  <option key={item} value={item} />
+                ))}
+              </datalist>
             </div>
             <Button variant="primary" size="lg" type="submit" style={{ whiteSpace: "nowrap" }}>
               {t(lang, "Search Jobs")}

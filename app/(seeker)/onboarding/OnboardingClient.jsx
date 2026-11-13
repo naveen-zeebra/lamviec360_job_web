@@ -72,8 +72,9 @@ function fmtMonth(val) {
 
 export default function OnboardingClient() {
   const [lang, setLang] = useLang();
-  const { industries } = useMasterData();
+  const { industries, locations } = useMasterData();
   const industryList = industries && industries.length > 0 ? industries : INDUSTRIES;
+  const locationList = locations && locations.length > 0 ? locations : (DEFAULT_MASTER_DATA.locations || []);
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState(null);
@@ -596,6 +597,7 @@ export default function OnboardingClient() {
                 onBlur={formik.handleBlur}
                 placeholder={t(lang, "e.g. District 1, Ho Chi Minh City, Vietnam")}
                 error={formik.touched.location && formik.errors.location ? formik.errors.location : undefined}
+                list="onboarding-locations"
               />
               <Input
                 label={t(lang, "City")}
@@ -605,7 +607,13 @@ export default function OnboardingClient() {
                 onBlur={formik.handleBlur}
                 placeholder={t(lang, "e.g. Ho Chi Minh City")}
                 error={formik.touched.city && formik.errors.city ? formik.errors.city : undefined}
+                list="onboarding-locations"
               />
+              <datalist id="onboarding-locations">
+                {locationList.map((loc) => (
+                  <option key={loc} value={loc} />
+                ))}
+              </datalist>
 
               {/* Profile photo upload + random avatar */}
               <div className="flex flex-col gap-1.5 font-body col-span-1 md:col-span-2">
@@ -1099,6 +1107,7 @@ export default function OnboardingClient() {
                     value={profile.preferences.locations[0] || ""}
                     onChange={(e) => persist({ preferences: { ...profile.preferences, locations: e.target.value ? [e.target.value] : [] } })}
                     placeholder={t(lang, "e.g. Ho Chi Minh City")}
+                    list="onboarding-locations"
                   />
                   <div>
                     <Input
