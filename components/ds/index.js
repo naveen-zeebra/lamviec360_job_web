@@ -11,3 +11,4 @@ export { default as Reveal } from "./Reveal";
 export { default as Check } from "./Check";
 export { default as Field } from "./Field";
 export { default as Toast, useToast } from "./Toast";
+export { default as Tooltip, InfoTip } from "./Tooltip";

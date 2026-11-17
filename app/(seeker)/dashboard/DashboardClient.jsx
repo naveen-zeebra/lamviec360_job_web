@@ -466,7 +466,7 @@ export default function DashboardClient() {
                     </div>
                     <div className="flex flex-1 flex-col">
                       <strong className="text-[13px]">{isVi && job.titleVi ? job.titleVi : job.title}</strong>
-                      <span className="text-xs text-faint">{companyName} · {a.appliedDate || a.applied_at}</span>
+                      <span className="text-xs text-faint">{companyName} · {t(lang, "Applied")} {formatDateTime(lang, a.appliedDate || a.applied_at)}</span>
                     </div>
                     <StageBadge stage={a.stage} lang={lang} />
                   </Link>

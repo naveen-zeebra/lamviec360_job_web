@@ -7,7 +7,7 @@ import Skeleton from "../../../../components/ds/Skeleton";
 import StageBadge from "../../../../components/seeker/StageBadge";
 import Toast, { useToast } from "../../../../components/ds/Toast";
 import { useLang, t } from "../../../../utils/lang";
-import { formatDate, formatDateTime } from "../../../../utils/format";
+import { formatDate, formatDateTime, cleanResumeFileName } from "../../../../utils/format";
 
 import { getApplication, STAGE_TYPICAL, withdrawApplication, getCanonicalStage } from "../../../../lib/seekerStore";
 import { fetchApplicationDetail } from "../../../../lib/api/seekerApi";
@@ -22,23 +22,28 @@ export default function ApplicationDetailClient({ id }) {
   useEffect(() => {
     const local = getApplication(id);
     if (local) {
-      setApp(local);
+      const cleanName = cleanResumeFileName(local.resumeFileName || local.resume_file_name || local.resume_name || local.resume_url);
+      setApp({ ...local, resumeFileName: cleanName, resumeName: cleanName });
     }
     // Also sync from backend if numeric ID
     if (!String(id).startsWith("APP-")) {
       fetchApplicationDetail(id)
         .then((remote) => {
           if (remote) {
+            const cleanName = cleanResumeFileName(remote.resumeFileName || remote.resume_file_name || remote.resume_name || remote.resume_url);
             setApp((prev) => ({
               ...(prev || {}),
               ...remote,
               id: remote.id,
+              resumeFileName: cleanName,
+              resumeName: cleanName,
               stage: getCanonicalStage(remote.status || remote.stage),
               status: remote.status,
               appliedDate: remote.applied_at || remote.created_at,
+              applied_at: remote.applied_at || remote.created_at,
               timeline: (prev && prev.timeline && prev.timeline.length) ? prev.timeline : [
-                { stage: "Applied", date: String(remote.applied_at || "").slice(0, 10) },
-                ...(remote.status === "withdrawn" ? [{ stage: "Withdrawn", date: String(remote.updated_at || "").slice(0, 10) }] : [])
+                { stage: "Applied", date: remote.applied_at || remote.created_at },
+                ...(remote.status === "withdrawn" ? [{ stage: "Withdrawn", date: remote.updated_at }] : [])
               ]
             }));
           }
@@ -117,7 +122,7 @@ export default function ApplicationDetailClient({ id }) {
     setWithdrawing(true);
     try {
       const updated = await withdrawApplication(app.id);
-      const today = new Date().toISOString().slice(0, 10);
+      const nowIso = new Date().toISOString();
       setApp((prev) => ({
         ...prev,
         ...(updated || {}),
@@ -126,7 +131,7 @@ export default function ApplicationDetailClient({ id }) {
         closed: true,
         timeline: [
           ...((prev && prev.timeline) || []),
-          { stage: "Withdrawn", date: today }
+          { stage: "Withdrawn", date: nowIso }
         ]
       }));
       setToast(t(lang, "Application withdrawn"));
@@ -151,7 +156,7 @@ export default function ApplicationDetailClient({ id }) {
         <div style={{ flex: 1, minWidth: 200 }}>
           <h1 style={{ fontSize: "var(--text-xl)", marginBottom: 4 }}>{title}</h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)" }}>
-            {job ? companyName : ""} · {t(lang, "Applied")} {formatDate(lang, app.appliedDate || app.applied_at)}
+            {job ? companyName : ""} · {t(lang, "Applied")} {formatDateTime(lang, app.appliedDate || app.applied_at)}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -232,7 +237,7 @@ export default function ApplicationDetailClient({ id }) {
         {isRejected || isWithdrawn
           ? (app.timeline && app.timeline.length ? app.timeline : [
             { stage: "Applied", date: app.appliedDate || app.applied_at },
-            { stage: isWithdrawn ? "Withdrawn" : "Rejected", date: app.updated_at || new Date().toISOString().slice(0, 10) }
+            { stage: isWithdrawn ? "Withdrawn" : "Rejected", date: app.updated_at || new Date().toISOString() }
           ]).map((tl) => (
             <div key={tl.stage} className={`lv-timeline-item done ${tl.stage === "Rejected" || tl.stage === "Withdrawn" ? "rejected" : ""}`}>
               <span className="lv-timeline-dot">
@@ -240,7 +245,7 @@ export default function ApplicationDetailClient({ id }) {
               </span>
               <div className="lv-timeline-body">
                 <strong>{t(lang, tl.stage)}</strong>
-                <span>{formatDate(lang, tl.date)}</span>
+                <span>{formatDateTime(lang, tl.date)}</span>
               </div>
             </div>
           ))
@@ -252,21 +257,37 @@ export default function ApplicationDetailClient({ id }) {
                 <span className="lv-timeline-dot">{reached ? <Icon name="check" size={12} /> : i + 1}</span>
                 <div className="lv-timeline-body">
                   <strong>{t(lang, stage)}</strong>
-                  {reached ? <span>{formatDate(lang, reachedDate(stage))}</span> : isNext && STAGE_TYPICAL[stage] ? <span className="lv-timeline-typical">{t(lang, STAGE_TYPICAL[stage])}</span> : <span>{t(lang, "Pending")}</span>}
+                  {reached ? <span>{formatDateTime(lang, reachedDate(stage))}</span> : isNext && STAGE_TYPICAL[stage] ? <span className="lv-timeline-typical">{t(lang, STAGE_TYPICAL[stage])}</span> : <span>{t(lang, "Pending")}</span>}
                 </div>
               </div>
             );
           })}
       </div>
 
-      {(app.resumeFileName || app.resume_url || app.coverLetter || answers) && (
+      {(app.resumeFileName || app.resumeName || app.resume_name || app.resume_file_name || app.resume_url || app.resumeUrl || app.coverLetter || answers) && (
         <div className="lv-detail-card" style={{ marginTop: 20 }}>
-          <h2 style={{ fontSize: "var(--text-md)", marginTop: 0 }}>{t(lang, "What you submitted")}</h2>
-          {(app.resumeFileName || app.resume_url) && (
-            <a href={app.resume_url || "#"} download={app.resumeFileName || "resume.pdf"} style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--surface-brand)", fontSize: "var(--text-sm)", textDecoration: "none" }}>
-              <Icon name="file-text" size={15} /> {app.resumeFileName || (app.resume_url ? app.resume_url.split('/').pop() : "resume.pdf")}
-            </a>
-          )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+            <h2 style={{ fontSize: "var(--text-md)", margin: 0 }}>{t(lang, "What you submitted")}</h2>
+            {(app.appliedDate || app.applied_at) && (
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <Icon name="clock" size={13} /> {t(lang, "Applied")} {formatDateTime(lang, app.appliedDate || app.applied_at)}
+              </span>
+            )}
+          </div>
+          {(app.resumeFileName || app.resumeName || app.resume_name || app.resume_file_name || app.resume_url || app.resumeUrl) && (() => {
+            const rawName = app.resumeFileName || app.resumeName || app.resume_file_name || app.resume_name || app.resume_url || app.resumeUrl;
+            const displayResumeName = cleanResumeFileName(rawName);
+            const downloadUrl = app.resume_url || app.resumeUrl || "#";
+            return (
+              <a
+                href={downloadUrl}
+                download={displayResumeName}
+                style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--surface-brand)", fontSize: "var(--text-sm)", textDecoration: "none" }}
+              >
+                <Icon name="file-text" size={15} /> {displayResumeName}
+              </a>
+            );
+          })()}
           {app.coverLetter && (
             <>
               <strong style={{ display: "block", margin: "12px 0 4px", fontSize: "var(--text-sm)" }}>{t(lang, "Cover letter")}</strong>

@@ -74,7 +74,7 @@ export default function NotificationsTab({
           }
         />
         <Switch
-          label={t(lang, "Marketing emails")}
+          label={t(lang, "Promotional offers")}
           on={settings.notifications?.marketing}
           onChange={(v) =>
             persistSettings({

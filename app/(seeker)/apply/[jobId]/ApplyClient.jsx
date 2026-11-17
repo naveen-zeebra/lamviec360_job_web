@@ -22,6 +22,7 @@ import {
 import { fetchPublicJobDetail } from "../../../../lib/api/publicApi";
 import { UPLOAD_CONFIG } from "../../../../config/uploadConfig";
 import { validateResumeFile } from "../../../../utils/fileValidation";
+import { cleanResumeFileName } from "../../../../utils/format";
 
 export default function ApplyClient({ jobId }) {
   const [lang] = useLang();
@@ -101,9 +102,9 @@ export default function ApplyClient({ jobId }) {
       const def = list.find((r) => r.isDefault) || list[0];
       if (def) {
         setSelectedResumeId(def.id);
-        setResumeFileName(def.fileName);
+        setResumeFileName(cleanResumeFileName(def.fileName || def.resumeName));
       } else if (p.resume?.fileName) {
-        setResumeFileName(p.resume.fileName);
+        setResumeFileName(cleanResumeFileName(p.resume.fileName));
       }
     });
 
@@ -426,7 +427,7 @@ export default function ApplyClient({ jobId }) {
             </div>
             <div>
               <dt>{t(lang, "Resume")}</dt>
-              <dd>{result.resumeName || result.resumeFileName || "Default Resume"}</dd>
+              <dd>{cleanResumeFileName(result.resumeName || result.resumeFileName || "Default Resume")}</dd>
             </div>
             {result.coverLetter && (
               <div>
@@ -517,14 +518,16 @@ export default function ApplyClient({ jobId }) {
 
     try {
       const selectedResumeObj = resumes.find((r) => String(r.id) === String(selectedResumeId));
-      const resolvedResumeName = applyResumeFile
+      const rawResolvedResumeName = applyResumeFile
         ? applyResumeFile.name
-        : (selectedResumeObj?.resumeName || resumeFileName || "Resume");
+        : (selectedResumeObj?.resumeName || selectedResumeObj?.fileName || resumeFileName || "Resume");
+      const resolvedResumeName = cleanResumeFileName(rawResolvedResumeName);
+      const resolvedFileName = cleanResumeFileName(applyResumeFile ? applyResumeFile.name : (selectedResumeObj?.fileName || resumeFileName || resolvedResumeName));
 
       const record = await addApplication({
         jobId: job.id,
         job: job,
-        resumeFileName,
+        resumeFileName: resolvedFileName,
         resumeName: resolvedResumeName,
         resumeId: applyResumeFile ? null : selectedResumeId,
         resumeFile: applyResumeFile,
@@ -790,7 +793,7 @@ export default function ApplyClient({ jobId }) {
                     onClick={() => {
                       setApplyResumeFile(null);
                       setSelectedResumeId(r.id);
-                      setResumeFileName(r.fileName);
+                      setResumeFileName(cleanResumeFileName(r.fileName || r.resumeName));
                     }}
                     style={{
                       cursor: "pointer",
@@ -817,7 +820,7 @@ export default function ApplyClient({ jobId }) {
                       <div style={{ minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <strong style={{ fontSize: 13.5, color: isSelected ? "#1e40af" : "var(--text-primary)" }}>
-                            {r.fileName}
+                            {cleanResumeFileName(r.fileName || r.resumeName)}
                           </strong>
                           {r.isDefault && (
                             <span style={{ fontSize: 11, background: "#dbeafe", color: "#1d4ed8", padding: "2px 7px", borderRadius: 9999, fontWeight: 700 }}>
@@ -902,7 +905,7 @@ export default function ApplyClient({ jobId }) {
                     const def = resumes.find((r) => r.isDefault) || resumes[0];
                     if (def) {
                       setSelectedResumeId(def.id);
-                      setResumeFileName(def.fileName);
+                      setResumeFileName(cleanResumeFileName(def.fileName || def.resumeName));
                     }
                   }}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: 12, fontWeight: 600 }}

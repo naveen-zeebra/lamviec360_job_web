@@ -117,7 +117,7 @@ export default function RegisterClient() {
 
   return (
     <>
-      <main className="min-h-screen lg:h-screen lg:max-h-screen flex items-center justify-center bg-slate-50 p-3 sm:p-5 overflow-hidden">
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 p-3 sm:p-5 py-6 sm:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 w-full max-w-[1020px] bg-white rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-200/40 overflow-hidden my-auto max-h-[96vh]">
 
           {/* ── Left panel (Brand & Benefits) ─────────────────────── */}
@@ -185,7 +185,7 @@ export default function RegisterClient() {
           </div>
 
           {/* ── Right form panel ─────────────────────── */}
-          <div className="lg:col-span-7 p-5 sm:p-7 xl:p-8 flex flex-col justify-center overflow-y-auto overflow-x-hidden">
+          <div className="lg:col-span-7 p-5 sm:p-7 xl:p-8 flex flex-col justify-start overflow-y-auto max-h-[92vh] lg:max-h-[88vh] overflow-x-hidden">
             {/* Header row with back button and title */}
             <div className="flex items-center gap-2.5 mb-3">
               <button
@@ -389,8 +389,12 @@ export default function RegisterClient() {
               <SocialAuthButtons
                 layout="grid"
                 actionText="Sign up with"
-                onSuccess={() => router.push("/dashboard")}
-                onError={(msg) => setToast(msg)}
+                targetRedirect="/onboarding"
+                onSuccess={() => router.push("/onboarding")}
+                onError={(msg) => {
+                  setToast(msg);
+                  if (formik && formik.setStatus) formik.setStatus(msg);
+                }}
               />
             </form>
 

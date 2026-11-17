@@ -73,3 +73,24 @@ export function formatBytes(bytes) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// Clean human-readable filename by removing storage UUID / timestamp prefixes
+export function cleanResumeFileName(rawName) {
+  if (!rawName || typeof rawName !== "string") return "resume.pdf";
+  let name = rawName.split("?")[0].split("#")[0];
+  try {
+    name = decodeURIComponent(name);
+  } catch (e) {}
+  name = name.split("/").pop().split("\\").pop().replace(/\+/g, " ");
+
+  let prev;
+  do {
+    prev = name;
+    name = name
+      .replace(/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}[_-]/, "")
+      .replace(/^[a-fA-F0-9]{8,64}[_-]/, "")
+      .replace(/^\d{10,14}[_-]/, "");
+  } while (name !== prev);
+
+  return name.trim() || "resume.pdf";
+}

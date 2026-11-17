@@ -857,5 +857,16 @@
   "Typical: 2-3 days": "Typical: 2-3 days",
   "Typical: 2-4 days": "Typical: 2-4 days",
   "Typical: 3-5 days": "Typical: 3-5 days",
-  "Typical: 5-7 days": "Typical: 5-7 days"
+  "Typical: 5-7 days": "Typical: 5-7 days",
+  "No account found": "No account found",
+  "Create an account with this email": "Create an account with this email",
+  "Reset Limit Reached": "Reset Limit Reached",
+  "Limit Reached (LV-BR-0034)": "Limit Reached (LV-BR-0034)",
+  "Attempts remaining today": "Attempts remaining today",
+  "Daily reset requests remaining": "Daily reset requests remaining",
+  "A password reset link has been sent to": "A password reset link has been sent to",
+  "The link is valid for 60 minutes.": "The link is valid for 60 minutes.",
+  "You have reached the maximum 3 reset requests for today (LV-BR-0034). Please check your inbox or try again in 24 hours.": "You have reached the maximum 3 reset requests for today (LV-BR-0034). Please check your inbox or try again in 24 hours.",
+  "Go to Employer Portal": "Go to Employer Portal",
+  "Promotional offers": "Promotional offers"
 }

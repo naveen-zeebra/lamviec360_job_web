@@ -511,6 +511,7 @@
   "Application updates": "Cập nhật đơn ứng tuyển",
   "Interview alerts": "Thông báo phỏng vấn",
   "Marketing emails": "Email tiếp thị",
+  "Promotional offers": "Ưu đãi khuyến mãi",
   "Profile visibility": "Hiển thị hồ sơ",
   "Resume visibility": "Hiển thị CV",
   "Public to employers": "Hiển thị với nhà tuyển dụng",
@@ -1134,5 +1135,15 @@
   "Typical: 2-3 days": "Thường mất: 2-3 ngày",
   "Typical: 2-4 days": "Thường mất: 2-4 ngày",
   "Typical: 3-5 days": "Thường mất: 3-5 ngày",
-  "Typical: 5-7 days": "Thường mất: 5-7 ngày"
+  "Typical: 5-7 days": "Thường mất: 5-7 ngày",
+  "No account found": "Không tìm thấy tài khoản",
+  "Create an account with this email": "Tạo tài khoản với email này",
+  "Reset Limit Reached": "Đã đạt giới hạn đặt lại mật khẩu",
+  "Limit Reached (LV-BR-0034)": "Đã đạt giới hạn (LV-BR-0034)",
+  "Attempts remaining today": "Số lần yêu cầu còn lại hôm nay",
+  "Daily reset requests remaining": "Số lần đặt lại còn lại hôm nay",
+  "A password reset link has been sent to": "Liên kết đặt lại mật khẩu đã được gửi đến",
+  "The link is valid for 60 minutes.": "Liên kết có hiệu lực trong 60 phút.",
+  "You have reached the maximum 3 reset requests for today (LV-BR-0034). Please check your inbox or try again in 24 hours.": "Bạn đã đạt tối đa 3 lần yêu cầu đặt lại mật khẩu cho hôm nay (LV-BR-0034). Vui lòng kiểm tra hộp thư hoặc thử lại sau 24 giờ.",
+  "Go to Employer Portal": "Đến Cổng thông tin Nhà tuyển dụng"
 }

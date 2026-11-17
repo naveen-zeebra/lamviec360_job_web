@@ -303,7 +303,7 @@ export default function SupportClient() {
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
                 <Icon name="life-buoy" size={20} />
               </span>
-              {isVi ? "Trung tâm Hỗ trợ Người tìm việc" : "Candidate Help & Support"}
+              {isVi ? "Hỗ trợ & Trợ giúp" : "Help & Support"}
             </h1>
           </div>
 
@@ -456,7 +456,7 @@ export default function SupportClient() {
                                 isAdmin ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-700"
                               }`}
                             >
-                              {isAdmin ? "Super Admin" : (isVi ? "Bạn" : "You")}
+                              {isAdmin ? (isVi ? "Hỗ trợ Lamviec360" : "Lamviec360 Support") : (isVi ? "Bạn" : "You")}
                             </span>
                             <span className="font-medium text-slate-600">{m.sender_name}</span>
                             <span>•</span>
@@ -489,8 +489,8 @@ export default function SupportClient() {
                       onChange={(e) => setReplyMessage(e.target.value)}
                       placeholder={
                         isVi
-                          ? "Gửi phản hồi cho Super Admin..."
-                          : "Type a reply to Super Admin..."
+                          ? "Gửi phản hồi cho Lamviec360 Support..."
+                          : "Type a reply to Lamviec360 Support..."
                       }
                       className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs sm:text-sm text-slate-800 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     />

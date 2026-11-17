@@ -151,6 +151,7 @@ export const OAUTH_PROVIDERS = [
 export default function SocialAuthButtons({
   layout = "grid", // "grid" (2x2 or 4 inline), "stacked" (full width), or "compact"
   actionText = "Continue with",
+  targetRedirect = "/dashboard",
   onSuccess,
   onError,
 }) {
@@ -159,18 +160,30 @@ export default function SocialAuthButtons({
   const [loadingProvider, setLoadingProvider] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const handleOAuthClick = async (provider, e = null) => {
+  const handleOAuthClick = async (provider, e = null, forceSimulated = false) => {
     setErrorMsg("");
     setLoadingProvider(provider.id);
-    const forceSimulated = Boolean(e?.shiftKey);
+    const isSimulated = forceSimulated || Boolean(e?.shiftKey);
 
     try {
+      // Preserve target redirect and intent in sessionStorage across OAuth redirect
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const resolvedRedirect =
+          urlParams.get("redirect") ||
+          urlParams.get("returnUrl") ||
+          targetRedirect ||
+          (actionText.includes("Sign up") ? "/onboarding" : "/dashboard");
+        sessionStorage.setItem("oauth_redirect", resolvedRedirect);
+        sessionStorage.setItem("oauth_mode", actionText.includes("Sign up") ? "register" : "login");
+      }
+
       // 1. Check if backend provides live OAuth URL with real client credentials
       const currentOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3001";
       const redirectUri = `${currentOrigin}/oauth-callback?provider=${provider.id}`;
 
       let urlData = null;
-      if (!forceSimulated) {
+      if (!isSimulated) {
         try {
           urlData = await getOAuthUrl(provider.id, redirectUri);
         } catch (err) {
@@ -180,7 +193,7 @@ export default function SocialAuthButtons({
 
       // 2. If valid production authorization URL exists with non-mock client credentials, redirect
       if (
-        !forceSimulated &&
+        !isSimulated &&
         urlData?.authorization_url &&
         !urlData.authorization_url.includes("mock-") &&
         urlData.client_id &&
@@ -204,16 +217,20 @@ export default function SocialAuthButtons({
         facebook: "facebook.candidate@example.com",
       };
 
-      await loginWithOAuth(provider.id, {
+      const result = await loginWithOAuth(provider.id, {
         provider_user_id: `${provider.id}_user_${Date.now().toString(36)}`,
         name: demoNames[provider.id] || `${provider.name} User`,
         email: demoEmails[provider.id] || `${provider.id}.user@example.com`,
       });
 
       if (onSuccess) {
-        onSuccess(provider.id);
+        onSuccess(provider.id, result);
       } else {
-        router.push("/dashboard");
+        const destination =
+          result?.is_new_user || result?.requires_onboarding
+            ? "/onboarding"
+            : targetRedirect || "/dashboard";
+        router.push(destination);
       }
     } catch (err) {
       console.error(`OAuth login failed for ${provider.id}:`, err);
@@ -389,25 +406,41 @@ export default function SocialAuthButtons({
         </div>
       )}
 
-      {/* Dev helper: Instant test bypass */}
-      {/* <div style={{ marginTop: 8, textAlign: "center" }}>
+      {/* Instant one-click login for local development / testing without Google Cloud test user restrictions */}
+      <div style={{ marginTop: 12, textAlign: "center" }}>
         <button
           type="button"
-          onClick={(e) => handleOAuthClick(OAUTH_PROVIDERS[0], { shiftKey: true })}
+          onClick={() => handleOAuthClick(OAUTH_PROVIDERS[0], null, true)}
           style={{
             background: "none",
-            border: "none",
-            color: "#94a3b8",
-            fontSize: 11,
+            border: "1px dashed #cbd5e1",
+            borderRadius: 6,
+            color: "#475569",
+            fontSize: 12,
+            fontWeight: 500,
             cursor: "pointer",
-            textDecoration: "underline",
-            padding: "2px 4px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "5px 12px",
+            transition: "all 0.15s ease",
           }}
-          title="Instant candidate login without redirecting to external OAuth"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "#93c5fd";
+            e.currentTarget.style.color = "#2563eb";
+            e.currentTarget.style.backgroundColor = "#eff6ff";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "#cbd5e1";
+            e.currentTarget.style.color = "#475569";
+            e.currentTarget.style.backgroundColor = "transparent";
+          }}
+          title="Instant Google candidate login for local testing without external Google Cloud tester restrictions"
         >
-          {t(lang, "Shift+Click any button (or click here) for instant demo login")}
+          <GoogleIcon size={14} />
+          <span>{t(lang, "One-click Google Candidate Sign In (Test Mode)")}</span>
         </button>
-      </div> */}
+      </div>
     </div>
   );
 }

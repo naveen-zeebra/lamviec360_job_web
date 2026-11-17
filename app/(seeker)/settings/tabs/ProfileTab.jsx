@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Button, Input, Select, PhoneInput } from "../../../../components/ds";
+import { Button, Input, Select, PhoneInput, Tooltip, InfoTip } from "../../../../components/ds";
 import Icon from "../../../../components/ds/Icon";
 import ChipInput from "../components/ChipInput";
 import CitizenshipIdInput from "../../../../components/seeker/CitizenshipIdInput";
@@ -88,8 +88,17 @@ export default function ProfileTab({
       {/* ── Completeness Bar ── */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
-          <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <strong style={{ fontSize: "var(--text-sm)" }}>{t(lang, "Profile Completion")}</strong>
+            <InfoTip
+              content={
+                isVi
+                  ? "Độ hoàn thiện hồ sơ được tính từ thông tin cá nhân, học vấn, kinh nghiệm, kỹ năng và CV. Đạt từ 60% trở lên để ứng tuyển việc làm."
+                  : "Profile completeness is calculated from personal info, education, experience, skills, and CV. A score of ≥60% is required to apply for jobs."
+              }
+              title={t(lang, "Profile Completion Score")}
+              position="bottom"
+            />
             {completeness < 60 ? (
               <span style={{ marginLeft: 8, fontSize: "11px", fontWeight: 600, color: "var(--warning-text, #b45309)" }}>
                 ⚠️ {t(lang, "Need ≥60% to apply for jobs")}
@@ -147,7 +156,18 @@ export default function ProfileTab({
           {/* Non-editable Registered Account Email */}
           <div>
             <Input
-              label={t(lang, "Email Address")}
+              label={
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span>{t(lang, "Email Address")}</span>
+                  <InfoTip
+                    content={
+                      isVi
+                        ? "Email đăng ký gắn liền với tài khoản đăng nhập và không thể tự chỉnh sửa trực tiếp."
+                        : "Registered account email is tied to login credentials and cannot be modified directly."
+                    }
+                  />
+                </span>
+              }
               value={auth?.email || profile?.personal?.email || ""}
               readOnly
               disabled
@@ -215,7 +235,16 @@ export default function ProfileTab({
         {/* Profile Photo Upload + Random Avatar */}
         <div style={{ marginTop: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <label className="lv-field-label" style={{ marginBottom: 0 }}>{t(lang, "Profile Photo")}</label>
+            <label className="lv-field-label" style={{ marginBottom: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span>{t(lang, "Profile Photo")}</span>
+              <InfoTip
+                content={
+                  isVi
+                    ? "Ảnh đại diện rõ mặt giúp tăng mức độ tương tác và nhận diện từ nhà tuyển dụng."
+                    : "A clear profile photo increases visibility and response rates from hiring employers."
+                }
+              />
+            </label>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#64748b" }}>
               <Icon name="info" size={13} style={{ color: "#3b82f6" }} />
               {t(lang, "JPG, JPEG, PNG · Max 2MB")}
@@ -318,7 +347,18 @@ export default function ProfileTab({
         </div>
         <div style={{ marginTop: 16 }}>
           <ChipInput
-            label={t(lang, "Languages")}
+            label={
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span>{t(lang, "Languages")}</span>
+                <InfoTip
+                  content={
+                    isVi
+                      ? "Thêm các ngôn ngữ bạn có thể giao tiếp hoặc làm việc (ví dụ: English, Vietnamese, Japanese)."
+                      : "Add languages you speak or work with (e.g. English, Vietnamese, Japanese)."
+                  }
+                />
+              </span>
+            }
             values={profile.languages}
             placeholder={t(lang, "e.g. English, Vietnamese")}
             onAdd={(v) => persist({ languages: [...profile.languages, v] })}
@@ -369,7 +409,17 @@ export default function ProfileTab({
       {/* ── Certification / Professional Licenses Section ── */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0 }}>{t(lang, "Certification / Professional Licenses")}</h3>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <h3 style={{ margin: 0 }}>{t(lang, "Certification / Professional Licenses")}</h3>
+            <InfoTip
+              content={
+                isVi
+                  ? "Thêm chứng chỉ nghề nghiệp quốc tế hoặc chuyên ngành kèm tệp đính kèm để xác thực năng lực."
+                  : "Add industry certifications and licenses with document proof to verify your qualifications."
+              }
+              title={t(lang, "Certifications & Licenses")}
+            />
+          </div>
           <span style={{ fontSize: 12, color: "#64748b" }}>{t(lang, "Optional")}</span>
         </div>
         {(profile.certifications || []).map((cert, i) => (
@@ -616,6 +666,14 @@ export default function ProfileTab({
                 <span style={{ fontWeight: 600, color: "#1e293b", display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <Icon name="hard-drive" size={14} style={{ color: "#4f46e5" }} />
                   {t(lang, "Profile Documents Quota")}
+                  <InfoTip
+                    content={
+                      isVi
+                        ? "Dung lượng tối đa tích lũy cho tất cả tệp đính kèm (CV, hồ sơ năng lực Portfolio và chứng chỉ) là 10MB."
+                        : "Total storage across Résumés, Portfolio files, and Certificates cannot exceed 10MB per profile."
+                    }
+                    title={t(lang, "Attachment Quota")}
+                  />
                 </span>
                 <span style={{ fontWeight: 600, color: attachUsage.percentUsed >= 100 ? "#ef4444" : attachUsage.percentUsed > 80 ? "#f59e0b" : "#64748b" }}>
                   {attachUsage.usedMb} / {attachUsage.maxMb} MB ({attachUsage.percentUsed}%)
@@ -637,11 +695,19 @@ export default function ProfileTab({
             </div>
           );
         })()}
-        <h3 style={{ marginBottom: 14 }}>
-          {t(lang, "Résumé")}{" "}
+        <h3 style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>{t(lang, "Résumé")}</span>{" "}
           <span style={{ fontWeight: 500, color: "#64748b", fontSize: 13 }}>
             ({(profile.resumes || []).length}/{MAX_PROFILE_RESUMES})
           </span>
+          <InfoTip
+            content={
+              isVi
+                ? "Tải lên tối đa 3 bản CV ở định dạng PDF, DOC, hoặc DOCX. Kích thước tối đa 5MB mỗi tệp."
+                : "Upload up to 3 résumés in PDF, DOC, or DOCX formats. Maximum 5MB per file."
+            }
+            title={t(lang, "Résumé Upload Rules")}
+          />
         </h3>
 
         <div
@@ -698,17 +764,21 @@ export default function ProfileTab({
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               {profile.resume.dataUrl && (
-                <a
-                  href={profile.resume.dataUrl}
-                  download={profile.resume.fileName}
-                  className="lv-photo-btn"
-                  style={{ padding: "4px 10px", fontSize: 12 }}
-                  title="Download saved file"
+                <Tooltip
+                  content={isVi ? "Tải xuống tệp CV đã lưu" : "Download saved résumé file"}
+                  position="top"
                 >
-                  <Icon name="download" size={12} /> {t(lang, "Download")}
-                </a>
+                  <a
+                    href={profile.resume.dataUrl}
+                    download={profile.resume.fileName}
+                    className="lv-photo-btn"
+                    style={{ padding: "4px 10px", fontSize: 12 }}
+                  >
+                    <Icon name="download" size={12} /> {t(lang, "Download")}
+                  </a>
+                </Tooltip>
               )}
-              <button
+              {/* <button
                 type="button"
                 onClick={handleRemoveResume}
                 className="lv-photo-btn"
@@ -716,7 +786,7 @@ export default function ProfileTab({
                 title="Remove resume"
               >
                 <Icon name="trash-2" size={12} /> {t(lang, "Remove")}
-              </button>
+              </button> */}
             </div>
           </div>
         )}
@@ -735,9 +805,19 @@ export default function ProfileTab({
             <Icon name="globe" size={18} />
           </div>
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0 }}>
-              {t(lang, "Portfolio & Work Showcase")}
-            </h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                {t(lang, "Portfolio & Work Showcase")}
+              </h3>
+              <InfoTip
+                content={
+                  isVi
+                    ? "Giới thiệu các dự án nổi bật, đường dẫn GitHub, Behance, LinkedIn hoặc đính kèm hồ sơ năng lực."
+                    : "Showcase your top projects, GitHub, Behance, LinkedIn links or upload portfolio work samples."
+                }
+                title={t(lang, "Portfolio & Work Showcase")}
+              />
+            </div>
             <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>
               {t(lang, "Showcase your GitHub, Behance, LinkedIn, or upload portfolio work samples.")}
             </p>

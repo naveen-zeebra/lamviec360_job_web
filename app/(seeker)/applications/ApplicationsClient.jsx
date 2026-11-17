@@ -7,7 +7,7 @@ import Skeleton from "../../../components/ds/Skeleton";
 import ErrorState from "../../../components/ds/ErrorState";
 import StageBadge from "../../../components/seeker/StageBadge";
 import { useLang, t } from "../../../utils/lang";
-import { formatDate } from "../../../utils/format";
+import { formatDate, formatDateTime } from "../../../utils/format";
 
 import { listApplications, syncSeekerWithBackend, getCanonicalStage } from "../../../lib/seekerStore";
 import { getSeekerToken } from "../../../lib/api/client";
@@ -124,7 +124,7 @@ export default function ApplicationsClient() {
                 </div>
                 <div className="lv-tracker-card-body">
                   <strong>{title || "Job Position"}</strong>
-                  <span>{companyName} · {t(lang, "Applied")} {formatDate(lang, a._appliedAt)}</span>
+                  <span>{companyName} · {t(lang, "Applied")} {formatDateTime(lang, a._appliedAt)}</span>
                 </div>
                 <div className="lv-tracker-card-status">
                   <StageBadge stage={a._stage} lang={lang} />

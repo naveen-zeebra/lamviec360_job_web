@@ -104,13 +104,17 @@ export default function CitizenshipIdInput({
             {required && <span className="text-danger ml-0.5">*</span>}
           </label>
 
-          {/* i-icon click trigger */}
-          <div className="relative inline-flex items-center">
+          {/* i-icon hover and click trigger */}
+          <div
+            className="relative inline-flex items-center"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          >
             <button
               type="button"
               onClick={() => setShowTooltip((prev) => !prev)}
               aria-label={t(lang, "Vietnam Citizen ID Formats")}
-              title={t(lang, "Click for valid ID formats")}
+              title={t(lang, "Hover or click for valid ID formats")}
               className={`w-5 h-5 rounded-full inline-flex items-center justify-center transition-all cursor-pointer ${
                 showTooltip
                   ? "bg-brand text-white shadow-xs scale-105"

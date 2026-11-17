@@ -128,10 +128,20 @@ export default function LoginClient() {
           </div>
 
           {formik.status && (
-            <p className="lv-error" role="alert" style={{ margin: "10px 0", color: "#dc2626", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="alert-circle" size={16} />
-              <span>{formik.status}</span>
-            </p>
+            <div role="alert" style={{ margin: "10px 0", color: "#dc2626", fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Icon name="alert-circle" size={16} />
+                <span>{formik.status}</span>
+              </div>
+              {(formik.status.toLowerCase().includes("verify") || formik.status.toLowerCase().includes("activate")) && (
+                <a
+                  href={`/verify-email?email=${encodeURIComponent(formik.values.email.trim())}`}
+                  style={{ color: "#2563eb", fontWeight: 600, textDecoration: "underline", marginLeft: 22, fontSize: 12 }}
+                >
+                  {t(lang, "Click here to verify your email address →")}
+                </a>
+              )}
+            </div>
           )}
 
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
@@ -179,8 +189,12 @@ export default function LoginClient() {
           <SocialAuthButtons
             layout="grid"
             actionText="Sign in with"
+            targetRedirect={targetRedirect}
             onSuccess={() => router.push(targetRedirect)}
-            onError={(msg) => setToast(msg)}
+            onError={(msg) => {
+              setToast(msg);
+              if (formik && formik.setStatus) formik.setStatus(msg);
+            }}
           />
         </form>
 
