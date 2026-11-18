@@ -1,12 +1,16 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
-import { Button, Input, Select, PhoneInput, Tooltip, InfoTip } from "../../../../components/ds";
+import { Button, Input, Select, PhoneInput, Tooltip, InfoTip, Toast, useToast } from "../../../../components/ds";
 import Icon from "../../../../components/ds/Icon";
 import ChipInput from "../components/ChipInput";
 import CitizenshipIdInput from "../../../../components/seeker/CitizenshipIdInput";
 import SkillSelectorRedesigned from "../../../../components/seeker/SkillSelectorRedesigned";
 import AchievementsManager from "../../../../components/seeker/AchievementsManager";
-import { avatarPublicHref, MAX_PROFILE_RESUMES } from "../../../../lib/seekerStore";
+import PortfolioManager from "../../../../components/seeker/PortfolioManager";
+import ResumeExtractModal from "../../../../components/seeker/ResumeExtractModal";
+import { extractTextFromPdfDataUrl, parseStructuredResumeData } from "../../../../utils/resumeParser";
+import { avatarPublicHref, MAX_PROFILE_RESUMES, setDefaultResume, getStore } from "../../../../lib/seekerStore";
 
 const EXPERIENCE_RANGES = ["Less than 1 year", "1-3 years", "3-5 years", "5-10 years", "10+ years"];
 
@@ -83,6 +87,134 @@ export default function ProfileTab({
   handleSaveProfile,
   isSaving,
 }) {
+  const [isExtractModalOpen, setIsExtractModalOpen] = useState(false);
+  const [extractedResumeData, setExtractedResumeData] = useState(null);
+  const [isExtractingResume, setIsExtractingResume] = useState(false);
+  const [toastMsg, setToastMsg] = useToast();
+
+  const handleSetDefaultResume = async (resumeId) => {
+    try {
+      await setDefaultResume(resumeId);
+      const updatedStore = getStore();
+      persist({
+        resume: updatedStore.profile.resume,
+        resumes: updatedStore.profile.resumes,
+      });
+      setToastMsg(isVi ? "Đã đặt làm CV mặc định thành công!" : "Default résumé updated successfully!");
+    } catch (err) {
+      console.error("Failed to set default resume:", err);
+      setToastMsg(isVi ? "Không thể đặt làm CV mặc định." : "Failed to set default résumé.");
+    }
+  };
+
+  const handleExtractFromResume = async (targetResume = null) => {
+    const resumeToExtract =
+      targetResume ||
+      profile.resume ||
+      (profile.resumes && profile.resumes.find((r) => r.isDefault)) ||
+      profile.resumes?.[0];
+
+    const resumeDataUrl = resumeToExtract?.dataUrl;
+    if (!resumeDataUrl) {
+      setToastMsg(isVi ? "Vui lòng tải lên tệp CV trước khi trích xuất." : "Please upload a résumé file before extracting.");
+      return;
+    }
+
+    setIsExtractingResume(true);
+    try {
+      const text = await extractTextFromPdfDataUrl(resumeDataUrl);
+      const parsed = parseStructuredResumeData(text);
+      setExtractedResumeData(parsed);
+      setIsExtractModalOpen(true);
+    } catch (err) {
+      console.error("Resume parsing error:", err);
+      setToastMsg(isVi ? "Không thể trích xuất dữ liệu từ tệp này." : "Could not extract data from this file.");
+    } finally {
+      setIsExtractingResume(false);
+    }
+  };
+
+  const handleApplyExtractedData = (selected) => {
+    if (!selected) return;
+
+    // Apply personal info to formik if available
+    if (selected.personal) {
+      if (selected.personal.fullName && (!formik.values.fullName || formik.values.fullName === "Nguyen Van A")) {
+        formik.setFieldValue("fullName", selected.personal.fullName);
+      }
+      if (selected.personal.phone && !formik.values.phone) {
+        formik.setFieldValue("phone", selected.personal.phone);
+      }
+      if (selected.personal.location && !formik.values.location) {
+        formik.setFieldValue("location", selected.personal.location);
+      }
+      if (selected.personal.title && !formik.values.title) {
+        formik.setFieldValue("title", selected.personal.title);
+      }
+    }
+
+    // Apply to profile state & persist
+    const updatedProfile = { ...profile };
+
+    if (selected.personal) {
+      updatedProfile.personal = {
+        ...(updatedProfile.personal || {}),
+        fullName: selected.personal.fullName || updatedProfile.personal?.fullName || formik.values.fullName,
+        phone: selected.personal.phone || updatedProfile.personal?.phone || formik.values.phone,
+        location: selected.personal.location || updatedProfile.personal?.location || formik.values.location,
+        bio: selected.personal.bio || updatedProfile.personal?.bio || "",
+      };
+      if (selected.personal.title) {
+        updatedProfile.professional = {
+          ...(updatedProfile.professional || {}),
+          title: selected.personal.title,
+        };
+      }
+    }
+
+    if (selected.skills && selected.skills.length > 0) {
+      const existingSkills = updatedProfile.professional?.skills || [];
+      const newSkills = Array.from(new Set([...existingSkills, ...selected.skills]));
+      updatedProfile.professional = {
+        ...(updatedProfile.professional || {}),
+        skills: newSkills,
+      };
+    }
+
+    if (selected.experience && selected.experience.length > 0) {
+      const existingExp = updatedProfile.experience || [];
+      updatedProfile.experience = [...selected.experience, ...existingExp];
+    }
+
+    if (selected.education && selected.education.length > 0) {
+      const existingEdu = updatedProfile.education || [];
+      updatedProfile.education = [...selected.education, ...existingEdu];
+    }
+
+    if (selected.projects && selected.projects.length > 0) {
+      const existingProjects = updatedProfile.portfolio?.projects || updatedProfile.portfolio?.items || [];
+      const newProjects = selected.projects.map((proj, i) => ({
+        id: `ext-proj-${Date.now()}-${i}`,
+        title: proj.title,
+        role: proj.role || updatedProfile.professional?.title || (isVi ? "Thành viên phát triển" : "Contributor"),
+        fromDate: proj.fromDate || "",
+        toDate: proj.toDate || "",
+        isOngoing: proj.toDate === "Present",
+        description: proj.description || proj.title || "",
+        url: proj.url || "",
+        extractedFromResume: true,
+      }));
+      updatedProfile.portfolio = {
+        ...(updatedProfile.portfolio || {}),
+        items: [...newProjects, ...existingProjects],
+        projects: [...newProjects, ...existingProjects],
+      };
+    }
+
+    persist(updatedProfile);
+    setToastMsg(isVi ? "Đã nhập thành công dữ liệu từ CV vào hồ sơ!" : "Successfully applied extracted CV data to profile!");
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
       {/* ── Completeness Bar ── */}
@@ -749,47 +881,161 @@ export default function ProfileTab({
           />
         </div>
 
-        {profile.resume?.fileName && (
-          <div className="lv-resume-chip" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <Icon name="file-text" size={16} style={{ color: "#4f46e5", marginTop: 2, flexShrink: 0 }} />
-              <div>
-                <p className="lv-resume-chip-name">{profile.resume.fileName}</p>
-                <p className="lv-resume-chip-meta">
-                  {profile.resume.size ? `${(profile.resume.size / 1024).toFixed(0)} KB` : ""}
-                  {profile.resume.uploadedAt ? ` · ${t(lang, "Uploaded")} ${profile.resume.uploadedAt}` : ""}
-                  {profile.resume.dataUrl ? " · ✓ base64 stored" : ""}
-                </p>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {profile.resume.dataUrl && (
-                <Tooltip
-                  content={isVi ? "Tải xuống tệp CV đã lưu" : "Download saved résumé file"}
-                  position="top"
-                >
-                  <a
-                    href={profile.resume.dataUrl}
-                    download={profile.resume.fileName}
-                    className="lv-photo-btn"
-                    style={{ padding: "4px 10px", fontSize: 12 }}
+        {(() => {
+          const list =
+            profile.resumes && profile.resumes.length > 0
+              ? profile.resumes
+              : profile.resume?.fileName
+              ? [profile.resume]
+              : [];
+
+          if (list.length === 0) return null;
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+              {list.map((r, idx) => {
+                const isDefault =
+                  !!r.isDefault ||
+                  profile.resume?.id === r.id ||
+                  profile.resume?.fileName === r.fileName ||
+                  (list.length === 1 && !r.isDefault);
+                const fileHref = r.dataUrl || r.fileUrl;
+                const resumeId = r.id || `res-${idx}`;
+
+                return (
+                  <div
+                    key={resumeId}
+                    className="lv-resume-chip"
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "12px 14px",
+                      borderRadius: 10,
+                      border: isDefault ? "1.5px solid #10b981" : "1px solid #e2e8f0",
+                      backgroundColor: isDefault ? "#f0fdf4" : "#ffffff",
+                      gap: 12,
+                      flexWrap: "wrap",
+                    }}
                   >
-                    <Icon name="download" size={12} /> {t(lang, "Download")}
-                  </a>
-                </Tooltip>
-              )}
-              {/* <button
-                type="button"
-                onClick={handleRemoveResume}
-                className="lv-photo-btn"
-                style={{ padding: "4px 10px", fontSize: 12, color: "#dc2626", borderColor: "#fecaca" }}
-                title="Remove resume"
-              >
-                <Icon name="trash-2" size={12} /> {t(lang, "Remove")}
-              </button> */}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 200, flex: 1 }}>
+                      <Icon
+                        name="file-text"
+                        size={18}
+                        style={{ color: isDefault ? "#059669" : "#4f46e5", marginTop: 2, flexShrink: 0 }}
+                      />
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <p className="lv-resume-chip-name" style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>
+                            {r.fileName || r.resumeName || `Resume ${idx + 1}`}
+                          </p>
+                          {isDefault ? (
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                padding: "2px 8px",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                borderRadius: 999,
+                                backgroundColor: "#d1fae5",
+                                color: "#065f46",
+                              }}
+                            >
+                              <Icon name="check" size={11} /> {isVi ? "CV Mặc định" : "Default Résumé"}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSetDefaultResume(r.id)}
+                              style={{
+                                padding: "2px 8px",
+                                fontSize: 11,
+                                fontWeight: 500,
+                                borderRadius: 6,
+                                border: "1px solid #cbd5e1",
+                                backgroundColor: "#ffffff",
+                                color: "#475569",
+                                cursor: "pointer",
+                              }}
+                              title={isVi ? "Đặt làm CV mặc định" : "Set as default résumé"}
+                            >
+                              {isVi ? "Đặt làm mặc định" : "Set as default"}
+                            </button>
+                          )}
+                        </div>
+                        <p className="lv-resume-chip-meta" style={{ margin: "4px 0 0", fontSize: 11, color: "#64748b" }}>
+                          {r.size ? `${(r.size / 1024).toFixed(0)} KB` : ""}
+                          {r.uploadedAt ? ` · ${t(lang, "Uploaded")} ${r.uploadedAt}` : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      {/* Extract Data button */}
+                      {(r.dataUrl || r.fileUrl) && (
+                        <Tooltip
+                          content={isVi ? "Trích xuất dữ liệu gốc từ CV này để cập nhật hồ sơ" : "Extract original data from this résumé to update profile"}
+                          position="top"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleExtractFromResume(r)}
+                            disabled={isExtractingResume}
+                            className="lv-photo-btn"
+                            style={{
+                              padding: "4px 10px",
+                              fontSize: 12,
+                              borderColor: "#c084fc",
+                              backgroundColor: "#faf5ff",
+                              color: "#7e22ce",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              cursor: isExtractingResume ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            <Icon name={isExtractingResume ? "refresh-cw" : "sparkles"} size={12} className={isExtractingResume ? "lv-spin" : ""} />
+                            <span>{isExtractingResume ? (isVi ? "Đang đọc CV..." : "Reading CV...") : (isVi ? "Trích xuất dữ liệu gốc" : "Extract Original Data")}</span>
+                          </button>
+                        </Tooltip>
+                      )}
+
+                      {/* Download button */}
+                      {fileHref && (
+                        <Tooltip
+                          content={isVi ? "Tải xuống tệp CV này" : "Download this résumé file"}
+                          position="top"
+                        >
+                          <a
+                            href={fileHref}
+                            download={r.fileName || "resume.pdf"}
+                            className="lv-photo-btn"
+                            style={{ padding: "4px 10px", fontSize: 12 }}
+                          >
+                            <Icon name="download" size={12} /> {t(lang, "Download")}
+                          </a>
+                        </Tooltip>
+                      )}
+
+                      {/* Remove button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveResume(r.id)}
+                        className="lv-photo-btn"
+                        style={{ padding: "4px 10px", fontSize: 12, color: "#dc2626", borderColor: "#fecaca", cursor: "pointer" }}
+                        title={isVi ? "Xóa CV" : "Remove resume"}
+                      >
+                        <Icon name="trash-2" size={12} /> {t(lang, "Remove")}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         <div style={{ marginTop: 14 }}>
           <Link href="/resume" className="lv-job-view" style={{ display: "inline-flex" }}>
@@ -800,104 +1046,17 @@ export default function ProfileTab({
 
       {/* ── Portfolio & Work Showcase Section ── */}
       <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 8, background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Icon name="globe" size={18} />
-          </div>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0 }}>
-                {t(lang, "Portfolio & Work Showcase")}
-              </h3>
-              <InfoTip
-                content={
-                  isVi
-                    ? "Giới thiệu các dự án nổi bật, đường dẫn GitHub, Behance, LinkedIn hoặc đính kèm hồ sơ năng lực."
-                    : "Showcase your top projects, GitHub, Behance, LinkedIn links or upload portfolio work samples."
-                }
-                title={t(lang, "Portfolio & Work Showcase")}
-              />
-            </div>
-            <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>
-              {t(lang, "Showcase your GitHub, Behance, LinkedIn, or upload portfolio work samples.")}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
-          <Input
-            label={t(lang, "Portfolio / Website Link")}
-            name="portfolioUrl"
-            value={formik.values.portfolioUrl}
-            onChange={(e) => handlePortfolioUrlChange(e.target.value)}
-            onBlur={formik.handleBlur}
-            placeholder="e.g. https://github.com/alexmitchell"
-            error={formik.touched.portfolioUrl && formik.errors.portfolioUrl ? formik.errors.portfolioUrl : undefined}
-          />
-
-          <div>
-            <label className="lv-field-label">{t(lang, "Upload Portfolio File (optional)")}</label>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-              <button
-                type="button"
-                className="lv-photo-btn"
-                onClick={() => portfolioInputRef.current?.click()}
-                disabled={portfolioUploading}
-                style={{ fontSize: 12, padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                <Icon name="upload-cloud" size={14} />
-                {portfolioUploading ? t(lang, "Uploading...") : t(lang, "Choose Portfolio File")}
-              </button>
-              <input
-                ref={portfolioInputRef}
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (file) handlePortfolioFile(file);
-                }}
-              />
-            </div>
-            <p className="lv-field-hint" style={{ marginTop: 4 }}>
-              {t(lang, "PDF, PNG, JPG, DOCX up to 5MB")}
-            </p>
-          </div>
-        </div>
-
-        {(profile.portfolio?.fileName || profile.portfolioFile?.fileName) && (
-          <div className="lv-resume-chip mt-3.5 flex items-center justify-between border border-line bg-sunken">
-            <div className="flex items-center gap-2.5">
-              <Icon name="file-text" size={16} className="text-cyan-600 shrink-0" />
-              <div>
-                <p className="lv-resume-chip-name">{profile.portfolio?.fileName || profile.portfolioFile?.fileName}</p>
-                <p className="lv-resume-chip-meta">
-                  {(profile.portfolio?.size || profile.portfolioFile?.size) ? `${((profile.portfolio?.size || profile.portfolioFile?.size) / 1024).toFixed(0)} KB` : ""}
-                  {(profile.portfolio?.uploadedAt || profile.portfolioFile?.uploadedAt) ? ` · ${t(lang, "Uploaded")} ${profile.portfolio?.uploadedAt || profile.portfolioFile?.uploadedAt}` : ""}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {(profile.portfolio?.dataUrl || profile.portfolioFile?.dataUrl) && (
-                <a
-                  href={profile.portfolio?.dataUrl || profile.portfolioFile?.dataUrl}
-                  download={profile.portfolio?.fileName || profile.portfolioFile?.fileName}
-                  className="lv-photo-btn px-2.5 py-1 text-xs"
-                >
-                  <Icon name="download" size={12} /> {t(lang, "Download")}
-                </a>
-              )}
-              <button
-                type="button"
-                onClick={handleRemovePortfolioFile}
-                className="lv-photo-btn border-rose-200 px-2.5 py-1 text-xs text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-950/40"
-              >
-                <Icon name="trash-2" size={12} /> {t(lang, "Remove")}
-              </button>
-            </div>
-          </div>
-        )}
+        <PortfolioManager
+          portfolio={profile.portfolio || {}}
+          profile={profile}
+          onChange={(updatedPortfolio) => {
+            persist({
+              portfolio: updatedPortfolio,
+              portfolioFile: updatedPortfolio,
+            });
+          }}
+          lang={lang}
+        />
       </div>
 
       {/* ── Save Profile Action Bar ── */}
@@ -915,6 +1074,18 @@ export default function ProfileTab({
           {isSaving ? t(lang, "Saving...") : t(lang, "Save Changes")}
         </Button>
       </div>
+
+      {/* ── Resume Data Extraction Modal ── */}
+      {isExtractModalOpen && (
+        <ResumeExtractModal
+          isOpen={isExtractModalOpen}
+          onClose={() => setIsExtractModalOpen(false)}
+          extractedData={extractedResumeData}
+          onApply={handleApplyExtractedData}
+          lang={lang}
+        />
+      )}
+      {toastMsg && <Toast msg={toastMsg} />}
     </div>
   );
 }

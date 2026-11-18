@@ -261,8 +261,18 @@ export function calculateProfileAttachmentBytes(profile, excludeOptions = {}) {
     total += Number(r.size || r.sizeBytes || 0);
   });
 
-  // 2. Portfolio file
-  if (!excludeOptions.excludePortfolio) {
+  // 2. Portfolio files & items (JSP-FR-014)
+  if (Array.isArray(profile.portfolio?.items) && profile.portfolio.items.length > 0) {
+    profile.portfolio.items.forEach((item) => {
+      if (
+        excludeOptions.excludePortfolioItemId !== undefined &&
+        String(item.id) === String(excludeOptions.excludePortfolioItemId)
+      ) {
+        return;
+      }
+      total += Number(item.fileSize || item.size || 0);
+    });
+  } else if (!excludeOptions.excludePortfolio) {
     const portSize = Number(profile.portfolio?.size || profile.portfolioFile?.size || 0);
     total += portSize;
   }
