@@ -250,7 +250,7 @@ function LiveAvailabilityBadge({ availability = "open_to_work", lang, onUpdated 
           </div>
 
           <div className="mt-3 border-t border-line pt-2.5 px-1 flex items-center justify-between">
-            <span className="text-[10px] text-faint">{t(lang, "Inactive Policy (12 Months)")}</span>
+            <span className="text-[10px] text-faint">{t(lang, "Profile Privacy")}</span>
             <Link
               href="/settings?tab=privacy"
               onClick={() => setOpen(false)}
@@ -486,7 +486,7 @@ export default function DashboardClient() {
           )}
         </section>
 
-        <section className="mb-8 hidden">
+        <section className="mb-8">
           <div className={SECTION_HEAD}>
             <h2 className={SECTION_H2}>{t(lang, "Upcoming Interviews")}</h2>
           </div>

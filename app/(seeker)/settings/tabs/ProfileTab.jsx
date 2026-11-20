@@ -886,8 +886,8 @@ export default function ProfileTab({
             profile.resumes && profile.resumes.length > 0
               ? profile.resumes
               : profile.resume?.fileName
-              ? [profile.resume]
-              : [];
+                ? [profile.resume]
+                : [];
 
           if (list.length === 0) return null;
 
@@ -974,7 +974,7 @@ export default function ProfileTab({
 
                     <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                       {/* Extract Data button */}
-                      {(r.dataUrl || r.fileUrl) && (
+                      {/* {(r.dataUrl || r.fileUrl) && (
                         <Tooltip
                           content={isVi ? "Trích xuất dữ liệu gốc từ CV này để cập nhật hồ sơ" : "Extract original data from this résumé to update profile"}
                           position="top"
@@ -1000,7 +1000,7 @@ export default function ProfileTab({
                             <span>{isExtractingResume ? (isVi ? "Đang đọc CV..." : "Reading CV...") : (isVi ? "Trích xuất dữ liệu gốc" : "Extract Original Data")}</span>
                           </button>
                         </Tooltip>
-                      )}
+                      )} */}
 
                       {/* Download button */}
                       {fileHref && (

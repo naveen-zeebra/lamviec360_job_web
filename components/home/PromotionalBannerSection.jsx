@@ -46,17 +46,9 @@ export default function PromotionalBannerSection({ lang = "VN" }) {
   const currentBanner = banners[currentIndex];
   if (!currentBanner) return null;
 
-  const headline = isVi
-    ? currentBanner.headline || currentBanner.title
-    : currentBanner.headline_en || currentBanner.headline || currentBanner.title;
-
-  const description = isVi
-    ? currentBanner.description
-    : currentBanner.description_en || currentBanner.description;
-
-  const ctaLabel = isVi
-    ? currentBanner.cta_label || "Khám phá ngay"
-    : currentBanner.cta_label_en || currentBanner.cta_label || "Explore Now";
+  const headline = currentBanner.headline || currentBanner.title || currentBanner.headline_en;
+  const description = currentBanner.description || currentBanner.description_en;
+  const ctaLabel = currentBanner.cta_label || currentBanner.cta_label_en || (isVi ? "Khám phá ngay" : "Explore Now");
 
   const handleCtaClick = () => {
     trackBannerClick(currentBanner.id);

@@ -8,17 +8,12 @@ export default function EventDetailsModal({ event, isOpen, onClose, lang = "VN" 
 
   const isVi = lang === "VN" || lang === "VI";
 
-  const headline = isVi
-    ? event.headline || event.title
-    : event.headline_en || event.headline || event.title;
-
-  const description = isVi
-    ? event.description
-    : event.description_en || event.description;
-
-  const ctaLabel = isVi
-    ? event.cta_label || "Đăng ký trên trang chính thức ↗"
-    : event.cta_label_en || event.cta_label || "Register on Official Site ↗";
+  const headline = event.headline || event.title || event.headline_en || "";
+  const description = event.description || event.description_en || "";
+  const ctaLabel =
+    event.cta_label ||
+    event.cta_label_en ||
+    (isVi ? "Đăng ký trên trang chính thức ↗" : "Register on Official Site ↗");
 
   const eventDateStr = event.event_date
     ? new Date(event.event_date).toLocaleDateString(isVi ? "vi-VN" : "en-US", {

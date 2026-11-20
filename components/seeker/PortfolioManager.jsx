@@ -32,36 +32,6 @@ function formatProjectDate(val, lang = "EN") {
   return val;
 }
 
-/**
- * Derives project entries from candidate profile experience records.
- * Returns empty array if no genuine experiences exist.
- */
-function extractProjectsFromResume(profile, lang = "EN") {
-  const exp = Array.isArray(profile?.experience) ? profile.experience : [];
-  const results = [];
-
-  exp.forEach((item, idx) => {
-    if (!item.title && !item.company && !item.description) return;
-    const comp = item.company || "";
-    const role = item.title || profile.professional?.title || "";
-    const fromDate = item.start ? item.start.slice(0, 7) : "";
-    const toDate = item.isCurrent || item.end === "Present" ? "Present" : item.end ? item.end.slice(0, 7) : "";
-
-    results.push({
-      id: `ext-${Date.now()}-${idx}`,
-      title: comp ? `${role ? role + " - " : ""}${comp}` : role || (item.description ? item.description.slice(0, 50) : ""),
-      role,
-      fromDate,
-      toDate,
-      isOngoing: toDate === "Present",
-      description: item.description || "",
-      url: "",
-      extractedFromResume: true,
-    });
-  });
-
-  return results.filter((r) => r.title || r.description);
-}
 
 export default function PortfolioManager({
   portfolio = {},

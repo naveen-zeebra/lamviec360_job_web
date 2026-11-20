@@ -287,14 +287,8 @@ export function parseStructuredResumeData(rawLines = [], fallbackProfile = {}) {
     if (proj) result.projects.push(proj);
   }
 
-  // If no separate projects section, derive projects directly from experience bullets!
-  if (result.projects.length === 0 && result.experience.length > 0) {
-    result.projects = deriveProjectsFromExperiences(
-      result.experience,
-      result.professional.skills,
-      result.professional.title || ""
-    );
-  }
+  // Only extract genuine projects if an explicit projects section was detected.
+  // Do NOT synthesize fake projects from experience bullets when no projects exist in the resume.
 
   return result;
 }
@@ -322,7 +316,9 @@ export function cleanProjectTitle(bullet, role = "", company = "") {
   }
 
   // Remove dangling prepositions or conjunctions
-  cleaned = cleaned.replace(/\s+(?:and|with|for|to|of|in|at|by|from|or|on|via|,)$/i, "").trim();
+  while (/\s+(?:and|with|for|to|of|in|at|by|from|or|on|via|,|-|–|—)$/i.test(cleaned)) {
+    cleaned = cleaned.replace(/\s+(?:and|with|for|to|of|in|at|by|from|or|on|via|,|-|–|—)$/i, "").trim();
+  }
 
   if (!cleaned) return "";
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
@@ -444,18 +440,6 @@ export async function getProjectsFromDefaultResume(profile = {}, lang = "EN") {
     }
   }
 
-  // 3. Derive from experience bullet points already in profile if any
-  if (Array.isArray(profile?.experience) && profile.experience.length > 0) {
-    const derived = deriveProjectsFromExperiences(
-      profile.experience,
-      profile?.professional?.skills || [],
-      profile?.professional?.title || "",
-      lang
-    );
-    if (derived.length > 0) {
-      return { projects: derived, sourceName: sourceName || (isVi ? "Kinh nghiệm làm việc" : "Work Experience") };
-    }
-  }
-
+  // If no explicit projects exist in the resume, return empty list so unmatched/fake data is not prepopulated
   return { projects: [], sourceName: sourceName || "" };
 }
