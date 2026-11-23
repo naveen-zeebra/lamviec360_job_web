@@ -411,6 +411,237 @@ export default function JobDetailClient() {
                 ))}
               </div>
 
+              {/* Selection Criteria & Work Environment */}
+              {(job.attitude_type || job.attitudeType || job.social_type || job.socialType || job.personality_type || job.personalityType || job.overtime_willingness || job.overtimeWillingness || job.project_work_reqs || job.projectWorkReqs) && (
+                <div style={{ marginTop: "var(--space-6)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                    <h2 style={{ display: "flex", alignItems: "center", gap: 8, margin: 0, fontSize: "1.25rem", fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>
+                      <span style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        background: "rgba(37, 99, 235, 0.1)",
+                        color: "var(--surface-brand, #2563eb)",
+                      }}>
+                        <Icon name="user-check" size={18} />
+                      </span>
+                      {lang === "VN" || lang === "VI" ? "Tiêu chí tuyển chọn & Văn hóa làm việc" : "Selection Criteria & Work Culture"}
+                    </h2>
+
+                  </div>
+
+                  {/* Responsive Grid for Criteria Cards */}
+                  <div style={{
+                    display: "grid",
+                    // gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                    gap: 14,
+                    marginTop: 10,
+                  }}>
+                    {(job.attitude_type || job.attitudeType) && (
+                      <div style={{
+                        background: "var(--surface-card, #ffffff)",
+                        border: "1px solid var(--border-line, #e2e8f0)",
+                        borderRadius: 12,
+                        padding: "16px 18px",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            background: "rgba(239, 68, 68, 0.1)",
+                            color: "#ef4444",
+                          }}>
+                            <Icon name="heart" size={15} />
+                          </span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>
+                            {lang === "VN" || lang === "VI" ? "Thái độ làm việc" : "Work Attitude"}
+                          </span>
+                        </div>
+                        <p style={{
+                          fontSize: 13.5,
+                          lineHeight: 1.6,
+                          color: "var(--text-secondary, #334155)",
+                          margin: 0,
+                          whiteSpace: "pre-wrap",
+                        }}>
+                          {job.attitude_type || job.attitudeType}
+                        </p>
+                      </div>
+                    )}
+
+                    {(job.social_type || job.socialType) && (
+                      <div style={{
+                        background: "var(--surface-card, #ffffff)",
+                        border: "1px solid var(--border-line, #e2e8f0)",
+                        borderRadius: 12,
+                        padding: "16px 18px",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            background: "rgba(16, 185, 129, 0.1)",
+                            color: "#10b981",
+                          }}>
+                            <Icon name="message-square" size={15} />
+                          </span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>
+                            {lang === "VN" || lang === "VI" ? "Phong cách giao tiếp & Làm việc nhóm" : "Communication & Team Style"}
+                          </span>
+                        </div>
+                        <p style={{
+                          fontSize: 13.5,
+                          lineHeight: 1.6,
+                          color: "var(--text-secondary, #334155)",
+                          margin: 0,
+                          whiteSpace: "pre-wrap",
+                        }}>
+                          {job.social_type || job.socialType}
+                        </p>
+                      </div>
+                    )}
+
+                    {(job.personality_type || job.personalityType) && (
+                      <div style={{
+                        background: "var(--surface-card, #ffffff)",
+                        border: "1px solid var(--border-line, #e2e8f0)",
+                        borderRadius: 12,
+                        padding: "16px 18px",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            background: "rgba(139, 92, 246, 0.1)",
+                            color: "#8b5cf6",
+                          }}>
+                            <Icon name="sparkles" size={15} />
+                          </span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>
+                            {lang === "VN" || lang === "VI" ? "Đặc điểm tính cách" : "Personality & Mindset"}
+                          </span>
+                        </div>
+                        <p style={{
+                          fontSize: 13.5,
+                          lineHeight: 1.6,
+                          color: "var(--text-secondary, #334155)",
+                          margin: 0,
+                          whiteSpace: "pre-wrap",
+                        }}>
+                          {job.personality_type || job.personalityType}
+                        </p>
+                      </div>
+                    )}
+
+                    {(job.overtime_willingness || job.overtimeWillingness) && (
+                      <div style={{
+                        background: "var(--surface-card, #ffffff)",
+                        border: "1px solid var(--border-line, #e2e8f0)",
+                        borderRadius: 12,
+                        padding: "16px 18px",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            background: "rgba(245, 158, 11, 0.1)",
+                            color: "#f59e0b",
+                          }}>
+                            <Icon name="clock" size={15} />
+                          </span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>
+                            {lang === "VN" || lang === "VI" ? "Làm thêm giờ & Tính linh hoạt" : "Overtime & Flexibility"}
+                          </span>
+                        </div>
+                        <p style={{
+                          fontSize: 13.5,
+                          lineHeight: 1.6,
+                          color: "var(--text-secondary, #334155)",
+                          margin: 0,
+                          whiteSpace: "pre-wrap",
+                        }}>
+                          {job.overtime_willingness || job.overtimeWillingness}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Project Work Requirements Card */}
+                  {(job.project_work_reqs || job.projectWorkReqs) && (
+                    <div style={{
+                      marginTop: 14,
+                      background: "linear-gradient(135deg, rgba(37, 99, 235, 0.03) 0%, rgba(37, 99, 235, 0.08) 100%)",
+                      border: "1px solid rgba(37, 99, 235, 0.2)",
+                      borderLeft: "4px solid var(--surface-brand, #2563eb)",
+                      borderRadius: 12,
+                      padding: "18px 20px",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <span style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 28,
+                          height: 28,
+                          borderRadius: 6,
+                          background: "var(--surface-brand, #2563eb)",
+                          color: "#ffffff",
+                        }}>
+                          <Icon name="briefcase" size={15} />
+                        </span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>
+                          {lang === "VN" || lang === "VI" ? "Yêu cầu dự án cụ thể" : "Specific Project Work Requirements"}
+                        </span>
+                      </div>
+                      <p style={{
+                        fontSize: 13.5,
+                        color: "var(--text-secondary, #334155)",
+                        lineHeight: 1.65,
+                        margin: 0,
+                        whiteSpace: "pre-wrap",
+                      }}>
+                        {job.project_work_reqs || job.projectWorkReqs}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <h2>{t(lang, "Hiring process")}</h2>
               <div className="lv-journey" style={{ marginTop: "var(--space-5)", maxWidth: "100%" }}>
                 {STAGES.slice(0, 4).map((s, i) => (
@@ -495,6 +726,13 @@ export default function JobDetailClient() {
               <span>{t(lang, "Work mode")}</span>
               <strong>{lang === "VN" || lang === "VI" ? job.modeVi || job.mode : job.mode}</strong>
             </div>
+
+            {(job.overtime_willingness || job.overtimeWillingness) && (
+              <div className="lv-apply-row">
+                <span>{lang === "VN" || lang === "VI" ? "Làm thêm giờ" : "Overtime"}</span>
+                <strong>{job.overtime_willingness || job.overtimeWillingness}</strong>
+              </div>
+            )}
 
             <div className="lv-apply-row">
               <span>{t(lang, "Location")}</span>

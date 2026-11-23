@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Badge, Button } from "../../../../components/ds";
 import Icon from "../../../../components/ds/Icon";
@@ -11,6 +11,7 @@ import { formatDate, formatDateTime, cleanResumeFileName } from "../../../../uti
 
 import { getApplication, STAGE_TYPICAL, withdrawApplication, getCanonicalStage } from "../../../../lib/seekerStore";
 import { fetchApplicationDetail } from "../../../../lib/api/seekerApi";
+import { fetchPublicJobDetail } from "../../../../lib/api/publicApi";
 
 export default function ApplicationDetailClient({ id }) {
   const [lang] = useLang();
@@ -18,6 +19,7 @@ export default function ApplicationDetailClient({ id }) {
   const [toast, setToast] = useToast();
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [jobDetail, setJobDetail] = useState(null);
 
   useEffect(() => {
     const local = getApplication(id);
@@ -55,6 +57,56 @@ export default function ApplicationDetailClient({ id }) {
       setApp(null);
     }
   }, [id]);
+
+  useEffect(() => {
+    const targetJobId = app?.job?.id || app?.jobId || app?.job_id;
+    const hasQuestions = (Array.isArray(app?.questions) && app.questions.length > 0) ||
+      (Array.isArray(app?.job?.questions) && app.job.questions.length > 0);
+
+    if (targetJobId && !hasQuestions) {
+      fetchPublicJobDetail(targetJobId)
+        .then((j) => {
+          if (j) setJobDetail(j);
+        })
+        .catch(() => {});
+    }
+  }, [app?.job?.id, app?.jobId, app?.job_id, app?.questions, app?.job?.questions]);
+
+  const questionMap = useMemo(() => {
+    const map = {};
+    const rawList = app?.questions || app?.job?.questions || jobDetail?.questions;
+    let qList = [];
+    if (Array.isArray(rawList)) {
+      qList = rawList;
+    } else if (typeof rawList === "string" && rawList.trim()) {
+      try {
+        const parsed = JSON.parse(rawList);
+        if (Array.isArray(parsed)) qList = parsed;
+      } catch {}
+    }
+    for (const item of qList) {
+      if (item && item.id) {
+        map[item.id] = item.question || item.text || item.label || item.id;
+      }
+    }
+    return map;
+  }, [app?.questions, app?.job?.questions, jobDetail?.questions]);
+
+  const answers = useMemo(() => {
+    if (!app?.answers) return null;
+    if (typeof app.answers === "object") {
+      return Object.keys(app.answers).length ? app.answers : null;
+    }
+    if (typeof app.answers === "string" && app.answers.trim()) {
+      try {
+        const parsed = JSON.parse(app.answers);
+        return parsed && typeof parsed === "object" && Object.keys(parsed).length ? parsed : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [app?.answers]);
 
   if (app === undefined) {
     return (
@@ -104,7 +156,6 @@ export default function ApplicationDetailClient({ id }) {
     if (stage === currentStage) return app.updated_at || app.status_updated_at;
     return undefined;
   };
-  const answers = app.answers && Object.keys(app.answers).length ? app.answers : null;
   const isClosed = app.closed !== undefined
     ? app.closed
     : (
@@ -294,13 +345,55 @@ export default function ApplicationDetailClient({ id }) {
               <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", whiteSpace: "pre-wrap" }}>{app.coverLetter}</p>
             </>
           )}
-          {answers &&
-            Object.entries(answers).map(([q, ans]) => (
-              <div key={q} style={{ marginTop: 12 }}>
-                <strong style={{ display: "block", marginBottom: 4, fontSize: "var(--text-sm)" }}>{q}</strong>
-                <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)" }}>{String(ans)}</p>
+          {answers && Object.keys(answers).length > 0 && (
+            <div style={{ marginTop: 20, borderTop: "1px solid var(--border-line, #e2e8f0)", paddingTop: 16 }}>
+              <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+                <Icon name="help-circle" size={16} style={{ color: "var(--surface-brand, #2563eb)" }} />
+                {lang === "VN" || lang === "VI" ? "Câu hỏi sàng lọc & Câu trả lời của bạn" : "Screening Questions & Your Answers"}
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {Object.entries(answers).map(([qKey, ans], idx) => {
+                  const resolvedQuestion =
+                    questionMap[qKey] ||
+                    (typeof ans === "object" && ans?.question ? ans.question : null) ||
+                    (!qKey.startsWith("q_") ? qKey : `${lang === "VN" || lang === "VI" ? "Câu hỏi" : "Question"} ${idx + 1}`);
+
+                  const displayAnswer =
+                    typeof ans === "object" && ans !== null
+                      ? (ans.answer !== undefined ? String(ans.answer) : JSON.stringify(ans))
+                      : String(ans);
+
+                  return (
+                    <div
+                      key={qKey}
+                      style={{
+                        background: "var(--surface-sunken, #f8fafc)",
+                        border: "1px solid var(--border-line, #e2e8f0)",
+                        borderRadius: 10,
+                        padding: "12px 16px",
+                      }}
+                    >
+                      <span style={{ display: "block", marginBottom: 6, fontSize: "var(--text-sm)", color: "var(--text-primary)", fontWeight: 600 }}>
+                        {idx + 1}. {resolvedQuestion}
+                      </span>
+                      <div style={{
+                        display: "inline-block",
+                        background: "var(--surface-card, #ffffff)",
+                        border: "1px solid var(--border-line, #e2e8f0)",
+                        borderRadius: 6,
+                        padding: "5px 12px",
+                        fontSize: "var(--text-sm)",
+                        fontWeight: 600,
+                        color: "var(--text-primary, #0f172a)",
+                      }}>
+                        {displayAnswer}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Badge } from "../../../../components/ds";
@@ -46,12 +46,27 @@ export default function ApplyClient({ jobId }) {
 
   // Cover letter & consent
   const [coverLetter, setCoverLetter] = useState("");
+  const [answers, setAnswers] = useState({});
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
 
   const errorRef = useRef(null);
+
+  const screeningQuestions = useMemo(() => {
+    if (!job?.questions) return [];
+    if (Array.isArray(job.questions)) return job.questions;
+    if (typeof job.questions === "string" && job.questions.trim()) {
+      try {
+        const parsed = JSON.parse(job.questions);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  }, [job?.questions]);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -513,6 +528,21 @@ export default function ApplyClient({ jobId }) {
       return;
     }
 
+    // Gate 5: Screening Questions Validation
+    for (const q of screeningQuestions) {
+      if (q.required) {
+        const val = answers[q.id || q.question];
+        if (val === undefined || val === null || String(val).trim() === "") {
+          const msg = lang === "VN" || lang === "VI"
+            ? `Vui lòng trả lời câu hỏi bắt buộc: "${q.question}"`
+            : `Please answer the required screening question: "${q.question}"`;
+          setErr(msg);
+          errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+      }
+    }
+
     if (submitting) return;
     setSubmitting(true);
 
@@ -524,6 +554,23 @@ export default function ApplyClient({ jobId }) {
       const resolvedResumeName = cleanResumeFileName(rawResolvedResumeName);
       const resolvedFileName = cleanResumeFileName(applyResumeFile ? applyResumeFile.name : (selectedResumeObj?.fileName || resumeFileName || resolvedResumeName));
 
+      // Construct enriched answers preserving question titles
+      const enrichedAnswers = {};
+      if (screeningQuestions && screeningQuestions.length) {
+        for (const q of screeningQuestions) {
+          const key = q.id || q.question;
+          const val = answers[key] ?? answers[q.question] ?? "";
+          enrichedAnswers[key] = {
+            id: q.id || key,
+            question: q.question || key,
+            answer: val,
+            type: q.type || "text",
+          };
+        }
+      } else if (answers) {
+        Object.assign(enrichedAnswers, answers);
+      }
+
       const record = await addApplication({
         jobId: job.id,
         job: job,
@@ -533,7 +580,8 @@ export default function ApplyClient({ jobId }) {
         resumeFile: applyResumeFile,
         saveToProfile: saveApplyResumeToProfile,
         coverLetter: coverLetter.trim(),
-        answers: {},
+        answers: enrichedAnswers,
+        questions: screeningQuestions,
         certifications: [],
         certification: null,
         consent: true,
@@ -944,6 +992,138 @@ export default function ApplyClient({ jobId }) {
               : "Introduce yourself briefly or add any key information for the hiring team..."}
           />
         </section>
+
+        {/* SECTION: Custom Screening Questions */}
+        {screeningQuestions.length > 0 && (
+          <section style={{
+            background: "var(--card-bg, #ffffff)",
+            border: "1px solid var(--border-color, #e2e8f0)",
+            borderRadius: 14,
+            padding: 20,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>
+                <Icon name="help-circle" size={16} style={{ color: "var(--surface-brand, #2563eb)" }} />
+                {lang === "VN" || lang === "VI" ? "Câu hỏi sàng lọc từ nhà tuyển dụng" : "Screening Questions from Employer"}
+              </label>
+              <span style={{ fontSize: 11, background: "#dbeafe", color: "#1d4ed8", padding: "2px 8px", borderRadius: 99, fontWeight: 700 }}>
+                {screeningQuestions.length} {lang === "VN" || lang === "VI" ? "câu hỏi" : "questions"}
+              </span>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {screeningQuestions.map((q, idx) => {
+                const key = q.id || q.question || String(idx);
+                const currentAnswer = answers[key] ?? "";
+
+                return (
+                  <div key={key} style={{
+                    padding: 14,
+                    borderRadius: 10,
+                    background: "var(--surface-sunken, #f8fafc)",
+                    border: "1px solid var(--border-line, #e2e8f0)"
+                  }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+                      <strong style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.4 }}>
+                        {idx + 1}. {q.question} {q.required && <span style={{ color: "#dc2626" }}>*</span>}
+                      </strong>
+                      {q.required && (
+                        <span style={{ fontSize: 10.5, fontWeight: 700, background: "#fef2f2", color: "#dc2626", padding: "1px 6px", borderRadius: 4, flexShrink: 0 }}>
+                          {lang === "VN" || lang === "VI" ? "Bắt buộc" : "Required"}
+                        </span>
+                      )}
+                    </div>
+
+                    {q.type === "yes_no" ? (
+                      <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
+                        {["Yes", "No"].map((opt) => {
+                          const isSel = currentAnswer === opt;
+                          const label = opt === "Yes"
+                            ? (lang === "VN" || lang === "VI" ? "Có (Yes)" : "Yes")
+                            : (lang === "VN" || lang === "VI" ? "Không (No)" : "No");
+
+                          return (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => setAnswers((prev) => ({ ...prev, [key]: opt }))}
+                              style={{
+                                padding: "6px 16px",
+                                borderRadius: 8,
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                border: isSel ? "2px solid #2563eb" : "1px solid #cbd5e1",
+                                background: isSel ? "#eff6ff" : "#ffffff",
+                                color: isSel ? "#1d4ed8" : "#334155",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease"
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : q.type === "choice" ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                        {(q.options || []).map((opt, oIdx) => {
+                          const isSel = currentAnswer === opt;
+                          return (
+                            <label
+                              key={oIdx}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                padding: "8px 12px",
+                                borderRadius: 8,
+                                background: isSel ? "#eff6ff" : "#ffffff",
+                                border: isSel ? "1.5px solid #2563eb" : "1px solid #cbd5e1",
+                                cursor: "pointer",
+                                fontSize: 12.5,
+                                color: isSel ? "#1d4ed8" : "#334155",
+                                fontWeight: isSel ? 600 : 400
+                              }}
+                            >
+                              <input
+                                type="radio"
+                                name={`q_${key}`}
+                                value={opt}
+                                checked={isSel}
+                                onChange={() => setAnswers((prev) => ({ ...prev, [key]: opt }))}
+                                style={{ accentColor: "#2563eb" }}
+                              />
+                              <span>{opt}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : q.type === "number" ? (
+                      <input
+                        type="number"
+                        className="lv-input"
+                        value={currentAnswer}
+                        onChange={(e) => setAnswers((prev) => ({ ...prev, [key]: e.target.value }))}
+                        placeholder={lang === "VN" || lang === "VI" ? "Nhập số..." : "Enter numeric value..."}
+                        style={{ maxWidth: 220, marginTop: 6 }}
+                      />
+                    ) : (
+                      <textarea
+                        className="lv-textarea"
+                        rows={2}
+                        value={currentAnswer}
+                        onChange={(e) => setAnswers((prev) => ({ ...prev, [key]: e.target.value }))}
+                        placeholder={lang === "VN" || lang === "VI" ? "Nhập câu trả lời của bạn..." : "Type your answer here..."}
+                        style={{ marginTop: 6, fontSize: 12.5 }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* SECTION 4: Checkbox Only (PDPD Consent) */}
         <section style={{
