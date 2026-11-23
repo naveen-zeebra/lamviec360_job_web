@@ -33,21 +33,36 @@ export default function ApplicationDetailClient({ id }) {
         .then((remote) => {
           if (remote) {
             const cleanName = cleanResumeFileName(remote.resumeFileName || remote.resume_file_name || remote.resume_name || remote.resume_url);
-            setApp((prev) => ({
-              ...(prev || {}),
-              ...remote,
-              id: remote.id,
-              resumeFileName: cleanName,
-              resumeName: cleanName,
-              stage: getCanonicalStage(remote.status || remote.stage),
-              status: remote.status,
-              appliedDate: remote.applied_at || remote.created_at,
-              applied_at: remote.applied_at || remote.created_at,
-              timeline: (prev && prev.timeline && prev.timeline.length) ? prev.timeline : [
-                { stage: "Applied", date: remote.applied_at || remote.created_at },
-                ...(remote.status === "withdrawn" ? [{ stage: "Withdrawn", date: remote.updated_at }] : [])
-              ]
-            }));
+            setApp((prev) => {
+              const mergedAnswers =
+                (remote.answers && typeof remote.answers === "object" && Object.keys(remote.answers).length > 0)
+                  ? remote.answers
+                  : (prev?.answers || local?.answers || null);
+              const mergedQuestions =
+                (Array.isArray(remote.questions) && remote.questions.length > 0)
+                  ? remote.questions
+                  : (Array.isArray(remote.job?.questions) && remote.job.questions.length > 0
+                    ? remote.job.questions
+                    : (prev?.questions || local?.questions || []));
+
+              return {
+                ...(prev || {}),
+                ...remote,
+                id: remote.id,
+                answers: mergedAnswers,
+                questions: mergedQuestions,
+                resumeFileName: cleanName,
+                resumeName: cleanName,
+                stage: getCanonicalStage(remote.status || remote.stage),
+                status: remote.status,
+                appliedDate: remote.applied_at || remote.created_at,
+                applied_at: remote.applied_at || remote.created_at,
+                timeline: (prev && prev.timeline && prev.timeline.length) ? prev.timeline : [
+                  { stage: "Applied", date: remote.applied_at || remote.created_at },
+                  ...(remote.status === "withdrawn" ? [{ stage: "Withdrawn", date: remote.updated_at }] : [])
+                ]
+              };
+            });
           }
         })
         .catch(() => {
@@ -66,13 +81,15 @@ export default function ApplicationDetailClient({ id }) {
     if (targetJobId && !hasQuestions) {
       fetchPublicJobDetail(targetJobId)
         .then((j) => {
-          if (j) setJobDetail(j);
+          if (j && j.questions && j.questions.length > 0) {
+            setJobDetail(j);
+          }
         })
         .catch(() => {});
     }
   }, [app?.job?.id, app?.jobId, app?.job_id, app?.questions, app?.job?.questions]);
 
-  const questionMap = useMemo(() => {
+  const { questionList, questionMap } = useMemo(() => {
     const map = {};
     const rawList = app?.questions || app?.job?.questions || jobDetail?.questions;
     let qList = [];
@@ -84,12 +101,18 @@ export default function ApplicationDetailClient({ id }) {
         if (Array.isArray(parsed)) qList = parsed;
       } catch {}
     }
-    for (const item of qList) {
-      if (item && item.id) {
-        map[item.id] = item.question || item.text || item.label || item.id;
+    for (let i = 0; i < qList.length; i++) {
+      const item = qList[i];
+      if (item) {
+        const qText = item.question || item.text || item.label || item.title || "";
+        if (item.id) {
+          map[item.id] = qText;
+        }
+        map[`q_${i}`] = qText;
+        map[String(i)] = qText;
       }
     }
-    return map;
+    return { questionList: qList, questionMap: map };
   }, [app?.questions, app?.job?.questions, jobDetail?.questions]);
 
   const answers = useMemo(() => {
@@ -353,10 +376,16 @@ export default function ApplicationDetailClient({ id }) {
               </span>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {Object.entries(answers).map(([qKey, ans], idx) => {
-                  const resolvedQuestion =
-                    questionMap[qKey] ||
+                  let resolvedQuestion =
                     (typeof ans === "object" && ans?.question ? ans.question : null) ||
-                    (!qKey.startsWith("q_") ? qKey : `${lang === "VN" || lang === "VI" ? "Câu hỏi" : "Question"} ${idx + 1}`);
+                    questionMap[qKey] ||
+                    questionMap[`q_${idx}`] ||
+                    questionMap[String(idx)] ||
+                    (questionList[idx] ? (questionList[idx].question || questionList[idx].text || questionList[idx].label || questionList[idx].title) : null);
+
+                  if (!resolvedQuestion || resolvedQuestion.startsWith("q_")) {
+                    resolvedQuestion = `${lang === "VN" || lang === "VI" ? "Câu hỏi" : "Question"} ${idx + 1}`;
+                  }
 
                   const displayAnswer =
                     typeof ans === "object" && ans !== null
