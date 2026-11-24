@@ -10,10 +10,12 @@ import { useLang, t } from "../../../utils/lang";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import SocialAuthButtons from "../../../components/auth/SocialAuthButtons";
 import { registerDraft } from "../../../lib/seekerStore";
+import { EMPLOYER_URL } from "../../../config";
 
 export default function RegisterClient() {
   const [lang, setLang] = useLang();
   const router = useRouter();
+  const [accountType, setAccountType] = useState("jobseeker");
   const [showPw, setShowPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [toast, setToast] = useToast();
@@ -207,6 +209,84 @@ export default function RegisterClient() {
               </h2>
             </div>
 
+            {/* Account Type Selector (Job Seeker vs Company) */}
+            <div className="flex rounded-xl bg-slate-100 p-1 mb-4 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setAccountType("jobseeker")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  accountType === "jobseeker"
+                    ? "bg-white text-blue-600 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Icon name="user" size={14} />
+                <span>{t(lang, "Job Seeker")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountType("company")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  accountType === "company"
+                    ? "bg-white text-blue-600 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Icon name="building-2" size={14} />
+                <span>{t(lang, "Company")}</span>
+              </button>
+            </div>
+
+            {accountType === "company" ? (
+              <div className="py-2 space-y-4">
+                <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/60 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                      <Icon name="building-2" size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">
+                        {t(lang, "Register as a Company / Employer")}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {t(lang, "Are you hiring? Create a company account to post jobs, search candidates, and manage your hiring pipeline.")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-blue-200/60 space-y-2 text-xs text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <Icon name="check-circle" size={14} className="text-emerald-600 shrink-0" />
+                      <span>{t(lang, "Official Business Registration")}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Icon name="check-circle" size={14} className="text-emerald-600 shrink-0" />
+                      <span>{t(lang, "Access to 500K+ candidates")}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Icon name="check-circle" size={14} className="text-emerald-600 shrink-0" />
+                      <span>{t(lang, "Structured hiring pipeline")}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <a
+                  href={`${EMPLOYER_URL}/company-register`}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow cursor-pointer"
+                >
+                  <span>{t(lang, "Continue to Company Registration")}</span>
+                  <Icon name="arrow-right" size={16} />
+                </a>
+
+                <p className="text-center text-xs text-slate-500 pt-2">
+                  {t(lang, "Already have an account?")}{" "}
+                  <a href={`${EMPLOYER_URL}/employer-login`} className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
+                    {t(lang, "Employer Login")}
+                  </a>
+                </p>
+              </div>
+            ) : (
+              <>
             {/* Form */}
             <form onSubmit={formik.handleSubmit} noValidate autoComplete="off">
               {/* Trap decoy inputs: absorbs aggressive browser credential autofill */}
@@ -404,6 +484,8 @@ export default function RegisterClient() {
                 {t(lang, "Log in")}
               </Link>
             </p>
+            </>
+            )}
           </div>
 
         </div>

@@ -868,5 +868,13 @@
   "The link is valid for 60 minutes.": "The link is valid for 60 minutes.",
   "You have reached the maximum 3 reset requests for today (LV-BR-0034). Please check your inbox or try again in 24 hours.": "You have reached the maximum 3 reset requests for today (LV-BR-0034). Please check your inbox or try again in 24 hours.",
   "Go to Employer Portal": "Go to Employer Portal",
-  "Promotional offers": "Promotional offers"
+  "Promotional offers": "Promotional offers",
+  "Account Type": "Account Type",
+  "Select Account Type": "Select Account Type",
+  "Register as a Company / Employer": "Register as a Company / Employer",
+  "Are you hiring? Create a company account to post jobs, search candidates, and manage your hiring pipeline.": "Are you hiring? Create a company account to post jobs, search candidates, and manage your hiring pipeline.",
+  "Continue to Company Registration": "Continue to Company Registration",
+  "Official Business Registration": "Official Business Registration",
+  "Access to 500K+ candidates": "Access to 500K+ candidates",
+  "Structured hiring pipeline": "Structured hiring pipeline"
 }
