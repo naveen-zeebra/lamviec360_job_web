@@ -405,42 +405,6 @@ export default function SocialAuthButtons({
           })}
         </div>
       )}
-
-      {/* Instant one-click login for local development / testing without Google Cloud test user restrictions */}
-      <div style={{ marginTop: 12, textAlign: "center" }}>
-        <button
-          type="button"
-          onClick={() => handleOAuthClick(OAUTH_PROVIDERS[0], null, true)}
-          style={{
-            background: "none",
-            border: "1px dashed #cbd5e1",
-            borderRadius: 6,
-            color: "#475569",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "5px 12px",
-            transition: "all 0.15s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "#93c5fd";
-            e.currentTarget.style.color = "#2563eb";
-            e.currentTarget.style.backgroundColor = "#eff6ff";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "#cbd5e1";
-            e.currentTarget.style.color = "#475569";
-            e.currentTarget.style.backgroundColor = "transparent";
-          }}
-          title="Instant Google candidate login for local testing without external Google Cloud tester restrictions"
-        >
-          <GoogleIcon size={14} />
-          <span>{t(lang, "One-click Google Candidate Sign In (Test Mode)")}</span>
-        </button>
-      </div>
     </div>
   );
 }

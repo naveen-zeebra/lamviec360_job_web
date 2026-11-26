@@ -12,129 +12,122 @@ import PageHead from "../../../components/layout/PageHead";
 export default function PricingClient() {
   const [lang, setLang] = useLang();
   const router = useRouter();
-  const [annual, setAnnual] = useState(false);
   const [open, setOpen] = useState(0);
+  const isVi = lang === "VI" || lang === "VN";
 
-  const plans =
-    lang === "VI"
-      ? [
-        { n: "Miễn phí", t: "Bắt đầu miễn phí", d: "Dành cho doanh nghiệp mới bắt đầu tuyển dụng.", p: "0 ₫", c: "Bắt đầu miễn phí", v: "secondary" },
-        { n: "Chuyên nghiệp", t: "Phát triển tuyển dụng", d: "Dành cho các đội ngũ tuyển dụng đang mở rộng.", p: "Liên hệ để nhận báo giá", c: "Chọn gói Chuyên nghiệp", v: "primary", f: true },
-        { n: "Doanh nghiệp", t: "Mở rộng quy mô tuyển dụng", d: "Dành cho tổ chức có yêu cầu tuyển dụng nâng cao.", p: "Liên hệ để nhận báo giá", c: "Liên hệ Kinh doanh", v: "secondary" },
-      ]
-      : [
-        { n: "Free", t: "Start for free", d: "For companies getting started with recruitment.", p: "0 VND", c: "Start Free", v: "secondary" },
-        { n: "Professional", t: "Grow your hiring", d: "For growing recruitment teams.", p: "Contact for pricing", c: "Choose Professional", v: "primary", f: true },
-        { n: "Enterprise", t: "Scale your recruitment", d: "For organizations with advanced recruitment requirements.", p: "Contact for pricing", c: "Contact Sales", v: "secondary" },
-      ];
+  const freemiumPlan = isVi
+    ? {
+        name: "Gói Miễn phí (Freemium)",
+        tag: "Dành cho toàn bộ doanh nghiệp",
+        price: "0 ₫",
+        desc: "Đăng tin tuyển dụng, quản lý ứng viên và làm việc nhóm tối đa 6 thành viên hoàn toàn miễn phí.",
+        features: [
+          "Tối đa 999 tin tuyển dụng đang hoạt động",
+          "Tối đa 6 thành viên đội ngũ tuyển dụng",
+          "Quản lý ứng viên & Nhắn tin trực tiếp",
+          "Trang doanh nghiệp đã xác thực",
+          "Hỗ trợ chuẩn qua email",
+        ],
+        cta: "Đăng ký doanh nghiệp miễn phí",
+      }
+    : {
+        name: "Freemium Plan",
+        tag: "Active Plan for All Employers",
+        price: "0 VND",
+        desc: "Post jobs, manage applicants, and collaborate with up to 6 team members completely free.",
+        features: [
+          "Up to 999 active job postings",
+          "Up to 6 workspace team members",
+          "Candidate pipeline management & Direct Messages",
+          "Verified company profile page",
+          "Standard email support",
+        ],
+        cta: "Start Free as Employer",
+      };
 
-  const rows =
-    lang === "VI"
-      ? [
-        ["Tin tuyển dụng đang hoạt động", "1", "Nhiều", "Không giới hạn"],
-        ["Quản lý ứng viên", 1, 1, 1],
-        ["Thành viên đội ngũ", "1", "Nhiều", "Không giới hạn"],
-        ["Mô tả công việc bằng AI", 0, 1, 1],
-        ["Sàng lọc ứng viên bằng AI", 0, 1, 1],
-        ["Quyền truy cập theo vai trò", 0, 1, 1],
-        ["Trang doanh nghiệp đã xác thực", 1, 1, 1],
-        ["Hỗ trợ chuyên biệt", 0, 0, 1],
+  const faqs = isVi
+    ? [
+        [
+          "LàmViệc360 có miễn phí cho người tìm việc không?",
+          "Có. Tìm việc, tạo hồ sơ, ứng tuyển và theo dõi đơn ứng tuyển luôn hoàn toàn miễn phí đối với người tìm việc.",
+        ],
+        [
+          "Nhà tuyển dụng được dùng những gì trong gói Freemium?",
+          "Doanh nghiệp nhận gói Freemium (0 ₫) gồm tối đa 999 tin tuyển dụng đang hoạt động, tối đa 6 thành viên đội ngũ và trang hồ sơ xác thực.",
+        ],
+        [
+          "Doanh nghiệp được xác thực như thế nào?",
+          "Sau khi đăng ký, thông tin doanh nghiệp của bạn được xem xét trước khi huy hiệu “Đã xác thực” xuất hiện trên trang và tin tuyển dụng.",
+        ],
       ]
-      : [
-        ["Active job postings", "1", "Multiple", "Unlimited"],
-        ["Candidate management", 1, 1, 1],
-        ["Team members", "1", "Multiple", "Unlimited"],
-        ["AI job descriptions", 0, 1, 1],
-        ["AI candidate screening", 0, 1, 1],
-        ["Role-based access", 0, 1, 1],
-        ["Verified company page", 1, 1, 1],
-        ["Dedicated support", 0, 0, 1],
-      ];
-
-  const faqs =
-    lang === "VI"
-      ? [
-        ["LàmViệc360 có miễn phí cho người tìm việc không?", "Có. Tìm việc, tạo hồ sơ, ứng tuyển và theo dõi đơn ứng tuyển luôn miễn phí đối với người tìm việc."],
-        ["Doanh nghiệp được xác thực như thế nào?", "Sau khi đăng ký, thông tin doanh nghiệp của bạn được xem xét trước khi huy hiệu “Đã xác thực” xuất hiện trên trang và tin tuyển dụng."],
-        ["Giá được tính bằng đơn vị nào?", "Đơn vị tiền tệ của nền tảng là VND. Vui lòng liên hệ để nhận báo giá cho gói Chuyên nghiệp và Doanh nghiệp."],
-        ["AI có tự ra quyết định tuyển dụng không?", "Không. AI hỗ trợ soạn thảo và so khớp, nhưng mọi quyết định tuyển dụng đều do con người xem xét và quyết định."],
-      ]
-      : [
-        ["Is LàmViệc360 free for job seekers?", "Yes. Searching, creating a profile, applying and tracking applications are always free for job seekers."],
-        ["How does company verification work?", "After you register, your company details are reviewed before the \"Verified\" badge appears on your page and job postings."],
-        ["What currency is pricing in?", "The platform currency is VND. Contact us for Professional and Enterprise pricing."],
-        ["Does AI make hiring decisions?", "No. AI assists with drafting and matching, but every hiring decision is reviewed and made by a person."],
+    : [
+        [
+          "Is LàmViệc360 free for job seekers?",
+          "Yes. Searching, creating a profile, applying and tracking applications are always free for job seekers.",
+        ],
+        [
+          "What do employers get under the Freemium plan?",
+          "All employers operate on the Freemium plan (0 VND) with up to 999 active job postings, up to 6 team members, and full pipeline tools.",
+        ],
+        [
+          "How does company verification work?",
+          "After you register, your company details are reviewed before the \"Verified\" badge appears on your page and job postings.",
+        ],
       ];
 
   return (
     <>
-      <Header lang={lang} setLang={setLang} app="employer" />
+      <Header lang={lang} setLang={setLang} app="seeker" />
       <main>
         <PageHead
           lang={lang}
-          home="/employers"
+          home="/"
           crumb={t(lang, "Pricing")}
-          title={t(lang, "Choose the plan that fits your hiring needs.")}
-          desc={t(lang, "Always free for job seekers. Employer plans are priced in VND.")}
+          title={isVi ? "Miễn phí cho ứng viên & Gói Freemium cho doanh nghiệp." : "Free for Job Seekers & Freemium for Employers."}
+          desc={
+            isVi
+              ? "Luôn miễn phí cho người tìm việc. Doanh nghiệp dùng gói Freemium (0 ₫) với tối đa 6 thành viên."
+              : "Always free for job seekers. Employers get full hiring access on our Freemium plan (max 6 team members)."
+          }
         />
-        <section className="lv-section" style={{ paddingTop: 56 }}>
-          <div className="lv-billing-toggle" style={{ marginBottom: "var(--space-10)", marginTop: 0 }}>
-            <span className={!annual ? "active" : ""}>{t(lang, "Monthly")}</span>
-            <button className={`lv-switch ${annual ? "on" : ""}`} role="switch" aria-checked={annual} aria-label={t(lang, "Billing period")} onClick={() => setAnnual((v) => !v)}>
-              <span></span>
-            </button>
-            <span className={annual ? "active" : ""}>
-              {t(lang, "Annual ")}
-              <Badge tone="success">{t(lang, "Save more")}</Badge>
-            </span>
-          </div>
-          <div className="lv-pricing-grid">
-            {plans.map((p) => (
-              <Reveal key={p.n}>
-                <div className={`lv-price-card ${p.f ? "featured" : ""}`}>
-                  {p.f && <span className="lv-price-badge">{t(lang, "Most popular")}</span>}
-                  <h3>{p.n}</h3>
-                  <p className="lv-price-tag">{p.t}</p>
-                  <div className="lv-price-amount">
-                    {p.p}
-                    {annual && p.v !== "free" && p.n !== "Free" && p.n !== "Miễn phí" && <span className="lv-price-note">{t(lang, "billed annually")}</span>}
+
+        <section className="lv-section" style={{ paddingTop: 48 }}>
+          <div style={{ maxWidth: 640, margin: "0 auto" }}>
+            <Reveal>
+              <div className="lv-price-card featured" style={{ padding: "36px 32px" }}>
+                <span className="lv-price-badge">
+                  {isVi ? "Miễn phí 100% · Freemium" : "100% Free · Freemium Plan"}
+                </span>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div>
+                    <h2 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, margin: 0 }}>{freemiumPlan.name}</h2>
+                    <p className="lv-price-tag" style={{ marginTop: 4 }}>{freemiumPlan.tag}</p>
                   </div>
-                  <p className="lv-price-desc">{p.d}</p>
-                  <Button variant={p.v} style={{ width: "100%", justifyContent: "center" }} onClick={() => router.push("/employer-login")}>
-                    {p.c}
-                  </Button>
+                  <div className="lv-price-amount" style={{ margin: 0 }}>
+                    {freemiumPlan.price}
+                  </div>
                 </div>
-              </Reveal>
-            ))}
+                <p className="lv-price-desc" style={{ marginTop: 12 }}>{freemiumPlan.desc}</p>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "12px 0 20px" }}>
+                  <Badge tone="brand">{isVi ? "999 tin tuyển dụng" : "999 Active Jobs"}</Badge>
+                  <Badge tone="success">{isVi ? "Tối đa 6 thành viên" : "Max 6 Team Members"}</Badge>
+                </div>
+                <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+                  {freemiumPlan.features.map((feat) => (
+                    <li key={feat} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
+                      <Icon name="check" size={16} style={{ color: "var(--green-600)", flexShrink: 0 }} />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button variant="primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => router.push("/company-register")}>
+                  {freemiumPlan.cta}
+                </Button>
+              </div>
+            </Reveal>
           </div>
         </section>
-        <section className="lv-section" style={{ paddingTop: 0 }}>
-          <Reveal className="lv-section-head" style={{ marginBottom: "var(--space-8)" }}>
-            <h2>{t(lang, "Compare plans")}</h2>
-          </Reveal>
-          <Reveal>
-            <table className="lv-compare">
-              <thead>
-                <tr>
-                  <th>{t(lang, "Feature")}</th>
-                  {plans.map((p) => (
-                    <th key={p.n}>{p.n}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r[0]}>
-                    <td>{r[0]}</td>
-                    {r.slice(1).map((v, i) => (
-                      <td key={i}>{v === 1 ? <Icon name="check" size={16} /> : v === 0 ? <span style={{ color: "var(--text-tertiary)" }}>—</span> : v}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Reveal>
-        </section>
+
         <section className="lv-section lv-section-blue">
           <Reveal className="lv-section-head">
             <h2>{t(lang, "Frequently asked questions")}</h2>
@@ -153,20 +146,8 @@ export default function PricingClient() {
             ))}
           </div>
         </section>
-        <Reveal as="section" className="lv-final-cta lv-final-cta-navy">
-          <h2>{t(lang, "Ready to start hiring?")}</h2>
-          <p>{t(lang, "Register your company, get verified and post your first job.")}</p>
-          <div className="lv-final-cta-buttons">
-            <Button variant="primary" size="lg" onClick={() => router.push("/employer-login")}>
-              {t(lang, "Start Hiring")}
-            </Button>
-            <Button variant="ghost" size="lg" style={{ color: "var(--text-inverse)", border: "1.5px solid rgba(255,255,255,0.5)" }} onClick={() => router.push("/employers")}>
-              {t(lang, "Learn more")}
-            </Button>
-          </div>
-        </Reveal>
       </main>
-      <Footer lang={lang} setLang={setLang} app="employer" />
+      <Footer lang={lang} setLang={setLang} app="seeker" />
     </>
   );
 }

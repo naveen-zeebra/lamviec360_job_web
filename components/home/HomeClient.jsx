@@ -18,45 +18,45 @@ import { isSaved, toggleSavedJob } from "../../lib/seekerStore";
 
 function HeroVisual({ lang }) {
   const steps = [
-    ["search", "Tìm kiếm", "Search"],
-    ["sparkles", "Gợi ý phù hợp", "Match"],
-    ["file-text", "Ứng tuyển", "Apply"],
-    ["users", "Phỏng vấn", "Interview"],
-    ["check-circle", "Được tuyển", "Hired"],
+    ["search", "Tìm kiếm", "Search", "/jobs"],
+    ["sparkles", "Gợi ý phù hợp", "Match", "/dashboard"],
+    ["file-text", "Ứng tuyển", "Apply", "/applications"],
+    ["users", "Phỏng vấn", "Interview", "/interviews"],
+    ["check-circle", "Được tuyển", "Hired", "/dashboard"],
   ];
   return (
     <div className="lv-hero-visual">
       <div className="lv-hero-visual-track">
         {steps.map((s, i) => (
           <span key={s[1]} style={{ display: "contents" }}>
-            <div className="lv-hero-step">
+            <Link href={s[3]} className="lv-hero-step no-underline hover:opacity-85 transition-opacity">
               <div className="lv-hero-step-icon">
                 <Icon name={s[0]} size={20} />
               </div>
               <span>{(lang === "VN" || lang === "VI" ? s[1] : s[2])}</span>
-            </div>
+            </Link>
             {i < steps.length - 1 && <div className="lv-hero-step-line"></div>}
           </span>
         ))}
       </div>
-      <div className="lv-hero-card lv-hero-card-1">
+      <Link href="/jobs?q=Backend%20Engineer" className="lv-hero-card lv-hero-card-1">
         <div className="lv-hero-card-row">
-          <Avatar name="ABC" size={36} />
-          <div>
-            <div className="lv-hero-card-title">{t(lang, "Backend Engineer")}</div>
-            <div className="lv-hero-card-sub">ABC Technologies</div>
+          <Avatar name="ABC" size={32} />
+          <div className="min-w-0">
+            <div className="lv-hero-card-title truncate">{t(lang, "Backend Engineer")}</div>
+            <div className="lv-hero-card-sub truncate">ABC Technologies</div>
           </div>
         </div>
         <Badge tone="success">{t(lang, "92% match")}</Badge>
-      </div>
-      <div className="lv-hero-card lv-hero-card-2">
-        <Icon name="sparkles" size={16} style={{ color: "var(--blue-600)" }} />
-        <span>{t(lang, "6 jobs recommended for your profile")}</span>
-      </div>
-      <div className="lv-hero-card lv-hero-card-3">
-        <Icon name="trending-up" size={16} style={{ color: "var(--green-600)" }} />
-        <span>{t(lang, "Profile 80% complete")}</span>
-      </div>
+      </Link>
+      <Link href="/jobs" className="lv-hero-card lv-hero-card-2">
+        <Icon name="sparkles" size={16} style={{ color: "var(--blue-600)", flexShrink: 0 }} />
+        <span className="line-clamp-2">{t(lang, "6 jobs recommended for your profile")}</span>
+      </Link>
+      <Link href="/resume" className="lv-hero-card lv-hero-card-3">
+        <Icon name="trending-up" size={16} style={{ color: "var(--green-600)", flexShrink: 0 }} />
+        <span className="line-clamp-2">{t(lang, "Profile 80% complete")}</span>
+      </Link>
     </div>
   );
 }
@@ -123,7 +123,7 @@ function Hero({ lang }) {
               </button>
             ))}
           </div>
-          <div className="lv-hero-ctas">
+          <div className="lv-hero-ctas hidden">
             <Button variant="primary" size="lg" onClick={() => router.push("/jobs")}>
               {t(lang, "Find Jobs")}
             </Button>
@@ -145,18 +145,20 @@ function WhyUs({ lang }) {
   const items =
     isVi
       ? [
-        ["sparkles", "Gợi ý việc làm thông minh", "Nhận đề xuất dựa trên kỹ năng, kinh nghiệm và mục tiêu nghề nghiệp của bạn."],
-        ["zap", "Ứng tuyển một lần nhấn", "Dùng hồ sơ đã lưu để gửi đơn ứng tuyển mà không phải nhập lại thông tin."],
-        ["user-check", "So khớp theo hồ sơ", "Hồ sơ của bạn được so khớp với yêu cầu thực tế của từng vị trí."],
-        ["list-checks", "Theo dõi ứng tuyển", "Xem trạng thái từng đơn từ Đã nộp đến Được tuyển."],
-        ["trending-up", "Thông tin nghề nghiệp", "Tìm hiểu về mức lương, kỹ năng và ngành nghề đang tuyển dụng."],
+        ["sparkles", "Gợi ý việc làm thông minh", "Nhận đề xuất dựa trên kỹ năng, kinh nghiệm và mục tiêu nghề nghiệp của bạn.", "/jobs"],
+        ["zap", "Ứng tuyển một lần nhấn", "Dùng hồ sơ đã lưu để gửi đơn ứng tuyển mà không phải nhập lại thông tin.", "/jobs"],
+        ["user-check", "So khớp theo hồ sơ", "Hồ sơ của bạn được so khớp với yêu cầu thực tế của từng vị trí.", "/resume"],
+        ["list-checks", "Theo dõi ứng tuyển", "Xem trạng thái từng đơn từ Đã nộp đến Được tuyển.", "/applications"],
+        ["trending-up", "Thông tin nghề nghiệp", "Tìm hiểu về mức lương, kỹ năng và ngành nghề đang tuyển dụng.", "/resources"],
+        ["message-square", "Nhắn tin trực tiếp nhà tuyển dụng", "Trao đổi hai chiều trực tiếp với bộ phận tuyển dụng khi bạn cho phép.", "/messages"],
       ]
       : [
-        ["sparkles", "Smart job recommendations", "Get suggestions based on your skills, experience and career goals."],
-        ["zap", "One-click applications", "Use your saved profile to apply without re-entering your details."],
-        ["user-check", "Profile-based matching", "Your profile is matched against the real requirements of each role."],
-        ["list-checks", "Application tracking", "See where every application stands, from Applied to Hired."],
-        ["trending-up", "Career insights", "Understand salary ranges, in-demand skills and hiring industries."],
+        ["sparkles", "Smart job recommendations", "Get suggestions based on your skills, experience and career goals.", "/jobs"],
+        ["zap", "One-click applications", "Use your saved profile to apply without re-entering your details.", "/jobs"],
+        ["user-check", "Profile-based matching", "Your profile is matched against the real requirements of each role.", "/resume"],
+        ["list-checks", "Application tracking", "See where every application stands, from Applied to Hired.", "/applications"],
+        ["trending-up", "Career insights", "Understand salary ranges, in-demand skills and hiring industries.", "/resources"],
+        ["message-square", "Direct recruiter messaging", "Exchange 2-way direct messages with hiring teams based on your privacy policy.", "/messages"],
       ];
   return (
     <section className="lv-section lv-section-blue" id="why">
@@ -166,14 +168,14 @@ function WhyUs({ lang }) {
       </Reveal>
       <div className="lv-sol-grid">
         {items.map((x) => (
-          <Reveal key={x[1]}>
-            <div className="lv-sol-card">
+          <Reveal key={x[1]} className="h-full">
+            <Link href={x[3]} className="lv-sol-card">
               <div className="lv-sol-icon">
                 <Icon name={x[0]} size={22} />
               </div>
               <h3>{x[1]}</h3>
               <p>{x[2]}</p>
-            </div>
+            </Link>
           </Reveal>
         ))}
       </div>
@@ -186,18 +188,18 @@ function HowItWorks({ lang }) {
   const steps =
     isVi
       ? [
-        ["01", "Tạo hồ sơ", "Thêm kinh nghiệm, kỹ năng và mục tiêu nghề nghiệp của bạn."],
-        ["02", "Khám phá việc phù hợp", "Tìm và lọc theo những điều quan trọng với bạn."],
-        ["03", "Ứng tuyển", "Gửi đơn ứng tuyển chỉ trong vài bước với hồ sơ đã lưu."],
-        ["04", "Theo dõi ứng tuyển", "Xem trạng thái và phản hồi ở từng giai đoạn."],
-        ["05", "Được tuyển dụng", "Nhận đề nghị và bắt đầu công việc mới."],
+        ["01", "Tạo hồ sơ", "Thêm kinh nghiệm, kỹ năng và mục tiêu nghề nghiệp của bạn.", "/register"],
+        ["02", "Khám phá việc phù hợp", "Tìm và lọc theo những điều quan trọng với bạn.", "/jobs"],
+        ["03", "Ứng tuyển", "Gửi đơn ứng tuyển chỉ trong vài bước với hồ sơ đã lưu.", "/jobs"],
+        ["04", "Theo dõi ứng tuyển", "Xem trạng thái và phản hồi ở từng giai đoạn.", "/applications"],
+        ["05", "Được tuyển dụng", "Nhận đề nghị và bắt đầu công việc mới.", "/interviews"],
       ]
       : [
-        ["01", "Create your profile", "Add your experience, skills and career goals."],
-        ["02", "Discover relevant jobs", "Search and filter by what matters to you."],
-        ["03", "Apply", "Submit an application in a few steps using your saved profile."],
-        ["04", "Track applications", "See status and feedback at every stage."],
-        ["05", "Get hired", "Receive your offer and start your new role."],
+        ["01", "Create your profile", "Add your experience, skills and career goals.", "/register"],
+        ["02", "Discover relevant jobs", "Search and filter by what matters to you.", "/jobs"],
+        ["03", "Apply", "Submit an application in a few steps using your saved profile.", "/jobs"],
+        ["04", "Track applications", "See status and feedback at every stage.", "/applications"],
+        ["05", "Get hired", "Receive your offer and start your new role.", "/interviews"],
       ];
   return (
     <section className="lv-section" id="how">
@@ -206,12 +208,12 @@ function HowItWorks({ lang }) {
       </Reveal>
       <div className="lv-steps" style={{ gridTemplateColumns: "repeat(5,1fr)" }}>
         {steps.map((s) => (
-          <Reveal key={s[0]}>
-            <div className="lv-step">
+          <Reveal key={s[0]} className="h-full">
+            <Link href={s[3]} className="lv-step">
               <span className="lv-step-num">{s[0]}</span>
               <h3>{s[1]}</h3>
               <p>{s[2]}</p>
-            </div>
+            </Link>
           </Reveal>
         ))}
       </div>
@@ -266,9 +268,23 @@ function FeaturedJobs({ lang, jobsData }) {
               ? j.company
               : j.company_name || j.company?.company_name || "Company";
           const logoText = companyName.slice(0, 2).toUpperCase();
+          const jobUrl = `/job-detail/${encodeURIComponent((j.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + j.id)}`;
           return (
-            <Reveal key={j.id}>
-              <Card hoverable style={{ padding: "var(--space-5)" }}>
+            <Reveal key={j.id} className="h-full">
+              <Card
+                hoverable
+                role="link"
+                tabIndex={0}
+                onClick={() => router.push(jobUrl)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    router.push(jobUrl);
+                  }
+                }}
+                className="flex h-full flex-col"
+                style={{ padding: "var(--space-5)" }}
+              >
                 <div className="lv-job-top">
                   <div className="lv-job-logo" aria-hidden="true">
                     {logoText}
@@ -277,7 +293,8 @@ function FeaturedJobs({ lang, jobsData }) {
                     className="lv-job-save"
                     aria-label={saved[j.id] ? t(lang, "Unsave job") : t(lang, "Save job")}
                     aria-pressed={!!saved[j.id]}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       toggleSavedJob(j.id, j);
                       setSaved((s) => ({ ...s, [j.id]: !s[j.id] }));
                     }}
@@ -285,8 +302,8 @@ function FeaturedJobs({ lang, jobsData }) {
                     <Icon name="heart" size={18} style={{ fill: saved[j.id] ? "var(--red-500)" : "none", color: saved[j.id] ? "var(--red-500)" : "var(--gray-400)" }} />
                   </button>
                 </div>
-                <h3 className="lv-job-title">
-                  <Link href={`/job-detail/${encodeURIComponent((j.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + j.id)}`} style={{ color: "inherit" }}>
+                <h3 className="lv-job-title line-clamp-2">
+                  <Link href={jobUrl} onClick={(e) => e.stopPropagation()} style={{ color: "inherit" }}>
                     {(lang === "VN" || lang === "VI" ? j.titleVi || j.title : j.title)}
                   </Link>
                 </h3>
@@ -318,7 +335,7 @@ function FeaturedJobs({ lang, jobsData }) {
                 </div>
                 <div className="lv-job-footer">
                   <span className="lv-job-posted">{(lang === "VN" || lang === "VI" ? j.postedVi || "Gần đây" : j.posted || "Recently")}</span>
-                  <Button variant="primary" size="sm" onClick={() => router.push(`/job-detail/${encodeURIComponent((j.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + j.id)}`)}>
+                  <Button variant="primary" size="sm" onClick={(e) => { e.stopPropagation(); router.push(jobUrl); }}>
                     {t(lang, "Apply")}
                   </Button>
                 </div>
@@ -347,7 +364,7 @@ function TopCompanies({ lang, companiesData }) {
       </Reveal>
       <div className="lv-company-grid">
         {companiesData.slice(0, 6).map((c) => (
-          <Reveal key={c.id}>
+          <Reveal key={c.id} className="h-full">
             <CompanyCard c={c} lang={lang} />
           </Reveal>
         ))}
@@ -392,22 +409,22 @@ function DashboardPreview({ lang, jobsData }) {
             <i style={{ width: "80%" }}></i>
           </div>
           <div className="lv-preview-stats">
-            <div className="lv-stat">
+            <Link href="/jobs" className="lv-stat">
               <span>{t(lang, "Recommended")}</span>
               <strong>12</strong>
-            </div>
-            <div className="lv-stat">
+            </Link>
+            <Link href="/saved-jobs" className="lv-stat">
               <span>{t(lang, "Saved jobs")}</span>
               <strong>5</strong>
-            </div>
-            <div className="lv-stat">
+            </Link>
+            <Link href="/applications" className="lv-stat">
               <span>{t(lang, "Applied")}</span>
               <strong>8</strong>
-            </div>
-            <div className="lv-stat">
+            </Link>
+            <Link href="/interviews" className="lv-stat">
               <span>{t(lang, "Interviews")}</span>
               <strong>2</strong>
-            </div>
+            </Link>
           </div>
           <div className="lv-filter-row" style={{ justifyContent: "flex-start", marginBottom: 0 }}>
             {tabs.map((t, i) => (
@@ -422,8 +439,9 @@ function DashboardPreview({ lang, jobsData }) {
                 typeof j.company === "string"
                   ? j.company
                   : j.company_name || j.company?.company_name || "Company";
+              const rowHref = `/job-detail/${encodeURIComponent((j.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + j.id)}`;
               return (
-                <div key={j.id} className="lv-dash-row">
+                <Link key={j.id} href={rowHref} className="lv-dash-row">
                   <div className="lv-job-logo" style={{ width: 36, height: 36, fontSize: 12 }} aria-hidden="true">
                     {compName.slice(0, 2).toUpperCase()}
                   </div>
@@ -434,7 +452,7 @@ function DashboardPreview({ lang, jobsData }) {
                     </span>
                   </div>
                   <Badge tone={tab === 3 ? "success" : "brand"}>{tab === 0 ? t(lang, "Strong match") : tab === 1 ? t(lang, "Saved") : stages[i % 3]}</Badge>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -535,10 +553,11 @@ export default function HomeClient() {
       <Header lang={lang} setLang={setLang} app="seeker" />
       <main>
         <Hero lang={lang} />
-        <PromotionalBannerSection lang={lang} />
+        <PromotionalBannerSection placement="LANDING_HERO" compact lang={lang} />
         <WhyUs lang={lang} />
         <HowItWorks lang={lang} />
         <FeaturedJobs lang={lang} jobsData={jobs} />
+        <PromotionalBannerSection placement="LANDING_FEATURED" lang={lang} />
         <MonthlyEventsSection lang={lang} />
         <TopCompanies lang={lang} companiesData={companies} />
         <DashboardPreview lang={lang} jobsData={jobs} />

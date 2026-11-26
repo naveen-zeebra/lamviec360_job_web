@@ -1,6 +1,6 @@
 "use client";
 
-export default function Card({ children, className = "", hoverable = false, style }) {
+export default function Card({ children, className = "", hoverable = false, style, ...rest }) {
   return (
     <div
       style={style}
@@ -10,6 +10,7 @@ export default function Card({ children, className = "", hoverable = false, styl
         hoverable ? "cursor-pointer hover:shadow-md" : "",
         className,
       ].join(" ")}
+      {...rest}
     >
       {children}
     </div>

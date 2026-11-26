@@ -151,6 +151,7 @@ export default function Header({ lang, setLang, app = "seeker" }) {
     { label: isVi ? "Bảng tin" : "Dashboard", path: "/dashboard", icon: "layout-dashboard" },
     { label: isVi ? "Tìm việc" : "Find Jobs", path: "/jobs", icon: "search" },
     { label: isVi ? "Ứng tuyển" : "Applications", path: "/applications", icon: "send" },
+    { label: isVi ? "Tin nhắn" : "Messages", path: "/messages", icon: "message-square" },
     // { label: isVi ? "Phỏng vấn" : "Interviews", path: "/interviews", icon: "calendar" },
     { label: isVi ? "Việc đã lưu" : "Saved Jobs", path: "/saved-jobs", icon: "heart", badge: savedCount > 0 ? savedCount : null },
   ];

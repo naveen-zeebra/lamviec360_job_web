@@ -12,7 +12,7 @@ export default function Testimonials({ lang, items, title, eyebrow }) {
       </Reveal>
       <div className="lv-quote-grid">
         {items.map((t) => (
-          <Reveal key={t.name}>
+          <Reveal key={t.name} className="h-full">
             <figure className="lv-quote">
               <Icon name="quote" size={22} style={{ color: "var(--blue-300)" }} />
               <blockquote>{(lang === "VN" || lang === "VI" ? t.vi : t.en)}</blockquote>

@@ -1,24 +1,44 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Input, PhoneInput } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
-import { useLang, t } from "../../../utils/lang";
+import { LANGS, useLang, t } from "../../../utils/lang";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import SocialAuthButtons from "../../../components/auth/SocialAuthButtons";
 import { registerDraft } from "../../../lib/seekerStore";
-import { EMPLOYER_URL } from "../../../config";
 
 export default function RegisterClient() {
   const [lang, setLang] = useLang();
   const router = useRouter();
-  const [accountType, setAccountType] = useState("jobseeker");
   const [showPw, setShowPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langDropdownRef = useRef(null);
   const [toast, setToast] = useToast();
+
+  const activeLang = LANGS.find((l) => l.code === lang) || LANGS[0];
+
+  useEffect(() => {
+    if (!langMenuOpen) return;
+    const handleOutsideClick = (event) => {
+      if (langDropdownRef.current && !langDropdownRef.current.contains(event.target)) {
+        setLangMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setLangMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [langMenuOpen]);
 
   const registerSchema = Yup.object().shape({
     name: Yup.string()
@@ -62,6 +82,7 @@ export default function RegisterClient() {
       phone: "",
       password: "",
       confirmPassword: "",
+      allowRecruiterDm: false,
     },
     validationSchema: registerSchema,
     onSubmit: async (values, { setSubmitting, setStatus }) => {
@@ -69,7 +90,13 @@ export default function RegisterClient() {
       try {
         const digitsOnly = values.phone ? values.phone.replace(/\D/g, "") : "";
         const fullPhone = digitsOnly.length > 3 ? values.phone.trim() : "";
-        await registerDraft(values.name.trim(), values.email.trim(), values.password, fullPhone);
+        await registerDraft(
+          values.name.trim(),
+          values.email.trim(),
+          values.password,
+          fullPhone,
+          values.allowRecruiterDm
+        );
         router.push(`/verify-email?email=${encodeURIComponent(values.email.trim())}`);
       } catch (error) {
         setStatus(error.message || t(lang, "An account with this email address already exists."));
@@ -101,11 +128,10 @@ export default function RegisterClient() {
     formik.setFieldValue(field, val);
   };
 
-  // Fixed height error container prevents layout shifts and UI glitching
   const FieldError = ({ touched, error }) => {
-    if (!touched || !error) return <div className="h-4" aria-hidden="true" />;
+    if (!touched || !error) return null;
     return (
-      <div className="flex items-center gap-1 text-[11px] text-red-600 h-4 leading-none truncate">
+      <div className="flex items-center gap-1 text-[11px] text-red-600 mt-1 leading-none truncate">
         <Icon name="alert-circle" size={12} className="shrink-0 text-red-500" />
         <span className="truncate">{error}</span>
       </div>
@@ -119,8 +145,8 @@ export default function RegisterClient() {
 
   return (
     <>
-      <main className="min-h-screen flex items-center justify-center bg-slate-50 p-3 sm:p-5 py-6 sm:py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 w-full max-w-[1020px] bg-white rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-200/40 overflow-hidden my-auto max-h-[96vh]">
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 p-3 sm:p-5 py-4 sm:py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 w-full max-w-[1020px] bg-white rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-200/40 overflow-hidden my-auto">
 
           {/* ── Left panel (Brand & Benefits) ─────────────────────── */}
           <div className="hidden lg:flex lg:col-span-5 flex-col justify-between bg-slate-50/80 border-r border-slate-200/80 p-7 xl:p-8 overflow-hidden">
@@ -187,106 +213,79 @@ export default function RegisterClient() {
           </div>
 
           {/* ── Right form panel ─────────────────────── */}
-          <div className="lg:col-span-7 p-5 sm:p-7 xl:p-8 flex flex-col justify-start overflow-y-auto max-h-[92vh] lg:max-h-[88vh] overflow-x-hidden">
-            {/* Header row with back button and title */}
-            <div className="flex items-center gap-2.5 mb-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof window !== "undefined" && window.history.length > 1) {
-                    router.back();
-                  } else {
-                    router.push("/login");
-                  }
-                }}
-                className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer shrink-0"
-                aria-label={t(lang, "Back")}
-              >
-                <Icon name="arrow-left" size={14} />
-              </button>
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight leading-tight">
-                {t(lang, "Create account")}
-              </h2>
-            </div>
-
-            {/* Account Type Selector (Job Seeker vs Company) */}
-            <div className="flex rounded-xl bg-slate-100 p-1 mb-4 border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setAccountType("jobseeker")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  accountType === "jobseeker"
-                    ? "bg-white text-blue-600 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Icon name="user" size={14} />
-                <span>{t(lang, "Job Seeker")}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setAccountType("company")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  accountType === "company"
-                    ? "bg-white text-blue-600 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Icon name="building-2" size={14} />
-                <span>{t(lang, "Company")}</span>
-              </button>
-            </div>
-
-            {accountType === "company" ? (
-              <div className="py-2 space-y-4">
-                <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/60 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
-                      <Icon name="building-2" size={20} />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900">
-                        {t(lang, "Register as a Company / Employer")}
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        {t(lang, "Are you hiring? Create a company account to post jobs, search candidates, and manage your hiring pipeline.")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-blue-200/60 space-y-2 text-xs text-slate-600">
-                    <div className="flex items-center gap-2">
-                      <Icon name="check-circle" size={14} className="text-emerald-600 shrink-0" />
-                      <span>{t(lang, "Official Business Registration")}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Icon name="check-circle" size={14} className="text-emerald-600 shrink-0" />
-                      <span>{t(lang, "Access to 500K+ candidates")}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Icon name="check-circle" size={14} className="text-emerald-600 shrink-0" />
-                      <span>{t(lang, "Structured hiring pipeline")}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <a
-                  href={`${EMPLOYER_URL}/company-register`}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow cursor-pointer"
+          <div className="lg:col-span-7 p-5 sm:p-6 xl:p-7 flex flex-col justify-center">
+            {/* Header row with back button, title, and language dropdown */}
+            <div className="flex items-center justify-between gap-2.5 mb-3.5">
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== "undefined" && window.history.length > 1) {
+                      router.back();
+                    } else {
+                      router.push("/login");
+                    }
+                  }}
+                  className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer shrink-0"
+                  aria-label={t(lang, "Back")}
                 >
-                  <span>{t(lang, "Continue to Company Registration")}</span>
-                  <Icon name="arrow-right" size={16} />
-                </a>
-
-                <p className="text-center text-xs text-slate-500 pt-2">
-                  {t(lang, "Already have an account?")}{" "}
-                  <a href={`${EMPLOYER_URL}/employer-login`} className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
-                    {t(lang, "Employer Login")}
-                  </a>
-                </p>
+                  <Icon name="arrow-left" size={14} />
+                </button>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight leading-tight">
+                  {t(lang, "Create account")}
+                </h2>
               </div>
-            ) : (
-              <>
+
+              {/* Language Dropdown */}
+              <div className="relative shrink-0" ref={langDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setLangMenuOpen((prev) => !prev)}
+                  aria-haspopup="listbox"
+                  aria-expanded={langMenuOpen}
+                  aria-label={t(lang, "Language")}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700 cursor-pointer"
+                >
+                  <Icon name="globe" size={13} className="text-slate-500" />
+                  <span>{activeLang.label}</span>
+                  <Icon
+                    name="chevron-down"
+                    size={12}
+                    className={`text-slate-400 transition-transform duration-150 ${langMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {langMenuOpen && (
+                  <div
+                    role="listbox"
+                    aria-label={t(lang, "Language")}
+                    className="absolute right-0 top-full z-50 mt-1.5 min-w-[148px] rounded-xl border border-slate-200/90 bg-white p-1.5 shadow-lg"
+                  >
+                    {LANGS.map((l) => (
+                      <button
+                        key={l.code}
+                        type="button"
+                        role="option"
+                        aria-selected={lang === l.code}
+                        onClick={() => {
+                          setLang(l.code);
+                          setLangMenuOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold transition-colors cursor-pointer ${
+                          lang === l.code
+                            ? "bg-blue-50 text-blue-600"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span>{l.label}</span>
+                        {lang === l.code && <Icon name="check" size={13} className="text-blue-600 shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Form */}
             <form onSubmit={formik.handleSubmit} noValidate autoComplete="off">
               {/* Trap decoy inputs: absorbs aggressive browser credential autofill */}
@@ -307,7 +306,7 @@ export default function RegisterClient() {
               </div>
 
               {/* Full Name */}
-              <div className="mb-0.5">
+              <div className="mb-2.5">
                 <Input
                   id="name"
                   name="name"
@@ -327,7 +326,7 @@ export default function RegisterClient() {
               </div>
 
               {/* Email */}
-              <div className="mb-0.5">
+              <div className="mb-2.5">
                 <Input
                   id="email"
                   name="email"
@@ -346,7 +345,7 @@ export default function RegisterClient() {
               </div>
 
               {/* Phone using react-international-phone component */}
-              <div className="mb-0.5">
+              <div className="mb-2.5">
                 <PhoneInput
                   id="phone"
                   name="phone"
@@ -364,8 +363,8 @@ export default function RegisterClient() {
               </div>
 
               {/* Password row with min-w-0 grid safety */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
-                <div className="min-w-0 mb-0.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0 mb-2.5">
+                <div className="min-w-0">
                   <Input
                     id="password"
                     name="password"
@@ -391,7 +390,7 @@ export default function RegisterClient() {
                   <FieldError touched={formik.touched.password} error={formik.errors.password} />
                 </div>
 
-                <div className="min-w-0 mb-0.5">
+                <div className="min-w-0">
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -426,10 +425,27 @@ export default function RegisterClient() {
               </div>
 
               {/* Password hint */}
-              <div className="flex items-center gap-1.5 text-[11px] text-teal-800 bg-emerald-50/80 border border-emerald-200/70 rounded-md px-2.5 py-1 mb-2.5 leading-normal">
+              <div className="flex items-center gap-1.5 text-[11px] text-teal-800 bg-emerald-50/80 border border-emerald-200/70 rounded-md px-2.5 py-1 mb-2 leading-normal">
                 <Icon name="info" size={13} className="text-teal-600 shrink-0" />
                 <span className="truncate">{t(lang, "Min 8 characters, including letters, numbers & symbols")}</span>
               </div>
+
+              {/* Account-level Recruiter Direct Message Opt-in Policy */}
+              <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 mb-2.5 cursor-pointer text-[11.5px] text-slate-600 leading-snug select-none">
+                <input
+                  id="register-dm-optin-checkbox"
+                  type="checkbox"
+                  name="allowRecruiterDm"
+                  checked={formik.values.allowRecruiterDm}
+                  onChange={(e) => formik.setFieldValue("allowRecruiterDm", e.target.checked)}
+                  className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+                />
+                <span>
+                  {t(lang, "Allow recruiters on LàmViệc360 to contact me via Direct Messages")}
+                  {" "}
+                  <span className="text-slate-400">({t(lang, "Privacy Policy • Optional")})</span>
+                </span>
+              </label>
 
               {/* Global API error */}
               {formik.status && (
@@ -484,8 +500,6 @@ export default function RegisterClient() {
                 {t(lang, "Log in")}
               </Link>
             </p>
-            </>
-            )}
           </div>
 
         </div>

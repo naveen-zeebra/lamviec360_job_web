@@ -9,7 +9,14 @@ import Toast, { useToast } from "../../../../components/ds/Toast";
 import { useLang, t } from "../../../../utils/lang";
 import { formatDate, formatDateTime, cleanResumeFileName } from "../../../../utils/format";
 
-import { getApplication, STAGE_TYPICAL, withdrawApplication, getCanonicalStage } from "../../../../lib/seekerStore";
+import {
+  getApplication,
+  STAGE_TYPICAL,
+  withdrawApplication,
+  getCanonicalStage,
+  getSeekerThreadMessagesStore,
+  sendSeekerThreadMessageStore,
+} from "../../../../lib/seekerStore";
 import { fetchApplicationDetail } from "../../../../lib/api/seekerApi";
 import { fetchPublicJobDetail } from "../../../../lib/api/publicApi";
 
@@ -20,6 +27,31 @@ export default function ApplicationDetailClient({ id }) {
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [jobDetail, setJobDetail] = useState(null);
+  const [dmLoading, setDmLoading] = useState(false);
+  const [dmThread, setDmThread] = useState(null);
+  const [dmMessages, setDmMessages] = useState([]);
+  const [dmDraft, setDmDraft] = useState("");
+  const [dmSending, setDmSending] = useState(false);
+
+  const loadMessages = async (appId) => {
+    if (!appId || String(appId).startsWith("APP-")) return;
+    setDmLoading(true);
+    try {
+      const res = await getSeekerThreadMessagesStore(appId);
+      setDmThread(res?.thread || null);
+      setDmMessages(Array.isArray(res?.messages) ? res.messages : []);
+    } catch (e) {
+      // Non-fatal if offline/demo
+    } finally {
+      setDmLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id && !String(id).startsWith("APP-")) {
+      loadMessages(id);
+    }
+  }, [id]);
 
   useEffect(() => {
     const local = getApplication(id);
@@ -425,6 +457,109 @@ export default function ApplicationDetailClient({ id }) {
           )}
         </div>
       )}
+
+      {/* Direct Messages Card */}
+      {!String(id).startsWith("APP-") && (() => {
+        const allowDm = Boolean(dmThread?.allow_recruiter_dm ?? app?.allow_recruiter_dm);
+        const isWithdrawn = (app?.status || "").toLowerCase() === "withdrawn" || app?.stage === "Withdrawn";
+
+        const handleSendReply = async (e) => {
+          e.preventDefault();
+          if (!dmDraft.trim() || !allowDm || dmSending) return;
+          setDmSending(true);
+          try {
+            const res = await sendSeekerThreadMessageStore(app.id, dmDraft.trim());
+            if (res?.message) setDmMessages((prev) => [...prev, res.message]);
+            if (res?.thread) setDmThread(res.thread);
+            setDmDraft("");
+          } catch (err) {
+            setToast(err?.message || t(lang, "Could not send reply"));
+          } finally {
+            setDmSending(false);
+          }
+        };
+
+        return (
+          <div className="lv-detail-card" style={{ marginTop: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+              <div>
+                <h2 style={{ fontSize: "var(--text-md)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Icon name="message-square" size={18} style={{ color: "var(--surface-brand, #2563eb)" }} />
+                  {t(lang, "Direct Messages")}
+                </h2>
+                <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--text-secondary)" }}>
+                  {allowDm
+                    ? t(lang, "Direct Messages with the hiring team for this application.")
+                    : t(lang, "Direct Messages are disabled in your account Privacy Policy.")}
+                </p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {!allowDm && (
+                  <Link href="/settings?tab=privacy">
+                    <Button type="button" size="sm" variant="secondary">
+                      {t(lang, "Privacy Settings")}
+                    </Button>
+                  </Link>
+                )}
+                <Link href={`/messages?applicationId=${app.id}`}>
+                  <Button type="button" size="sm" variant="ghost">
+                    {t(lang, "Open Inbox")}
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto", padding: "8px 0" }}>
+              {dmLoading ? (
+                <p style={{ fontSize: 12.5, color: "var(--text-tertiary)" }}>{t(lang, "Loading messages...")}</p>
+              ) : dmMessages.length === 0 ? (
+                <div style={{ padding: "16px", borderRadius: 10, background: "var(--surface-sunken, #f8fafc)", border: "1px solid var(--border-line, #e2e8f0)", fontSize: 12.5, color: "var(--text-secondary)" }}>
+                  {allowDm
+                    ? t(lang, "Direct Messages are active. Messages from the hiring team will appear here.")
+                    : t(lang, "Enable Recruiter Direct Messages in Privacy Settings if you want employers to message you.")}
+                </div>
+              ) : (
+                dmMessages.map((m) => {
+                  const isMe = m.sender_role === "jobseeker";
+                  return (
+                    <div key={m.id} style={{ display: "flex", justifyContent: isMe ? "flex-end" : "flex-start" }}>
+                      <div style={{
+                        maxWidth: "80%",
+                        padding: "10px 14px",
+                        borderRadius: 12,
+                        background: isMe ? "var(--surface-brand, #2563eb)" : "#f1f5f9",
+                        color: isMe ? "#ffffff" : "#0f172a",
+                        fontSize: 13,
+                      }}>
+                        <div style={{ fontSize: 10.5, opacity: 0.78, marginBottom: 4, fontWeight: 600 }}>
+                          {m.sender_name} · {m.created_at ? formatDateTime(lang, m.created_at) : ""}
+                        </div>
+                        <div style={{ whiteSpace: "pre-wrap" }}>{m.body}</div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {allowDm && !isWithdrawn && (
+              <form onSubmit={handleSendReply} style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                <input
+                  type="text"
+                  className="lv-input"
+                  value={dmDraft}
+                  onChange={(e) => setDmDraft(e.target.value)}
+                  placeholder={t(lang, "Reply to the hiring team...")}
+                  style={{ flex: 1 }}
+                />
+                <Button type="submit" variant="primary" disabled={dmSending || !dmDraft.trim()}>
+                  {dmSending ? t(lang, "Sending...") : t(lang, "Send")}
+                </Button>
+              </form>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Confirmation Modal for Withdrawal */}
       {isWithdrawModalOpen && (

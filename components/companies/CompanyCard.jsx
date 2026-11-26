@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "../ds";
 import Icon from "../ds/Icon";
-import { useLang, t } from "../../utils/lang";
+import { t } from "../../utils/lang";
 import { resolveMediaUrl } from "../../lib/api/publicApi";
 
 export default function CompanyCard({ c, lang }) {
+  const router = useRouter();
   const [logoError, setLogoError] = useState(false);
   const compName = c.name || c.company_name || "Company";
   const logoText = (compName || "CO").slice(0, 2).toUpperCase();
@@ -17,9 +19,20 @@ export default function CompanyCard({ c, lang }) {
   const companyTarget = `/companies/${c.id || encodeURIComponent(compName)}`;
 
   return (
-    <div className="lv-company-card">
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(companyTarget)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          router.push(companyTarget);
+        }
+      }}
+      className="lv-company-card cursor-pointer"
+    >
       <div className="lv-company-card-top">
-        <Link href={companyTarget} className="lv-company-logo-wrap">
+        <Link href={companyTarget} onClick={(e) => e.stopPropagation()} className="lv-company-logo-wrap">
           {logoUrl && !logoError ? (
             <img
               src={logoUrl}
@@ -34,7 +47,7 @@ export default function CompanyCard({ c, lang }) {
           )}
         </Link>
         <div className="lv-company-card-title-group">
-          <Link href={companyTarget} className="lv-company-name hover:text-blue-600">
+          <Link href={companyTarget} onClick={(e) => e.stopPropagation()} className="lv-company-name hover:text-blue-600 line-clamp-1">
             {compName}
           </Link>
           {c.verified && (
@@ -48,7 +61,7 @@ export default function CompanyCard({ c, lang }) {
       </div>
 
       {c.tagline && (
-        <p className="lv-company-tagline">
+        <p className="lv-company-tagline line-clamp-2">
           {c.tagline}
         </p>
       )}
@@ -74,7 +87,7 @@ export default function CompanyCard({ c, lang }) {
         <strong style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>
           {openCount} {t(lang, "Open Jobs")}
         </strong>
-        <Link href={companyTarget} className="lv-job-view">
+        <Link href={companyTarget} onClick={(e) => e.stopPropagation()} className="lv-job-view">
           {t(lang, "Explore Showcase")} <Icon name="arrow-right" size={14} />
         </Link>
       </div>

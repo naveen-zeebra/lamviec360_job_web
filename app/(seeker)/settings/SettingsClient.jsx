@@ -20,6 +20,7 @@ import {
   getProfileAttachmentUsage,
   updateJobAvailability,
   updateProfileVisibility,
+  updateDmOptInDefault,
 } from "../../../lib/seekerStore";
 import {
   validateAvatarFile,
@@ -280,6 +281,27 @@ export default function SettingsClient() {
     } catch (e) {
       console.error("Failed to update visibility:", e);
       setToast(t(lang, "Failed to update profile visibility."));
+    }
+  };
+
+  const handleDmOptInDefaultChange = async (allow) => {
+    try {
+      await updateDmOptInDefault(allow);
+      setProfile((prev) => ({
+        ...prev,
+        allowRecruiterDmDefault: !!allow,
+        allow_recruiter_dm_default: !!allow,
+      }));
+      setLiveSuccessMessage(
+        allow
+          ? t(lang, "Direct messages will be pre-enabled on new job applications")
+          : t(lang, "Explicit opt-in required for new job applications")
+      );
+      setToast(t(lang, "Direct message default updated!"));
+      setTimeout(() => setLiveSuccessMessage(""), 5000);
+    } catch (e) {
+      console.error("Failed to update DM opt-in default:", e);
+      setToast(t(lang, "Failed to update direct message preference."));
     }
   };
 
@@ -722,6 +744,7 @@ export default function SettingsClient() {
             settings={settings}
             handleJobAvailabilityChange={handleJobAvailabilityChange}
             handleProfileVisibilityChange={handleProfileVisibilityChange}
+            handleDmOptInDefaultChange={handleDmOptInDefaultChange}
             persistSettings={persistSettings}
             liveSuccessMessage={liveSuccessMessage}
             lang={lang}

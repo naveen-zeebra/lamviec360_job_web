@@ -1,6 +1,7 @@
 "use client";
 import { Select } from "../../../../components/ds";
 import Icon from "../../../../components/ds/Icon";
+import Switch from "../components/Switch";
 
 const VISIBILITY_OPTIONS = ["Public to employers", "Private", "Hidden from current employer"];
 const RESUME_VISIBILITY_OPTIONS = ["Visible when I apply", "Always visible to employers", "Hidden"];
@@ -10,6 +11,7 @@ export default function PrivacyTab({
   settings,
   handleJobAvailabilityChange,
   handleProfileVisibilityChange,
+  handleDmOptInDefaultChange,
   persistSettings,
   liveSuccessMessage,
   lang,
@@ -178,6 +180,46 @@ export default function PrivacyTab({
             }
             options={RESUME_VISIBILITY_OPTIONS.map((v) => ({ value: v, label: t(lang, v) }))}
             placeholder={t(lang, "Select resume visibility")}
+          />
+        </div>
+      </div>
+
+      {/* ── Recruiter Direct Messages Policy ── */}
+      <div className="border-t border-line pt-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="m-0 text-base font-bold text-ink">
+              {t(lang, "Recruiter Direct Messages Policy")}
+            </h3>
+            <p className="mt-0.5 text-xs text-muted">
+              {t(
+                lang,
+                "Account-wide contact policy selected at registration: only checked accounts allow employers to send Direct Messages across applications."
+              )}
+            </p>
+          </div>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${
+              profile.allowRecruiterDmDefault || profile.allow_recruiter_dm_default
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-slate-200 bg-slate-50 text-slate-700"
+            }`}
+          >
+            <Icon
+              name={profile.allowRecruiterDmDefault || profile.allow_recruiter_dm_default ? "message-square" : "lock"}
+              size={12}
+            />
+            {profile.allowRecruiterDmDefault || profile.allow_recruiter_dm_default
+              ? t(lang, "Allowed Across Platform")
+              : t(lang, "Disabled by Account Policy")}
+          </span>
+        </div>
+
+        <div className="rounded-xl border border-line bg-card p-3.5">
+          <Switch
+            label={t(lang, "Allow recruiters on LàmViệc360 to contact me via Direct Messages")}
+            on={Boolean(profile.allowRecruiterDmDefault || profile.allow_recruiter_dm_default)}
+            onChange={(val) => handleDmOptInDefaultChange && handleDmOptInDefaultChange(val)}
           />
         </div>
       </div>

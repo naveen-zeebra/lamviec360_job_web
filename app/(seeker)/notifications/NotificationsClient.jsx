@@ -15,18 +15,25 @@ const TYPE_ICON = {
   status: "list-checks",
   interview: "calendar",
   offer: "gift",
+  direct_message: "message-square",
 };
 
 const FILTERS = [
   { key: "all", label: "All" },
+  { key: "direct_message", label: "Messages" },
   { key: "interview", label: "Interviews" },
   { key: "status", label: "Status" },
   { key: "offer", label: "Offers" },
 ];
 
 function linkFor(n) {
+  if (n.action_url) return n.action_url;
+  if (n.type === "direct_message") return n.application_id || n.applicationId ? `/messages?applicationId=${n.application_id || n.applicationId}` : "/messages";
   if (n.type === "cv_view") return "/resume";
-  if (n.applicationId) return n.type === "interview" ? `/interviews/${n.applicationId}` : `/applications/${n.applicationId}`;
+  if (n.applicationId || n.application_id) {
+    const aid = n.applicationId || n.application_id;
+    return n.type === "interview" ? `/interviews/${aid}` : `/applications/${aid}`;
+  }
   if (n.type === "interview") return "/interviews";
   return null;
 }
