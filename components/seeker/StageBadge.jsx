@@ -13,6 +13,7 @@ const CONFIG = {
   "Offer Sent": { tone: "success", icon: "gift" },
   Hired: { tone: "success", icon: "check-circle" },
   "Post-Hire Tracking": { tone: "success", icon: "user-check" },
+  "On Hold": { tone: "warning", icon: "pause-circle" },
   Rejected: { tone: "error", icon: "x-circle" },
   Withdrawn: { tone: "neutral", icon: "undo-2" },
 };

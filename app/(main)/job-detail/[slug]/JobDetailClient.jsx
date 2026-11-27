@@ -642,7 +642,7 @@ export default function JobDetailClient() {
                 </div>
               )}
 
-              <h2>{t(lang, "Hiring process")}</h2>
+              {/* <h2>{t(lang, "Hiring process")}</h2>
               <div className="lv-journey" style={{ marginTop: "var(--space-5)", maxWidth: "100%" }}>
                 {STAGES.slice(0, 4).map((s, i) => (
                   <span key={s[0]} style={{ display: "contents" }}>
@@ -653,7 +653,7 @@ export default function JobDetailClient() {
                     {i < 3 && <div className="lv-journey-bar"></div>}
                   </span>
                 ))}
-              </div>
+              </div> */}
             </div>
 
             {related.length > 0 && (
@@ -727,12 +727,7 @@ export default function JobDetailClient() {
               <strong>{lang === "VN" || lang === "VI" ? job.modeVi || job.mode : job.mode}</strong>
             </div>
 
-            {(job.overtime_willingness || job.overtimeWillingness) && (
-              <div className="lv-apply-row">
-                <span>{lang === "VN" || lang === "VI" ? "Làm thêm giờ" : "Overtime"}</span>
-                <strong>{job.overtime_willingness || job.overtimeWillingness}</strong>
-              </div>
-            )}
+
 
             <div className="lv-apply-row">
               <span>{t(lang, "Location")}</span>

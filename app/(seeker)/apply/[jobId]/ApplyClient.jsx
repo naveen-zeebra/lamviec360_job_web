@@ -47,7 +47,7 @@ export default function ApplyClient({ jobId }) {
   // Cover letter & consent
   const [coverLetter, setCoverLetter] = useState("");
   const [answers, setAnswers] = useState({});
-  const [consent, setConsent] = useState(false);
+  const [consent, setConsent] = useState(!false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
@@ -125,7 +125,7 @@ export default function ApplyClient({ jobId }) {
 
     const foundApp = getApplicationByJobId(job.id);
     setExistingApp(foundApp);
-    const elig = checkReapplicationEligibility(job.id);
+    const elig = checkReapplicationEligibility(job.id, job);
     setEligibility(elig);
     setAlreadyApplied(!elig.canApply && elig.reason === "already_applied");
   }, [job, jobId]);
@@ -253,10 +253,43 @@ export default function ApplyClient({ jobId }) {
     );
   }
 
+  const isWithdrawnLocked = !eligibility.canApply && eligibility.reason === "withdrawn_locked";
+  if (isWithdrawnLocked && !result) {
+    return (
+      <div className="lv-page-container">
+        <div className="lv-empty">
+          <Icon name="lock" size={36} style={{ color: "#64748b", margin: "0 auto 12px" }} />
+          <h3>
+            {lang === "VN" || lang === "VI"
+              ? "Không thể nộp lại hồ sơ đã rút"
+              : "Reapplication Not Enabled for Withdrawn Application"}
+          </h3>
+          <p style={{ fontWeight: 600, color: "var(--text-primary)" }}>{titleText} · {job.company}</p>
+          <p style={{ maxWidth: 520, margin: "12px auto 24px", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: 1.6 }}>
+            {lang === "VN" || lang === "VI"
+              ? "Bạn đã rút hồ sơ cho vị trí này trước đó và nhà tuyển dụng chưa bật tùy chọn cho phép ứng tuyển lại."
+              : "You previously withdrew your application for this posting, and the employer has not enabled reapplication for this job."}
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            {eligibility.application && (
+              <Link href={`/applications/${eligibility.application.id}`}>
+                <Button variant="secondary">{t(lang, "View Previous Application")}</Button>
+              </Link>
+            )}
+            <Link href="/jobs">
+              <Button variant="primary">{t(lang, "Find More Jobs")}</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (alreadyApplied && !result) {
     const rawStage = existingApp?.stage || existingApp?.status || "Applied";
     const currentAppStage = rawStage.toLowerCase() === "applied" ? "Applied" : rawStage;
-    const canWithdraw = currentAppStage.toLowerCase() === "applied";
+    const isViewedByEmployer = Boolean(existingApp?.is_viewed);
+    const canWithdraw = currentAppStage.toLowerCase() === "applied" && !isViewedByEmployer;
 
     return (
       <div className="lv-page-container">
@@ -282,11 +315,15 @@ export default function ApplyClient({ jobId }) {
           <p style={{ maxWidth: 460, margin: "0 auto 24px", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: 1.6 }}>
             {canWithdraw
               ? (lang === "VN" || lang === "VI"
-                ? "Hồ sơ của bạn đã được gửi tới nhà tuyển dụng và đang chờ xét duyệt. Bạn có thể rút hồ sơ trước khi nhà tuyển dụng bắt đầu xét duyệt."
-                : "Your application is waiting for employer screening. You may withdraw your application before employer screening begins.")
-              : (lang === "VN" || lang === "VI"
-                ? "Hồ sơ đang trong quy trình xét duyệt của nhà tuyển dụng. Chỉ có thể rút hồ sơ khi ở trạng thái 'Đã nộp'."
-                : "Employer screening is underway for this position; applications cannot be withdrawn after screening begins.")}
+                ? "Hồ sơ của bạn đã được gửi tới nhà tuyển dụng và đang chờ xét duyệt. Bạn có thể rút hồ sơ trước khi nhà tuyển dụng xem hoặc bắt đầu xét duyệt."
+                : "Your application is waiting for employer screening and has not yet been viewed. You may withdraw it now.")
+              : isViewedByEmployer
+                ? (lang === "VN" || lang === "VI"
+                  ? "Nhà tuyển dụng đã xem hồ sơ của bạn nên không thể tự rút hồ sơ trực tiếp."
+                  : "This application has already been viewed by the employer and can no longer be self-withdrawn.")
+                : (lang === "VN" || lang === "VI"
+                  ? "Hồ sơ đang trong quy trình xét duyệt của nhà tuyển dụng. Chỉ có thể rút hồ sơ khi ở trạng thái 'Đã nộp'."
+                  : "Employer screening is underway for this position; applications cannot be withdrawn after screening begins.")}
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             {existingApp && (

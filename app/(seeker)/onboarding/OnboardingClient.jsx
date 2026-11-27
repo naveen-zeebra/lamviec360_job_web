@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Button, Input, Select, PhoneInput } from "../../../components/ds";
@@ -76,6 +76,12 @@ export default function OnboardingClient() {
   const industryList = industries && industries.length > 0 ? industries : INDUSTRIES;
   const locationList = locations && locations.length > 0 ? locations : (DEFAULT_MASTER_DATA.locations || []);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawRedirect = searchParams?.get("redirect") || "";
+  const safeRedirect =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "";
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState(null);
   const [auth, setAuth] = useState(null);
@@ -527,6 +533,23 @@ export default function OnboardingClient() {
   };
 
   const completeness = computeCompleteness(profile);
+  const missingSteps = [];
+  if (!profile?.personal?.fullName || (!profile?.personal?.location && !profile?.personal?.city)) {
+    missingSteps.push({ step: 1, label: t(lang, "Personal") });
+  }
+  if (!profile?.professional?.title || !(profile?.professional?.skills || []).length) {
+    missingSteps.push({ step: 2, label: t(lang, "Professional") });
+  }
+  if (!(profile?.education || []).some((e) => e?.degree || e?.institution)) {
+    missingSteps.push({ step: 3, label: t(lang, "Education") });
+  }
+  if (!(profile?.experience || []).some((e) => e?.company || e?.title)) {
+    missingSteps.push({ step: 4, label: t(lang, "Experience") });
+  }
+  if (!(profile?.resumes || []).length) {
+    missingSteps.push({ step: 5, label: t(lang, "Resume & Portfolio") });
+  }
+
   const finish = async () => {
     setSaving(true);
     try {
@@ -536,7 +559,7 @@ export default function OnboardingClient() {
       console.warn("Could not save profile to backend:", e.message);
     } finally {
       setSaving(false);
-      router.push("/dashboard");
+      router.push(completeness >= 60 && safeRedirect ? safeRedirect : "/dashboard");
     }
   };
 
@@ -1192,14 +1215,41 @@ export default function OnboardingClient() {
                       ? t(lang, "Your profile meets the requirement. You can submit job applications immediately.")
                       : t(lang, "Minimum of 60% completeness is required to apply for jobs. Current: ") + `${completeness}%.`}
                   </span>
+                  {completeness < 60 && missingSteps.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                      {missingSteps.map((ms) => (
+                        <button
+                          key={ms.step}
+                          type="button"
+                          onClick={() => setStep(ms.step)}
+                          style={{
+                            border: "1px solid #f59e0b",
+                            background: "#ffffff",
+                            color: "#92400e",
+                            borderRadius: 999,
+                            padding: "2px 10px",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {t(lang, "Update")}: {ms.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
               <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", maxWidth: 420, margin: "0 auto 24px" }}>
-                {t(lang, "You can keep improving your profile from Settings at any time to get better job matches.")}
+                {t(lang, "You can keep improving your profile from Profile & Resume or Settings at any time to get better job matches.")}
               </p>
               <Button variant="primary" size="lg" onClick={finish} disabled={saving}>
-                {saving ? t(lang, "Saving...") : t(lang, "Complete Profile")}
+                {saving
+                  ? t(lang, "Saving...")
+                  : completeness >= 60 && safeRedirect
+                  ? t(lang, "Continue to Job Application")
+                  : t(lang, "Complete Profile")}
               </Button>
             </div>
           )}

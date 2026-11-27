@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import OnboardingClient from "./OnboardingClient";
 
 export const metadata = {
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <OnboardingClient />;
+  return (
+    <Suspense fallback={<div style={{ minHeight: "60vh" }} />}>
+      <OnboardingClient />
+    </Suspense>
+  );
 }

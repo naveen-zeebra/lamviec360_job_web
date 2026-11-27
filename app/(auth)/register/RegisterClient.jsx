@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Input, PhoneInput } from "../../../components/ds";
@@ -14,6 +14,12 @@ import { registerDraft } from "../../../lib/seekerStore";
 export default function RegisterClient() {
   const [lang, setLang] = useLang();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawRedirect = searchParams?.get("redirect") || "";
+  const safeRedirect =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "";
   const [showPw, setShowPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -97,7 +103,10 @@ export default function RegisterClient() {
           fullPhone,
           values.allowRecruiterDm
         );
-        router.push(`/verify-email?email=${encodeURIComponent(values.email.trim())}`);
+        const verifyUrl = `/verify-email?email=${encodeURIComponent(values.email.trim())}${
+          safeRedirect ? `&redirect=${encodeURIComponent(safeRedirect)}` : ""
+        }`;
+        router.push(verifyUrl);
       } catch (error) {
         setStatus(error.message || t(lang, "An account with this email address already exists."));
       } finally {
@@ -485,8 +494,10 @@ export default function RegisterClient() {
               <SocialAuthButtons
                 layout="grid"
                 actionText="Sign up with"
-                targetRedirect="/onboarding"
-                onSuccess={() => router.push("/onboarding")}
+                targetRedirect={safeRedirect ? `/onboarding?redirect=${encodeURIComponent(safeRedirect)}` : "/onboarding"}
+                onSuccess={() =>
+                  router.push(safeRedirect ? `/onboarding?redirect=${encodeURIComponent(safeRedirect)}` : "/onboarding")
+                }
                 onError={(msg) => {
                   setToast(msg);
                   if (formik && formik.setStatus) formik.setStatus(msg);
@@ -496,7 +507,10 @@ export default function RegisterClient() {
 
             <p className="text-center text-xs text-slate-500 mt-2">
               {t(lang, "Already have an account?")}{" "}
-              <Link href="/login" className="text-blue-600 hover:text-blue-700 font-semibold hover:underline">
+              <Link
+                href={safeRedirect ? `/login?redirect=${encodeURIComponent(safeRedirect)}` : "/login"}
+                className="text-blue-600 hover:text-blue-700 font-semibold hover:underline"
+              >
                 {t(lang, "Log in")}
               </Link>
             </p>

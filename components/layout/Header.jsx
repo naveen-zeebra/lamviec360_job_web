@@ -10,6 +10,7 @@ import {
   computeCompleteness,
   listSavedJobs,
   unreadNotificationCount,
+  unreadMessageCount,
   logout,
 } from "../../lib/seekerStore";
 import { EMPLOYER_URL } from "../../lib/api/client";
@@ -33,6 +34,7 @@ export default function Header({ lang, setLang, app = "seeker" }) {
   const [profile, setProfile] = useState(null);
   const [savedCount, setSavedCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
 
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -61,6 +63,7 @@ export default function Header({ lang, setLang, app = "seeker" }) {
     setProfile(p);
     setSavedCount(listSavedJobs().length);
     setUnreadCount(unreadNotificationCount());
+    setUnreadMsgCount(unreadMessageCount());
   };
 
   useEffect(() => {
@@ -151,7 +154,12 @@ export default function Header({ lang, setLang, app = "seeker" }) {
     { label: isVi ? "Bảng tin" : "Dashboard", path: "/dashboard", icon: "layout-dashboard" },
     { label: isVi ? "Tìm việc" : "Find Jobs", path: "/jobs", icon: "search" },
     { label: isVi ? "Ứng tuyển" : "Applications", path: "/applications", icon: "send" },
-    { label: isVi ? "Tin nhắn" : "Messages", path: "/messages", icon: "message-square" },
+    // {
+    //   label: isVi ? "Tin nhắn" : "Messages",
+    //   path: "/messages",
+    //   icon: "message-square",
+    //   badge: unreadMsgCount > 0 ? (unreadMsgCount > 99 ? "99+" : unreadMsgCount) : null,
+    // },
     // { label: isVi ? "Phỏng vấn" : "Interviews", path: "/interviews", icon: "calendar" },
     { label: isVi ? "Việc đã lưu" : "Saved Jobs", path: "/saved-jobs", icon: "heart", badge: savedCount > 0 ? savedCount : null },
   ];
@@ -276,6 +284,21 @@ export default function Header({ lang, setLang, app = "seeker" }) {
           {/* Auth controls */}
           {mounted && auth.loggedIn ? (
             <div className="flex items-center gap-2">
+              {/* Messages */}
+              <Link
+                href="/messages"
+                className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-blue-600"
+                aria-label={t(lang, "Messages")}
+                title={t(lang, "Messages")}
+              >
+                <Icon name="message-square" size={18} />
+                {unreadMsgCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {unreadMsgCount > 9 ? "9+" : unreadMsgCount}
+                  </span>
+                )}
+              </Link>
+
               {/* Notifications */}
               <Link
                 href="/notifications"

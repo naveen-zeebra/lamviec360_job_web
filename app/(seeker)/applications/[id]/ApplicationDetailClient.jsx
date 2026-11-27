@@ -221,8 +221,9 @@ export default function ApplicationDetailClient({ id }) {
         app.status === "closed"
       );
 
-  // BR-301-04: Talent can withdraw application before screening stage only (status == "applied")
-  const canWithdraw = currentStage === "Applied";
+  // OTH-FR-003 / BR-301-04: Talent can withdraw only before screening AND while unread by employer
+  const isViewedByEmployer = Boolean(app.is_viewed);
+  const canWithdraw = currentStage === "Applied" && !isViewedByEmployer && app.can_withdraw !== false;
 
   const handleConfirmWithdraw = async () => {
     setWithdrawing(true);
@@ -302,7 +303,15 @@ export default function ApplicationDetailClient({ id }) {
           border: "1px solid var(--border-subtle, #e2e8f0)"
         }}>
           <Icon name="info" size={14} style={{ color: "var(--color-brand, #2563eb)" }} />
-          <span>{lang === "VN" || lang === "VI" ? "Hồ sơ đang trong quy trình xét duyệt của nhà tuyển dụng. Chỉ có thể rút hồ sơ khi ở trạng thái 'Đã nộp'." : "This application is currently being screened by the employer. Applications can only be withdrawn while in 'Applied' status."}</span>
+          <span>
+            {isViewedByEmployer
+              ? (lang === "VN" || lang === "VI"
+                ? "Nhà tuyển dụng đã xem hồ sơ của bạn nên không thể tự rút hồ sơ trực tiếp. Vui lòng liên hệ Hỗ trợ nếu cần thay đổi."
+                : "This application has already been viewed by the employer, so self-service withdrawal is closed. Please contact Support if you need assistance.")
+              : (lang === "VN" || lang === "VI"
+                ? "Hồ sơ đang trong quy trình xét duyệt của nhà tuyển dụng. Chỉ có thể rút hồ sơ khi ở trạng thái 'Đã nộp' và chưa được xem."
+                : "This application is currently being screened by the employer. Applications can only be withdrawn while in 'Applied' status and unread.")}
+          </span>
         </div>
       )}
 
@@ -394,6 +403,26 @@ export default function ApplicationDetailClient({ id }) {
               </a>
             );
           })()}
+          {app.profile_snapshot && typeof app.profile_snapshot === "object" && (
+            <div style={{ marginTop: 14, padding: "10px 14px", borderRadius: 8, background: "var(--surface-sunken, #f8fafc)", border: "1px solid var(--border-line, #e2e8f0)", fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, color: "var(--text-primary)", fontWeight: 700 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Icon name="lock" size={13} />
+                  {lang === "VN" || lang === "VI" ? "Bản sao hồ sơ cố định tại thời điểm nộp" : "Submitted Profile Snapshot (Read-Only)"}
+                </span>
+              </div>
+              <div>
+                <strong>{app.profile_snapshot.full_name || "—"}</strong>
+                {app.profile_snapshot.headline ? ` · ${app.profile_snapshot.headline}` : ""}
+                {app.profile_snapshot.experience_years !== undefined ? ` · ${app.profile_snapshot.experience_years} ${lang === "VN" || lang === "VI" ? "năm KN" : "yrs exp"}` : ""}
+              </div>
+              {Array.isArray(app.profile_snapshot.skills) && app.profile_snapshot.skills.length > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  {t(lang, "Skills")}: {app.profile_snapshot.skills.join(", ")}
+                </div>
+              )}
+            </div>
+          )}
           {app.coverLetter && (
             <>
               <strong style={{ display: "block", margin: "12px 0 4px", fontSize: "var(--text-sm)" }}>{t(lang, "Cover letter")}</strong>

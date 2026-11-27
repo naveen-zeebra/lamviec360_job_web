@@ -6,10 +6,10 @@ import * as Yup from "yup";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import Icon from "../../../components/ds/Icon";
-import { Button, Input } from "../../../components/ds";
+import { Button } from "../../../components/ds";
 import OtpInput from "../../../components/ds/OtpInput";
 import Toast, { useToast } from "../../../components/ds/Toast";
-import { useLang, t } from "../../../utils/lang";
+import { useLang, t, tr } from "../../../utils/lang";
 import { getAuth, verifyEmail, sendVerificationCode } from "../../../lib/seekerStore";
 
 const RESEND_SECONDS = 45;
@@ -20,21 +20,35 @@ export default function VerifyEmailClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryEmail = searchParams?.get("email") || "";
+  const rawRedirect = searchParams?.get("redirect") || "";
+  const safeRedirect =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "";
 
   const [email, setEmail] = useState("");
-  const [editingEmail, setEditingEmail] = useState(false);
-  const [tempEmail, setTempEmail] = useState("");
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [expirySeconds, setExpirySeconds] = useState(OTP_EXPIRY_SECONDS);
+  const [deliveryWarning, setDeliveryWarning] = useState("");
+  const [devCode, setDevCode] = useState("");
   const [toast, setToast] = useToast();
 
   useEffect(() => {
-    const authEmail = getAuth()?.email || "";
+    const auth = getAuth();
+    const authEmail = auth?.email || "";
     const target = (queryEmail || authEmail || "").trim();
     setEmail(target);
-    setTempEmail(target);
-    if (!target) {
-      setEditingEmail(true);
+    const delivery = auth?.emailDelivery;
+    if (delivery && delivery.emailDelivered === false) {
+      setDeliveryWarning(
+        delivery.warning ||
+        tr(
+          lang,
+          "Không thể gửi email thực lúc này; mã xác thực đã được ghi vào console backend ở chế độ local.",
+          "Email delivery is unavailable right now; verification code was logged to the backend console in local mode."
+        )
+      );
+      setDevCode(delivery.devCode || "");
     }
   }, [queryEmail]);
 
@@ -74,17 +88,19 @@ export default function VerifyEmailClient() {
         setSubmitting(false);
         return;
       }
-      const targetEmail = (email || tempEmail || "").trim().toLowerCase();
+      const targetEmail = (email || "").trim().toLowerCase();
       if (!targetEmail) {
-        setStatus(t(lang, "Please enter your email address to verify."));
-        setEditingEmail(true);
+        setStatus(t(lang, "Email address is missing. Please register or sign in again."));
         setSubmitting(false);
         return;
       }
       try {
         await verifyEmail(targetEmail, values.code.trim());
         setToast(t(lang, "Email verified successfully!"));
-        setTimeout(() => router.push("/onboarding"), 600);
+        const nextUrl = safeRedirect
+          ? `/onboarding?redirect=${encodeURIComponent(safeRedirect)}`
+          : "/onboarding";
+        setTimeout(() => router.push(nextUrl), 600);
       } catch (error) {
         const msg = error?.message || t(lang, "Invalid verification code.");
         setStatus(msg);
@@ -94,39 +110,41 @@ export default function VerifyEmailClient() {
     },
   });
 
-  const resend = async () => {
-    const targetEmail = (email || tempEmail || "").trim().toLowerCase();
-    if (!targetEmail) {
-      setToast(t(lang, "Email address is required to send code."));
-      setEditingEmail(true);
-      return;
-    }
-    setSeconds(RESEND_SECONDS);
-    setExpirySeconds(OTP_EXPIRY_SECONDS);
-    try {
-      await sendVerificationCode(targetEmail);
-      setToast(t(lang, "A new verification code has been sent to your email."));
-    } catch (err) {
-      setToast(err.message || t(lang, "Failed to send code. Please try again."));
+  const applyDeliveryFeedback = (res, defaultSuccessMsg) => {
+    if (res && res.email_delivered === false) {
+      const warnMsg =
+        res.warning ||
+        tr(
+          lang,
+          "Không thể gửi email thực lúc này; mã xác thực đã được ghi vào console backend ở chế độ local.",
+          "Email delivery is unavailable right now; verification code was logged to the backend console in local mode."
+        );
+      setDeliveryWarning(warnMsg);
+      setDevCode(res.dev_code || "");
+      setToast(warnMsg);
+    } else {
+      setDeliveryWarning("");
+      setDevCode("");
+      setToast(defaultSuccessMsg);
     }
   };
 
-  const handleSaveEmail = async () => {
-    const clean = tempEmail.trim().toLowerCase();
-    if (!clean || !clean.includes("@")) {
-      setToast(t(lang, "Please enter a valid email address."));
+  const resend = async () => {
+    const targetEmail = (email || "").trim().toLowerCase();
+    if (!targetEmail) {
+      setToast(t(lang, "Email address is required to send code."));
       return;
     }
-    setEmail(clean);
-    setEditingEmail(false);
-    formik.setStatus(null);
     setSeconds(RESEND_SECONDS);
     setExpirySeconds(OTP_EXPIRY_SECONDS);
     try {
-      await sendVerificationCode(clean);
-      setToast(t(lang, "Verification code sent to your updated email!"));
-    } catch (e) {
-      setToast(e.message || t(lang, "Could not send code. Please try again."));
+      const res = await sendVerificationCode(targetEmail);
+      applyDeliveryFeedback(res, t(lang, "A new verification code has been sent to your email."));
+    } catch (err) {
+      setSeconds(0);
+      const msg = err.message || t(lang, "Failed to send code. Please try again.");
+      setDeliveryWarning(msg);
+      setToast(msg);
     }
   };
 
@@ -142,47 +160,10 @@ export default function VerifyEmailClient() {
             <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, marginBottom: 8 }}>
               {t(lang, "Verify your email")}
             </h1>
-            {!editingEmail ? (
-              <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-relaxed)" }}>
-                {t(lang, "We sent a 6-digit code to")}{" "}
-                <strong style={{ color: "var(--text-primary)" }}>{email || t(lang, "your email")}</strong>.{" "}
-                <button
-                  type="button"
-                  onClick={() => setEditingEmail(true)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--text-brand)",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                    fontSize: "var(--text-xs)",
-                    padding: 0,
-                    marginLeft: 4,
-                  }}
-                >
-                  {t(lang, "Change")}
-                </button>
-              </p>
-            ) : (
-              <div style={{ marginTop: 8, marginBottom: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-                <label style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontWeight: 600 }}>
-                  {t(lang, "Confirm your email address:")}
-                </label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Input
-                    type="email"
-                    value={tempEmail}
-                    onChange={(e) => setTempEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    style={{ flex: 1 }}
-                  />
-                  <Button type="button" variant="secondary" size="sm" onClick={handleSaveEmail}>
-                    {t(lang, "Send Code")}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-relaxed)" }}>
+              {t(lang, "We sent a 6-digit code to")}{" "}
+              <strong style={{ color: "var(--text-primary)" }}>{email || t(lang, "your email")}</strong>.
+            </p>
           </div>
 
           <form onSubmit={formik.handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import RegisterClient from "./RegisterClient";
 
 export const metadata = {
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <RegisterClient />;
+  return (
+    <Suspense fallback={<div style={{ minHeight: "60vh" }} />}>
+      <RegisterClient />
+    </Suspense>
+  );
 }

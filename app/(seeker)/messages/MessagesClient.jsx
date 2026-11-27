@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "../../../components/ds";
@@ -29,6 +29,7 @@ export default function MessagesClient() {
   const [loadingChat, setLoadingChat] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
     setLoadingThreads(true);
@@ -60,6 +61,10 @@ export default function MessagesClient() {
       .catch((err) => setToast(err?.message || t(lang, "Could not load conversation")))
       .finally(() => setLoadingChat(false));
   }, [selectedAppId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [messages.length, selectedAppId]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -198,6 +203,7 @@ export default function MessagesClient() {
                     );
                   })
                 )}
+                <div ref={messagesEndRef} />
               </div>
 
               {activeThread.allow_recruiter_dm && (
